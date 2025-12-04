@@ -27,6 +27,9 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 
 	@Autowired
 	private JwtUtil jwtUtil;
+
+	@Autowired
+	private com.DEVision.JobApplicant.common.service.RedisService redisService;
 	
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -55,7 +58,14 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 					break;
 				}
 			}
-			
+
+			// Check if token is blacklisted (revoked during logout)
+			if (token != null && redisService.isTokenBlacklisted(token)) {
+				// Token has been revoked - reject authentication
+				filterChain.doFilter(request, response);
+				return;
+			}
+
 			if (token != null && isValidToken
 				&& SecurityContextHolder.getContext().getAuthentication() == null) {
 

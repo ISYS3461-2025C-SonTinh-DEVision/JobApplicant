@@ -42,6 +42,10 @@ public class AuthModel {
     private String activationToken;
     private LocalDateTime activationTokenExpiry;
 
+    // Password reset fields
+    private String passwordResetToken;
+    private LocalDateTime passwordResetTokenExpiry;
+
     public AuthModel(String username, String password, String role, boolean enabled) {
         this.email = username;
         this.password = password;
@@ -112,5 +116,21 @@ public class AuthModel {
     
     public void setActivationTokenExpiry(LocalDateTime activationTokenExpiry) {
         this.activationTokenExpiry = activationTokenExpiry;
+    }
+
+    public String getPasswordResetToken() {
+        return passwordResetToken;
+    }
+
+    public void setPasswordResetToken(String passwordResetToken) {
+        this.passwordResetToken = passwordResetToken;
+    }
+
+    public LocalDateTime getPasswordResetTokenExpiry() {
+        return passwordResetTokenExpiry;
+    }
+
+    public void setPasswordResetTokenExpiry(LocalDateTime passwordResetTokenExpiry) {
+        this.passwordResetTokenExpiry = passwordResetTokenExpiry;
     }
 }

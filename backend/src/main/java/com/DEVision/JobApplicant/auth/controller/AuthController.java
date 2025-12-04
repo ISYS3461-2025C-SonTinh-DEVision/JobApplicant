@@ -1,5 +1,11 @@
 package com.DEVision.JobApplicant.auth.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +32,8 @@ import com.DEVision.JobApplicant.auth.Dto.DtoLogin;
 import com.DEVision.JobApplicant.auth.Dto.DtoRefreshToken;
 import com.DEVision.JobApplicant.auth.Dto.DtoRegistration;
 import com.DEVision.JobApplicant.auth.Dto.DtoRegistrationResponse;
+import com.DEVision.JobApplicant.auth.Dto.DtoForgotPassword;
+import com.DEVision.JobApplicant.auth.Dto.DtoResetPassword;
 import com.DEVision.JobApplicant.auth.config.AuthConfig;
 import com.DEVision.JobApplicant.auth.model.AuthModel;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
@@ -43,6 +51,7 @@ import java.util.UUID;
 
 @RestController
 @CrossOrigin(origins = "https://localhost:3000")
+@Tag(name = "Authentication", description = "User authentication and authorization endpoints")
 class AuthController {
 
     @Autowired
@@ -66,6 +75,15 @@ class AuthController {
     @Autowired
     private ApplicantService applicantService;
 
+    @Autowired
+    private com.DEVision.JobApplicant.common.service.RedisService redisService;
+
+@Operation(summary = "Register new user", description = "Create a new applicant account with email activation")
+@ApiResponses(value = {
+    @ApiResponse(responseCode = "201", description = "Registration successful, activation email sent"),
+    @ApiResponse(responseCode = "409", description = "Email already in use"),
+    @ApiResponse(responseCode = "400", description = "Invalid input or registration failed")
+})
 @PostMapping("/register")
 @Transactional
 public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody DtoRegistration registrationDto) {
@@ -139,6 +157,11 @@ public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody 
     /**
      * Activate user account using activation token
      */
+    @Operation(summary = "Activate account", description = "Activate user account using token from activation email")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Account activated successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid or expired token")
+    })
     @GetMapping("/activate")
     public ResponseEntity<?> activateAccount(@RequestBody Map<String, String> request) {
         try {
@@ -198,9 +221,16 @@ public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody 
         }
     }
 
+    @Operation(summary = "User login", description = "Authenticate user and return JWT tokens with brute-force protection")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Login successful"),
+        @ApiResponse(responseCode = "401", description = "Invalid credentials"),
+        @ApiResponse(responseCode = "403", description = "Account not activated"),
+        @ApiResponse(responseCode = "429", description = "Too many login attempts (rate limited)")
+    })
     @PostMapping("/login")
     public ResponseEntity<DtoAuthResponse> login(
-        HttpServletRequest request, 
+        HttpServletRequest request,
         HttpServletResponse response,
         @RequestBody DtoLogin loginDto
     ) {
@@ -208,6 +238,15 @@ public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody 
         String password = loginDto.getPassword();
 
         try {
+            // Brute-force protection: Check rate limit (5 attempts per 60 seconds)
+            if (!redisService.allowLoginAttempt(username)) {
+                long attempts = redisService.getLoginAttempts(username);
+                return new ResponseEntity<>(
+                    new DtoAuthResponse("Too many login attempts (" + attempts + "/5). Please try again in 60 seconds.", "N/A"),
+                    HttpStatus.TOO_MANY_REQUESTS
+                );
+            }
+
             // Check if account is activated
             AuthModel user = userRepository.findByEmail(username);
             if (user != null && !user.isActivated()) {
@@ -234,14 +273,17 @@ public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody 
             System.out.println("User Authenticated: " + token.isAuthenticated());
 
             if (token.isAuthenticated()) {
+                // Reset login attempts on successful authentication
+                redisService.resetLoginAttempts(username);
+
                 Map<String, String> tokens = userService.createAuthTokens(
-                    (UserDetails) token.getPrincipal(), 
+                    (UserDetails) token.getPrincipal(),
                     token.isAuthenticated()
                 );
 
                 String accessToken = tokens.get("accessToken");
                 String refreshToken = tokens.get("refreshToken");
-                
+
                 DtoAuthResponse responseDto = new DtoAuthResponse(accessToken, refreshToken);
 
                 // Create access token cookie
@@ -278,6 +320,11 @@ public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody 
         }
     }
     
+    @Operation(summary = "Refresh access token", description = "Get a new access token using refresh token")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
+        @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
+    })
     @PostMapping("/refresh")
     public ResponseEntity<DtoAuthResponse> refreshToken(
         HttpServletRequest request,
@@ -315,9 +362,14 @@ public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody 
      * Endpoint to check if the user is authenticated and has a valid session.
      * Also refreshes the token if it's close to expiring.
      */
+    @Operation(summary = "Check session", description = "Verify if user session is valid and refresh token if needed")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Session is valid"),
+        @ApiResponse(responseCode = "401", description = "Session expired or invalid")
+    })
     @GetMapping("/check-session")
     public ResponseEntity<?> checkSession(
-        HttpServletRequest request, 
+        HttpServletRequest request,
         HttpServletResponse response,
         @AuthenticationPrincipal UserDetails userDetails
     ) {
@@ -372,44 +424,163 @@ public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody 
     }
     
     /**
-     * Endpoint to logout user by clearing auth cookies
+     * Endpoint to logout user by clearing auth cookies and blacklisting tokens
      */
+    @Operation(summary = "User logout", description = "Logout user, clear cookies, and blacklist tokens")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Logout successful"),
+        @ApiResponse(responseCode = "500", description = "Logout failed")
+    })
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response) {
-        // Create expired cookies to clear the existing ones
-        Cookie accessCookie = new Cookie(AuthConfig.AUTH_COOKIE_NAME, "");
-        accessCookie.setMaxAge(0);
-        accessCookie.setPath("/");
-        
-        Cookie refreshCookie = new Cookie(AuthConfig.REFRESH_COOKIE_NAME, "");
-        refreshCookie.setMaxAge(0);
-        refreshCookie.setPath("/");
-        
-        response.addCookie(accessCookie);
-        response.addCookie(refreshCookie);
-        
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        return new ResponseEntity<>(result, HttpStatus.OK);
-    }
-    
-    private String extractTokenFromRequest(HttpServletRequest request) {
-        // Try to get token from Authorization header
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7);
-        }
-        
-        // Check cookies if header is not available
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if ("jwt".equals(cookie.getName())) {
-                    return cookie.getValue();
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            // Extract tokens from cookies
+            Cookie[] cookies = request.getCookies();
+            String accessToken = null;
+            String refreshToken = null;
+
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    if (AuthConfig.AUTH_COOKIE_NAME.equals(cookie.getName())) {
+                        accessToken = cookie.getValue();
+                    } else if (AuthConfig.REFRESH_COOKIE_NAME.equals(cookie.getName())) {
+                        refreshToken = cookie.getValue();
+                    }
                 }
             }
+
+            // Blacklist tokens in Redis (prevent reuse)
+            if (accessToken != null && !accessToken.isEmpty()) {
+                redisService.blacklistToken(accessToken, 1440); // 24 hours (match token expiry)
+            }
+            if (refreshToken != null && !refreshToken.isEmpty()) {
+                redisService.blacklistToken(refreshToken, 10080); // 7 days (match refresh token expiry)
+            }
+
+            // Create expired cookies to clear the existing ones
+            Cookie accessCookie = new Cookie(AuthConfig.AUTH_COOKIE_NAME, "");
+            accessCookie.setMaxAge(0);
+            accessCookie.setPath("/");
+
+            Cookie refreshCookie = new Cookie(AuthConfig.REFRESH_COOKIE_NAME, "");
+            refreshCookie.setMaxAge(0);
+            refreshCookie.setPath("/");
+
+            response.addCookie(accessCookie);
+            response.addCookie(refreshCookie);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", "Logged out successfully");
+            return new ResponseEntity<>(result, HttpStatus.OK);
+
+        } catch (Exception e) {
+            System.err.println("Error during logout: " + e.getMessage());
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "Logout failed");
+            return new ResponseEntity<>(result, HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        
-        return null;
+    }
+    
+    /**
+     * Forgot password - Send reset password email
+     */
+    @Operation(summary = "Forgot password", description = "Request password reset link via email")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Password reset email sent"),
+        @ApiResponse(responseCode = "404", description = "Email not found"),
+        @ApiResponse(responseCode = "400", description = "Invalid request")
+    })
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody DtoForgotPassword forgotPasswordDto) {
+        try {
+            AuthModel user = userRepository.findByEmail(forgotPasswordDto.getEmail());
+
+            if (user == null) {
+                // Return success even if user not found (security best practice - don't reveal if email exists)
+                return new ResponseEntity<>(
+                    Map.of("message", "If an account exists with this email, a password reset link has been sent.", "success", true),
+                    HttpStatus.OK
+                );
+            }
+
+            // Generate password reset token
+            String resetToken = UUID.randomUUID().toString();
+            user.setPasswordResetToken(resetToken);
+            user.setPasswordResetTokenExpiry(LocalDateTime.now().plusHours(1)); // 1 hour expiry
+            userRepository.save(user);
+
+            // Send password reset email
+            try {
+                emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
+            } catch (Exception emailException) {
+                System.err.println("Failed to send password reset email: " + emailException.getMessage());
+                return new ResponseEntity<>(
+                    Map.of("message", "Failed to send reset email. Please try again later.", "success", false),
+                    HttpStatus.INTERNAL_SERVER_ERROR
+                );
+            }
+
+            return new ResponseEntity<>(
+                Map.of("message", "If an account exists with this email, a password reset link has been sent.", "success", true),
+                HttpStatus.OK
+            );
+
+        } catch (Exception e) {
+            System.err.println("Error in forgot password: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "An error occurred. Please try again later.", "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Reset password using token from email
+     */
+    @Operation(summary = "Reset password", description = "Reset password using token from reset email")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Password reset successful"),
+        @ApiResponse(responseCode = "400", description = "Invalid or expired token")
+    })
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody DtoResetPassword resetPasswordDto) {
+        try {
+            AuthModel user = userRepository.findByPasswordResetToken(resetPasswordDto.getToken());
+
+            if (user == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Invalid reset token", "success", false),
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+
+            // Check if token has expired
+            if (user.getPasswordResetTokenExpiry().isBefore(LocalDateTime.now())) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Reset token has expired. Please request a new password reset.", "success", false),
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+
+            // Update password
+            user.setPassword(passwordEncoder.encode(resetPasswordDto.getNewPassword()));
+            user.setPasswordResetToken(null); // Clear the token
+            user.setPasswordResetTokenExpiry(null);
+            userRepository.save(user);
+
+            return new ResponseEntity<>(
+                Map.of("message", "Password reset successful! You can now login with your new password.", "success", true),
+                HttpStatus.OK
+            );
+
+        } catch (Exception e) {
+            System.err.println("Error resetting password: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to reset password: " + e.getMessage(), "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
     }
 }
