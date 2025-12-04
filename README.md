@@ -97,11 +97,13 @@ JobApplicant/
 ### **Phase 1: Project Setup & Infrastructure (Week 1)**
 
 #### 1.1 Backend Setup
-- [ ] Initialize Spring Boot project with Maven
-- [ ] Configure application.properties for MongoDB Atlas
-- [ ] Set up Redis connection
+- [x] Initialize Spring Boot project with Maven ✅
+- [x] Configure application.yml for MongoDB Atlas ✅
+- [x] Set up Redis connection for caching and rate limiting ✅
+- [x] Create modular package structure (auth, applicant, common, jwt, filter) ✅
+- [x] Configure Spring Security with JWT authentication ✅
+- [x] Set up email service (Resend SMTP) ✅
 - [ ] Configure Kafka consumer for Job Post events
-- [ ] Create modular package structure
 
 #### 1.2 Frontend Setup
 - [ ] Initialize React project with Vite/Create React App
@@ -111,10 +113,11 @@ JobApplicant/
 - [ ] Set up Context-based state management
 
 #### 1.3 Database & Infrastructure
-- [ ] Set up MongoDB Atlas cluster
+- [x] Set up MongoDB Atlas cluster ✅
+- [x] Create database collections (AUTH, APPLICANT) ✅
+- [x] Set up Redis instance (localhost:6379) ✅
 - [ ] Configure country-based sharding on APPLICANT collection
-- [ ] Create database collections (APPLICANT, EDUCATION, WORK_EXPERIENCE, etc.)
-- [ ] Set up Redis instance
+- [ ] Create remaining collections (EDUCATION, WORK_EXPERIENCE, etc.)
 - [ ] Configure Kafka topics for JA-JM communication
 
 #### 1.4 DevOps
@@ -128,15 +131,26 @@ JobApplicant/
 
 #### 2.1 Authentication Module (Simplex + Medium)
 **Backend:**
-- [ ] POST /auth/register - User registration with email verification
-- [ ] POST /auth/login - Login with JWT token generation
-- [ ] POST /auth/logout - Token revocation with Redis
+- [x] POST /register - User registration with email activation ✅
+- [x] POST /login - Login with JWT token generation (access + refresh) ✅
+- [x] POST /logout - Token revocation with Redis blacklist ✅
+- [x] POST /refresh - Refresh access token using refresh token ✅
+- [x] GET /activate - Email verification endpoint with token validation ✅
+- [x] POST /forgot-password - Request password reset via email ✅
+- [x] POST /reset-password - Reset password using email token ✅
+- [x] GET /check-session - Validate session and refresh token if needed ✅
 - [ ] POST /auth/google - Google OAuth SSO integration (Ultimo)
-- [ ] GET /auth/verify - Email verification endpoint
-- [ ] Implement password validation (min 8 chars, 1 number, 1 special, 1 uppercase)
-- [ ] Implement email validation
-- [ ] Store refresh tokens in Redis
-- [ ] Implement brute-force protection (5 failed attempts in 60 seconds)
+- [x] Password validation (min 8 chars, complexity rules) ✅
+- [x] Email validation with real email delivery ✅
+- [x] Store tokens in HttpOnly cookies for security ✅
+- [x] Redis-based token blacklisting (prevents reuse after logout) ✅
+- [x] Brute-force protection (max 5 attempts per 60 seconds) ✅
+- [x] BCrypt password hashing ✅
+- [x] JWT with signature verification ✅
+- [x] Activation token with 24-hour expiry ✅
+- [x] Reset token with 1-hour expiry ✅
+- [x] Swagger/OpenAPI documentation ✅
+- [x] Postman collection for API testing ✅
 
 **Frontend:**
 - [ ] Login page with form validation
@@ -438,6 +452,147 @@ npm start
 # Frontend: http://localhost:3000
 # Backend: http://localhost:8080
 ```
+
+---
+
+## **🔐 Authentication API (Completed)**
+
+### **Overview**
+The authentication system is fully implemented with comprehensive security features including Redis-based token blacklisting, brute-force protection, and email-based account activation and password reset.
+
+### **Available Endpoints**
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/register` | POST | Register new user with email activation | No |
+| `/activate` | GET | Activate account using email token | No |
+| `/login` | POST | Login and receive JWT tokens | No |
+| `/logout` | POST | Logout and blacklist tokens | Yes |
+| `/check-session` | GET | Validate current session | Yes |
+| `/refresh` | POST | Refresh access token | No |
+| `/forgot-password` | POST | Request password reset email | No |
+| `/reset-password` | POST | Reset password using email token | No |
+| `/swagger-ui.html` | GET | API documentation interface | No |
+
+### **Testing the API**
+
+#### **Option 1: Postman Collection (Recommended)**
+```bash
+# Import the provided Postman collection
+File: backend/JobApplicant_Auth_API.postman_collection.json
+
+# Collection includes:
+- 10 pre-configured API requests with examples
+- Automated token management
+- Test scripts for validation
+- Complete test scenarios
+```
+
+#### **Option 2: Swagger UI**
+```
+# Start the backend server
+cd backend
+./mvnw spring-boot:run
+
+# Access Swagger UI
+http://localhost:8080/swagger-ui.html
+```
+
+#### **Option 3: curl Commands**
+```bash
+# 1. Register a new user
+curl -X POST http://localhost:8080/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePass123!",
+    "country": "Vietnam",
+    "phoneNumber": "+84987654321",
+    "address": "123 Example St",
+    "city": "Ho Chi Minh City"
+  }'
+
+# 2. Activate account (use token from email)
+curl -X GET http://localhost:8080/activate \
+  -H "Content-Type: application/json" \
+  -d '{"token": "your-activation-token"}'
+
+# 3. Login
+curl -X POST http://localhost:8080/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePass123!"
+  }'
+```
+
+### **Security Features**
+
+#### **Redis-Based Token Blacklist**
+- All tokens are blacklisted upon logout
+- Blacklisted tokens are rejected by the authentication filter
+- Tokens expire automatically (access: 24h, refresh: 7 days)
+- Monitor Redis in real-time: `redis-cli MONITOR`
+
+#### **Brute-Force Protection**
+- Rate limiting: Max 5 login attempts per 60 seconds
+- Tracked per email address in Redis
+- Returns HTTP 429 when limit exceeded
+- Automatic reset after successful login
+
+#### **Email Integration**
+- Resend email service for reliable delivery
+- Activation emails (24-hour token expiry)
+- Password reset emails (1-hour token expiry)
+- Configurable sender address via environment variables
+
+### **Environment Configuration**
+
+Required environment variables (`.env` file):
+```env
+# Database
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/
+
+# Redis (Token blacklist & rate limiting)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+# Email Service (Resend)
+MAIL_USERNAME=resend
+MAIL_PASSWORD=your_resend_api_key
+MAIL_FROM=noreply@yourdomain.com
+
+# Server
+SERVER_PORT=8080
+FRONTEND_BASE_URL=http://localhost:3000
+```
+
+### **Monitoring Redis Activity**
+
+To see real-time Redis commands during authentication operations:
+```bash
+# Terminal 1: Start Redis monitor
+redis-cli MONITOR
+
+# Terminal 2: Perform authentication actions
+# You will see commands like:
+# - SET "login_attempts:email@example.com" "1" EX 60
+# - INCR "login_attempts:email@example.com"
+# - SET "blacklist:token..." "revoked" EX 1440
+# - EXISTS "blacklist:token..."
+```
+
+### **Testing Checklist**
+- [x] User registration with email delivery ✅
+- [x] Account activation via email token ✅
+- [x] Login with JWT token generation ✅
+- [x] Session validation ✅
+- [x] Token refresh mechanism ✅
+- [x] Password reset flow ✅
+- [x] Logout with token blacklisting ✅
+- [x] Brute-force protection (429 after 5 attempts) ✅
+- [x] Blacklisted token rejection (403 after logout) ✅
 
 ---
 
