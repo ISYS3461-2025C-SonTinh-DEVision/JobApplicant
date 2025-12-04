@@ -16,6 +16,8 @@
 app:
   frontend:
     base-url: ${FRONTEND_BASE_URL}
+  mail:
+    from: ${MAIL_FROM:onboarding@resend.dev}
 
 spring:
   data:
