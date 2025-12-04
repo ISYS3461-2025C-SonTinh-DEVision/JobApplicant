@@ -90,8 +90,6 @@ public class JweUtil {
 			ex.printStackTrace();
 		}
 
-		String jwtCipherTxt = jwt.getCipherText().decodeToString();
-
 		return jwt.toString();
 	}
 	
@@ -106,9 +104,6 @@ public class JweUtil {
 	public String decryptPasswordInJwe(String password) {
 		RSADecrypter decrypter = new RSADecrypter((RSAPrivateKey) keyStoreManager.getPrivateKey());
 		System.out.println("Private RSA Key: " + ((RSAPrivateKey) keyStoreManager.getPrivateKey()).getPrivateExponent());
-		JWEHeader jweHeader = new JWEHeader(JWEAlgorithm.RSA_OAEP_256, EncryptionMethod.A256GCM);
-
-		JWTClaimsSet.Builder claimsSet = new JWTClaimsSet.Builder();
 
 		String decryptedPw = "";
 
