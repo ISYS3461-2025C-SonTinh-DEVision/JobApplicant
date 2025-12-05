@@ -27,6 +27,9 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 
 	@Autowired
 	private JwtUtil jwtUtil;
+
+	@Autowired
+	private com.DEVision.JobApplicant.common.service.RedisService redisService;
 	
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -39,9 +42,16 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		String requestPath = request.getServletPath();
 
 		// Public paths that don't require authentication
-		if (requestPath.equals("/login") || 
-		    requestPath.equals("/register") || 
-		    requestPath.equals("/refresh") || 
+		if (requestPath.equals("/login") ||
+		    requestPath.equals("/register") ||
+		    requestPath.equals("/refresh") ||
+		    requestPath.equals("/logout") ||
+		    requestPath.equals("/activate") ||
+		    requestPath.equals("/forgot-password") ||
+		    requestPath.equals("/reset-password") ||
+		    requestPath.equals("/api/countries") ||
+		    requestPath.startsWith("/swagger-ui") ||
+		    requestPath.startsWith("/v3/api-docs") ||
 		    requestPath.startsWith("/api/tickets")) {
 			filterChain.doFilter(request, response);
 			return;
@@ -55,7 +65,14 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 					break;
 				}
 			}
-			
+
+			// Check if token is blacklisted (revoked during logout)
+			if (token != null && redisService.isTokenBlacklisted(token)) {
+				// Token has been revoked - reject authentication
+				filterChain.doFilter(request, response);
+				return;
+			}
+
 			if (token != null && isValidToken
 				&& SecurityContextHolder.getContext().getAuthentication() == null) {
 

@@ -1,0 +1,359 @@
+{
+	"info": {
+		"_postman_id": "ja-auth-api-2025",
+		"name": "Job Applicant - Auth API (Enhanced)",
+		"description": "Complete authentication API testing suite with Redis token blacklisting, brute-force protection, and password reset flow",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Register New User",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 201) {",
+							"    const response = pm.response.json();",
+							"    pm.environment.set('userId', response.userId);",
+							"    pm.environment.set('applicantId', response.applicantId);",
+							"    console.log('User registered successfully!');",
+							"    console.log('Check your email for activation link');",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test@1234\",\n  \"country\": \"Vietnam\",\n  \"phoneNumber\": \"+84123456789\",\n  \"address\": \"123 Test Street\",\n  \"city\": \"Ho Chi Minh City\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/register",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"register"
+					]
+				},
+				"description": "Register a new applicant account. Account will be created but disabled until email is activated."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Activate Account",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"token\": \"paste-activation-token-from-email\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/activate",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"activate"
+					]
+				},
+				"description": "Activate account using token from activation email. Replace 'paste-activation-token-from-email' with actual token."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    const response = pm.response.json();",
+							"    pm.environment.set('accessToken', response.accessToken);",
+							"    pm.environment.set('refreshToken', response.refreshToken);",
+							"    console.log('Login successful!');",
+							"    console.log('Access Token:', response.accessToken);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test@1234\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"login"
+					]
+				},
+				"description": "Login with email and password. Returns JWT access token and refresh token. Brute-force protection: max 5 attempts per 60 seconds."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Check Session",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/check-session",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"check-session"
+					]
+				},
+				"description": "Verify if current session is valid. Requires valid access token in Authorization header."
+			},
+			"response": []
+		},
+		{
+			"name": "5. Refresh Token",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    const response = pm.response.json();",
+							"    pm.environment.set('accessToken', response.accessToken);",
+							"    console.log('Token refreshed successfully!');",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/refresh",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"refresh"
+					]
+				},
+				"description": "Get a new access token using refresh token when access token expires."
+			},
+			"response": []
+		},
+		{
+			"name": "6. Forgot Password",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/forgot-password",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"forgot-password"
+					]
+				},
+				"description": "Request password reset link. Email will be sent with reset token (1 hour expiry)."
+			},
+			"response": []
+		},
+		{
+			"name": "7. Reset Password",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"token\": \"paste-reset-token-from-email\",\n  \"newPassword\": \"NewTest@1234\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/reset-password",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"reset-password"
+					]
+				},
+				"description": "Reset password using token from reset email. Replace 'paste-reset-token-from-email' with actual token."
+			},
+			"response": []
+		},
+		{
+			"name": "8. Logout",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/logout",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"logout"
+					]
+				},
+				"description": "Logout user, clear cookies, and blacklist tokens in Redis. Tokens cannot be reused after logout."
+			},
+			"response": []
+		},
+		{
+			"name": "9. Test Brute-Force Protection",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"WrongPassword123!\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"login"
+					]
+				},
+				"description": "Test brute-force protection by attempting login with wrong password. After 5 attempts in 60 seconds, you should get 429 Too Many Requests."
+			},
+			"response": []
+		},
+		{
+			"name": "10. Test Token Blacklist",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/check-session",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"check-session"
+					]
+				},
+				"description": "After logout, use this to test if the old access token is blacklisted. Should return 401 Unauthorized."
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	]
+}

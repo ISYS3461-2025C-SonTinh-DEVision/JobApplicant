@@ -1,0 +1,40 @@
+app:
+  frontend:
+    base-url: http://localhost:3000
+  mail:
+    from: test@example.com
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017
+      database: JA-DB-TEST
+
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 1
+      timeout: 60000
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1
+
+  mail:
+    host: smtp.example.com
+    port: 587
+    username: test@example.com
+    password: testpassword
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
