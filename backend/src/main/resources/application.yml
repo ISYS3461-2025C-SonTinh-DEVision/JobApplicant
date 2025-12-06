@@ -19,6 +19,11 @@ app:
   mail:
     from: ${MAIL_FROM:onboarding@resend.dev}
 
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
+
 spring:
   data:
     mongodb:
