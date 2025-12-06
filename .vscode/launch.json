@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run JobApplicantApplication",
+      "request": "launch",
+      "mainClass": "com.DEVision.JobApplicant.JobApplicantApplication",
+      "projectName": "JobApplicant",
+      "cwd": "${workspaceFolder}/backend"
+    }
+  ]
+}
