@@ -44,6 +44,10 @@ public class SecurityConfig {
 				.requestMatchers("/login", "/register", "/refresh", "/logout", "/activate", "/forgot-password", "/reset-password", "/api/countries").permitAll()
 				// Swagger/OpenAPI documentation endpoints
 				.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+				// Notification endpoints (for testing - consider requiring auth in production)
+				.requestMatchers("/api/notifications/**").permitAll()
+				// WebSocket endpoint
+				.requestMatchers("/ws/**").permitAll()
 				// Protected endpoints
 				.requestMatchers("/check-session").authenticated()
 				.anyRequest().authenticated()
