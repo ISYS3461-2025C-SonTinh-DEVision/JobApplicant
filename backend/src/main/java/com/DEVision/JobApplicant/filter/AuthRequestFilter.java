@@ -52,7 +52,7 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		    requestPath.equals("/api/countries") ||
 		    requestPath.startsWith("/swagger-ui") ||
 		    requestPath.startsWith("/v3/api-docs") ||
-		    requestPath.startsWith("/api/tickets")) {
+		    requestPath.startsWith("/api/")) {
 			filterChain.doFilter(request, response);
 			return;
 		}
