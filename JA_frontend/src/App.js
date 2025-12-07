@@ -1,21 +1,25 @@
-
-import GridTable from './component/grid_table/GridTable';
-import GridTableCard from './component/grid_table/GridTableCard';
-import SearchBar from './component/search_bar/SearchBar';
+import logo from './logo.svg';
+import './App.css';
 
 function App() {
-
   return (
     <div className="App">
-
-      {/* <NewMetroLineForm /> */}
-
-      <GridTable/>
-
-
+      <header className="App-header">
+        <img src={logo} className="App-logo" alt="logo" />
+        <p class="underline">
+          Edit <code>src/App.js</code> and save to reload.
+        </p>
+        <a
+          className="App-link"
+          href="https://reactjs.org"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Learn React
+        </a>
+      </header>
     </div>
   );
 }
 
 export default App;
-
