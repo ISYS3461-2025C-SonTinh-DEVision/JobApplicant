@@ -24,22 +24,18 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import com.DEVision.JobApplicant.auth.Dto.DtoAuthResponse;
-import com.DEVision.JobApplicant.auth.Dto.DtoLogin;
-import com.DEVision.JobApplicant.auth.Dto.DtoRefreshToken;
-import com.DEVision.JobApplicant.auth.Dto.DtoRegistration;
-import com.DEVision.JobApplicant.auth.Dto.DtoRegistrationResponse;
-import com.DEVision.JobApplicant.auth.Dto.DtoForgotPassword;
-import com.DEVision.JobApplicant.auth.Dto.DtoResetPassword;
-import com.DEVision.JobApplicant.auth.config.AuthConfig;
-import com.DEVision.JobApplicant.auth.model.AuthModel;
+import com.DEVision.JobApplicant.auth.internal.dto.AuthResponse;
+import com.DEVision.JobApplicant.auth.internal.dto.LoginRequest;
+import com.DEVision.JobApplicant.auth.internal.dto.RefreshTokenRequest;
+import com.DEVision.JobApplicant.auth.internal.dto.RegisterRequest;
+import com.DEVision.JobApplicant.auth.internal.dto.RegistrationResponse;
+import com.DEVision.JobApplicant.auth.internal.dto.ForgotPasswordRequest;
+import com.DEVision.JobApplicant.auth.internal.dto.ResetPasswordRequest;
+import com.DEVision.JobApplicant.auth.internal.service.AuthInternalService;
+import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.auth.service.AuthService;
 import com.DEVision.JobApplicant.common.config.HttpOnlyCookieConfig;
-import com.DEVision.JobApplicant.common.config.RoleConfig;
-import com.DEVision.JobApplicant.common.service.EmailService;
-import com.DEVision.JobApplicant.applicant.model.Applicant;
-import com.DEVision.JobApplicant.applicant.service.ApplicantService;
 import com.DEVision.JobApplicant.jwt.JwtUtil;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -52,25 +48,16 @@ import java.util.UUID;
 class AuthController {
 
     @Autowired
-    private AuthenticationManager authenticationManager;
+    private AuthInternalService authInternalService;
 
     @Autowired
-    private AuthService userService;
+    private AuthService authService;
 
     @Autowired
     private AuthRepository userRepository;
 
     @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
-    
-    @Autowired
     private JwtUtil jwtUtil;
-    
-    @Autowired
-    private EmailService emailService;
-    
-    @Autowired
-    private ApplicantService applicantService;
 
     @Autowired
     private com.DEVision.JobApplicant.common.service.RedisService redisService;
@@ -82,66 +69,18 @@ class AuthController {
     @ApiResponse(responseCode = "400", description = "Invalid input or registration failed")
 })
 @PostMapping("/register")
-@Transactional
-public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody DtoRegistration registrationDto) {
+public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody RegisterRequest registrationDto) {
     try {
-        // Check if email already exists
-        if (userRepository.existsByEmail(registrationDto.getEmail())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(new DtoRegistrationResponse(
-                            null, null,
-                            registrationDto.getEmail(),
-                            "Registration failed: Email already in use",
-                            false
-                    ));
+        RegistrationResponse response = authInternalService.registerUser(registrationDto);
+
+        if (response.isSuccess()) {
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } else {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
         }
-
-        // Generate activation token
-        String activationToken = UUID.randomUUID().toString();
-
-        // Create user
-        AuthModel newUser = new AuthModel();
-        newUser.setEmail(registrationDto.getEmail());
-        newUser.setPassword(passwordEncoder.encode(registrationDto.getPassword()));
-        newUser.setRole(RoleConfig.APPLICANT.getRoleName());
-        newUser.setEnabled(false);
-        newUser.setActivated(false);
-        newUser.setActivationToken(activationToken);
-        newUser.setActivationTokenExpiry(LocalDateTime.now().plusHours(24));
-
-        AuthModel savedUser = userService.createUser(newUser);
-
-        // Create applicant profile
-        Applicant applicant = new Applicant();
-        applicant.setUserId(savedUser.getId());
-        applicant.setCountry(registrationDto.getCountry());
-        applicant.setPhoneNumber(registrationDto.getPhoneNumber());
-        applicant.setAddress(registrationDto.getAddress());
-        applicant.setCity(registrationDto.getCity());
-
-        Applicant savedApplicant = applicantService.createApplicant(applicant);
-
-        // Send activation email AND fail if email fails
-        try {
-            emailService.sendActivationEmail(savedUser.getEmail(), activationToken);
-        } catch (Exception emailException) {
-            throw new RuntimeException("Failed to send activation email", emailException);
-        }
-
-        // All good
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new DtoRegistrationResponse(
-                        savedUser.getId(),
-                        savedApplicant.getId(),
-                        savedUser.getEmail(),
-                        "Registration successful. Please check your email to activate your account.",
-                        true
-                ));
-
     } catch (Exception e) {
-        // Rollback (because of @Transactional)
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new DtoRegistrationResponse(
+                .body(new RegistrationResponse(
                         null, null,
                         registrationDto.getEmail(),
                         "Registration failed: " + e.getMessage(),
@@ -163,24 +102,139 @@ public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody 
     public ResponseEntity<?> activateAccount(@RequestBody Map<String, String> request) {
         try {
             String token = request.get("token");
-            
+            Map<String, Object> response = authInternalService.activateAccount(token);
+
+            boolean success = (boolean) response.get("success");
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>(
+                Map.of("message", "Activation failed: " + e.getMessage(), "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Login endpoint (old implementation - to be updated)
+     */
+    @Operation(summary = "User login", description = "Authenticate user and return JWT tokens")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Login successful"),
+        @ApiResponse(responseCode = "401", description = "Invalid credentials or account not activated")
+    })
+    @PostMapping("/login")
+    public ResponseEntity<?> login(
+            @Valid @RequestBody LoginRequest loginRequest,
+            HttpServletResponse response) {
+        try {
+            AuthResponse authResponse = authInternalService.login(loginRequest);
+
+            // Set HTTP-only cookie for refresh token
+            Cookie refreshTokenCookie = new Cookie(HttpOnlyCookieConfig.REFRESH_TOKEN_COOKIE_NAME, authResponse.getRefreshToken());
+            refreshTokenCookie.setHttpOnly(true);
+            refreshTokenCookie.setSecure(true);
+            refreshTokenCookie.setPath("/");
+            refreshTokenCookie.setMaxAge(HttpOnlyCookieConfig.REFRESH_TOKEN_COOKIE_MAX_AGE);
+            response.addCookie(refreshTokenCookie);
+
+            // Return access token in response body
+            Map<String, String> responseBody = new HashMap<>();
+            responseBody.put("accessToken", authResponse.getAccessToken());
+            responseBody.put("message", "Login successful");
+
+            return new ResponseEntity<>(responseBody, HttpStatus.OK);
+
+        } catch (Exception e) {
+            return new ResponseEntity<>(
+                Map.of("message", e.getMessage()),
+                HttpStatus.UNAUTHORIZED
+            );
+        }
+    }
+
+    /**
+     * Refresh token endpoint (placeholder - original implementation retained below)
+     */
+    @Operation(summary = "Refresh access token", description = "Get new access token using refresh token from cookie")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
+        @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
+    })
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            // Get refresh token from cookie
+            String refreshToken = null;
+            if (request.getCookies() != null) {
+                for (Cookie cookie : request.getCookies()) {
+                    if (HttpOnlyCookieConfig.REFRESH_TOKEN_COOKIE_NAME.equals(cookie.getName())) {
+                        refreshToken = cookie.getValue();
+                        break;
+                    }
+                }
+            }
+
+            if (refreshToken == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Refresh token not found"),
+                    HttpStatus.UNAUTHORIZED
+                );
+            }
+
+            AuthResponse authResponse = authInternalService.refreshToken(refreshToken);
+
+            // Update refresh token cookie
+            Cookie newRefreshTokenCookie = new Cookie(HttpOnlyCookieConfig.REFRESH_TOKEN_COOKIE_NAME, authResponse.getRefreshToken());
+            newRefreshTokenCookie.setHttpOnly(true);
+            newRefreshTokenCookie.setSecure(true);
+            newRefreshTokenCookie.setPath("/");
+            newRefreshTokenCookie.setMaxAge(HttpOnlyCookieConfig.REFRESH_TOKEN_COOKIE_MAX_AGE);
+            response.addCookie(newRefreshTokenCookie);
+
+            return new ResponseEntity<>(
+                Map.of("accessToken", authResponse.getAccessToken()),
+                HttpStatus.OK
+            );
+
+        } catch (Exception e) {
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to refresh token: " + e.getMessage()),
+                HttpStatus.UNAUTHORIZED
+            );
+        }
+    }
+
+    // ORIGINAL IMPLEMENTATIONS BELOW - keeping for reference/backup
+    // TODO: Review and remove if above implementations work correctly
+
+    /**
+     * OLD Activate implementation
+     */
+    private ResponseEntity<?> OLD_activateAccount(Map<String, String> request) {
+        try {
+            String token = request.get("token");
+
             if (token == null || token.isEmpty()) {
                 return new ResponseEntity<>(
                     Map.of("message", "Activation token is required", "success", false),
                     HttpStatus.BAD_REQUEST
                 );
             }
-            
+
             // Find user by activation token
-            AuthModel user = userRepository.findByActivationToken(token);
-            
+            User user = userRepository.findByActivationToken(token);
+
             if (user == null) {
                 return new ResponseEntity<>(
                     Map.of("message", "Invalid activation token", "success", false),
                     HttpStatus.BAD_REQUEST
                 );
             }
-            
+
             // Check if token has expired
             if (user.getActivationTokenExpiry().isBefore(LocalDateTime.now())) {
                 return new ResponseEntity<>(
@@ -188,7 +242,7 @@ public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody 
                     HttpStatus.BAD_REQUEST
                 );
             }
-            
+
             // Check if already activated
             if (user.isActivated()) {
                 return new ResponseEntity<>(
@@ -196,7 +250,7 @@ public ResponseEntity<DtoRegistrationResponse> registerUser(@Valid @RequestBody 
                     HttpStatus.OK
                 );
             }
-            
+
             // Activate the account
             user.setActivated(true);
             user.setEnabled(true); // Enable login

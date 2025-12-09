@@ -2,11 +2,11 @@ package com.DEVision.JobApplicant.auth.repository;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
 
-import com.DEVision.JobApplicant.auth.model.AuthModel;
+import com.DEVision.JobApplicant.auth.entity.User;
 
-public interface AuthRepository extends MongoRepository<AuthModel, String> {
-    AuthModel findByEmail(String email);
-    AuthModel findByActivationToken(String activationToken);
-    AuthModel findByPasswordResetToken(String passwordResetToken);
+public interface AuthRepository extends MongoRepository<User, String> {
+    User findByEmail(String email);
+    User findByActivationToken(String activationToken);
+    User findByPasswordResetToken(String passwordResetToken);
     boolean existsByEmail(String email);
 }

@@ -6,13 +6,12 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import com.DEVision.JobApplicant.auth.model.AuthModel;
+import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.jwt.JwtUtil;
 
@@ -27,13 +26,13 @@ public class AuthService implements UserDetailsService {
     
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        AuthModel user = userRepository.findByEmail(username);
-        
+        User user = userRepository.findByEmail(username);
+
         if (user == null) {
             throw new UsernameNotFoundException("User not found with email: " + username);
         }
-        
-        return User
+
+        return org.springframework.security.core.userdetails.User
                 .withUsername(user.getEmail())
                 .password(user.getPassword())
                 .roles(user.getRole())
@@ -41,8 +40,8 @@ public class AuthService implements UserDetailsService {
                 .disabled(!user.isEnabled())
                 .build();
     }
-    
-    public AuthModel createUser(AuthModel user) {
+
+    public User createUser(User user) {
         return userRepository.save(user);
     }
     
@@ -81,17 +80,17 @@ public class AuthService implements UserDetailsService {
         return tokens;
     }
 
-    public AuthModel updateUser(String id, AuthModel updatedUser) {
-        Optional<AuthModel> userData = userRepository.findById(id);
-        
+    public User updateUser(String id, User updatedUser) {
+        Optional<User> userData = userRepository.findById(id);
+
         if (userData.isPresent()) {
-            AuthModel existingUser = userData.get();
+            User existingUser = userData.get();
             existingUser.setEmail(updatedUser.getEmail());
             existingUser.setPassword(updatedUser.getPassword());
 
             return userRepository.save(existingUser);
         }
-        
+
         return null;
     }
 
