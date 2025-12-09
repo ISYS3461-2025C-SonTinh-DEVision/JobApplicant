@@ -35,14 +35,16 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test@1234\",\n  \"country\": \"Vietnam\",\n  \"phoneNumber\": \"+84123456789\",\n  \"address\": \"123 Test Street\",\n  \"city\": \"Ho Chi Minh City\"\n}"
+					"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test@1234\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"country\": \"Vietnam\",\n  \"phoneNumber\": \"+84123456789\",\n  \"address\": \"123 Test Street\",\n  \"city\": \"Ho Chi Minh City\"\n}"
 				},
 				"url": {
-					"raw": "{{baseUrl}}/register",
+					"raw": "{{baseUrl}}/api/auth/register",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
+						"api",
+						"auth",
 						"register"
 					]
 				},
@@ -54,26 +56,26 @@
 			"name": "2. Activate Account",
 			"request": {
 				"method": "GET",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"token\": \"paste-activation-token-from-email\"\n}"
-				},
+				"header": [],
 				"url": {
-					"raw": "{{baseUrl}}/activate",
+					"raw": "{{baseUrl}}/api/auth/activate?token=paste-activation-token-from-email",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
+						"api",
+						"auth",
 						"activate"
+					],
+					"query": [
+						{
+							"key": "token",
+							"value": "paste-activation-token-from-email",
+							"description": "Activation token from email"
+						}
 					]
 				},
-				"description": "Activate account using token from activation email. Replace 'paste-activation-token-from-email' with actual token."
+				"description": "Activate account using token from activation email. Replace 'paste-activation-token-from-email' with actual token from your email."
 			},
 			"response": []
 		},
@@ -109,11 +111,13 @@
 					"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test@1234\"\n}"
 				},
 				"url": {
-					"raw": "{{baseUrl}}/login",
+					"raw": "{{baseUrl}}/api/auth/login",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
+						"api",
+						"auth",
 						"login"
 					]
 				},
@@ -137,11 +141,13 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{baseUrl}}/check-session",
+					"raw": "{{baseUrl}}/api/auth/check-session",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
+						"api",
+						"auth",
 						"check-session"
 					]
 				},
@@ -159,7 +165,9 @@
 							"if (pm.response.code === 200) {",
 							"    const response = pm.response.json();",
 							"    pm.environment.set('accessToken', response.accessToken);",
-							"    console.log('Token refreshed successfully!');",
+							"    console.log('✅ Token refreshed successfully!');",
+							"    console.log('New Access Token:', response.accessToken);",
+							"    console.log('New refresh token issued in userRefresh cookie');",
 							"}"
 						],
 						"type": "text/javascript"
@@ -168,26 +176,19 @@
 			],
 			"request": {
 				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
-				},
+				"header": [],
 				"url": {
-					"raw": "{{baseUrl}}/refresh",
+					"raw": "{{baseUrl}}/api/auth/refresh",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
+						"api",
+						"auth",
 						"refresh"
 					]
 				},
-				"description": "Get a new access token using refresh token when access token expires."
+				"description": "Get new access token using refresh token from userRefresh cookie.\n\n**IMPORTANT:** No request body needed! Refresh token automatically sent via cookie.\n\n**Response:** { accessToken }\n\nAlso updates userRefresh cookie with new refresh token (token rotation)."
 			},
 			"response": []
 		},
@@ -206,11 +207,13 @@
 					"raw": "{\n  \"email\": \"test@example.com\"\n}"
 				},
 				"url": {
-					"raw": "{{baseUrl}}/forgot-password",
+					"raw": "{{baseUrl}}/api/auth/forgot-password",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
+						"api",
+						"auth",
 						"forgot-password"
 					]
 				},
@@ -233,11 +236,13 @@
 					"raw": "{\n  \"token\": \"paste-reset-token-from-email\",\n  \"newPassword\": \"NewTest@1234\"\n}"
 				},
 				"url": {
-					"raw": "{{baseUrl}}/reset-password",
+					"raw": "{{baseUrl}}/api/auth/reset-password",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
+						"api",
+						"auth",
 						"reset-password"
 					]
 				},
@@ -261,11 +266,13 @@
 				"method": "POST",
 				"header": [],
 				"url": {
-					"raw": "{{baseUrl}}/logout",
+					"raw": "{{baseUrl}}/api/auth/logout",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
+						"api",
+						"auth",
 						"logout"
 					]
 				},
@@ -288,11 +295,13 @@
 					"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"WrongPassword123!\"\n}"
 				},
 				"url": {
-					"raw": "{{baseUrl}}/login",
+					"raw": "{{baseUrl}}/api/auth/login",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
+						"api",
+						"auth",
 						"login"
 					]
 				},
@@ -316,11 +325,13 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{baseUrl}}/check-session",
+					"raw": "{{baseUrl}}/api/auth/check-session",
 					"host": [
 						"{{baseUrl}}"
 					],
 					"path": [
+						"api",
+						"auth",
 						"check-session"
 					]
 				},
