@@ -14,18 +14,17 @@ import com.DEVision.JobApplicant.subscription.exception.ResourceNotFoundExceptio
 import com.DEVision.JobApplicant.subscription.exception.ValidationException;
 import com.DEVision.JobApplicant.subscription.repository.SkillRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class SkillService {
 
     private final SkillRepository skillRepository;
 
-    public SkillService(SkillRepository skillRepository) {
-        this.skillRepository = skillRepository;
-    }
-
     public SkillDto createSkill(CreateSkillRequest request) {
         String normalizedName = normalize(request.name());
-        if (skillRepository.existsByName(toExactMatchRegex(normalizedName))) {
+        if (skillRepository.existsByNameIgnoreCase(normalizedName)) {
             throw new ValidationException("Skill with name '%s' already exists".formatted(normalizedName));
         }
 
@@ -68,4 +67,3 @@ public class SkillService {
         return "^" + Pattern.quote(safeValue) + "$";
     }
 }
-

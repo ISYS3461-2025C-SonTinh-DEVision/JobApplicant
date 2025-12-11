@@ -67,7 +67,7 @@ public class SearchProfileService {
 
     private void validateSkills(List<String> skillNames) {
         for (String skillName : skillNames) {
-            boolean exists = skillRepository.existsByName(toExactMatchRegex(skillName));
+            boolean exists = skillRepository.existsByNameIgnoreCase(skillName);
             if (!exists) {
                 throw new ValidationException("Skill does not exist: " + skillName);
             }
