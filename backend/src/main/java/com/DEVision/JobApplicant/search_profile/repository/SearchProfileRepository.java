@@ -1,11 +1,11 @@
-package com.DEVision.JobApplicant.subscription.repository;
+package com.DEVision.JobApplicant.search_profile.repository;
 
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
 
-import com.DEVision.JobApplicant.subscription.entity.SearchProfile;
+import com.DEVision.JobApplicant.search_profile.entity.SearchProfile;
 
 public interface SearchProfileRepository extends MongoRepository<SearchProfile, String> {
 

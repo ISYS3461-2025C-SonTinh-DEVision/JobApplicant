@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.subscription.entity;
+package com.DEVision.JobApplicant.search_profile.entity;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -11,7 +11,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-import com.DEVision.JobApplicant.subscription.EmploymentType;
+import com.DEVision.JobApplicant.search_profile.EmploymentType;
 
 @Setter
 @Getter

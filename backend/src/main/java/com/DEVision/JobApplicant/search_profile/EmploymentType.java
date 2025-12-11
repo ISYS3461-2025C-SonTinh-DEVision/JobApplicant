@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.subscription;
+package com.DEVision.JobApplicant.search_profile;
 
 public enum EmploymentType {
     FULL_TIME,

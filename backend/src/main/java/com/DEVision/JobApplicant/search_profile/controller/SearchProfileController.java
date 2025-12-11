@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.subscription.controller;
+package com.DEVision.JobApplicant.search_profile.controller;
 
 import java.util.List;
 
@@ -16,20 +16,20 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.DEVision.JobApplicant.subscription.dto.CreateSkillRequest;
-import com.DEVision.JobApplicant.subscription.dto.SearchProfileDto;
-import com.DEVision.JobApplicant.subscription.dto.SearchProfileRequest;
-import com.DEVision.JobApplicant.subscription.dto.SkillDto;
-import com.DEVision.JobApplicant.subscription.service.SearchProfileService;
-import com.DEVision.JobApplicant.subscription.service.SkillService;
+import com.DEVision.JobApplicant.search_profile.dto.CreateSkillRequest;
+import com.DEVision.JobApplicant.search_profile.dto.SearchProfileDto;
+import com.DEVision.JobApplicant.search_profile.dto.SearchProfileRequest;
+import com.DEVision.JobApplicant.search_profile.dto.SkillDto;
+import com.DEVision.JobApplicant.search_profile.service.SearchProfileService;
+import com.DEVision.JobApplicant.search_profile.service.SkillService;
 
 import jakarta.validation.Valid;
 
 @Validated
 @RestController
-@RequestMapping("/api/subscription")
+@RequestMapping("/api/search-profiles")
 @RequiredArgsConstructor
-public class SubscriptionController {
+public class SearchProfileController {
 
     private final SkillService skillService;
     private final SearchProfileService searchProfileService;
@@ -52,7 +52,7 @@ public class SubscriptionController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/search-profiles")
+    @PostMapping
     public ResponseEntity<SearchProfileDto> createSearchProfile(
             @RequestParam String userId,
             @Valid @RequestBody SearchProfileRequest request) {
@@ -60,13 +60,13 @@ public class SubscriptionController {
         return new ResponseEntity<>(profile, HttpStatus.CREATED);
     }
 
-    @GetMapping("/search-profiles")
+    @GetMapping
     public ResponseEntity<List<SearchProfileDto>> getSearchProfiles(@RequestParam String userId) {
         List<SearchProfileDto> profiles = searchProfileService.getSearchProfilesByUserId(userId);
         return ResponseEntity.ok(profiles);
     }
 
-    @PutMapping("/search-profiles/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<SearchProfileDto> updateSearchProfile(
             @PathVariable String id,
             @RequestParam String userId,
@@ -75,7 +75,7 @@ public class SubscriptionController {
         return ResponseEntity.ok(profile);
     }
 
-    @DeleteMapping("/search-profiles/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSearchProfile(
             @PathVariable String id,
             @RequestParam String userId) {

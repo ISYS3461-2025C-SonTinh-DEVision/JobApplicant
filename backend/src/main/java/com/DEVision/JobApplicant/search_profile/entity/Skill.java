@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.subscription.entity;
+package com.DEVision.JobApplicant.search_profile.entity;
 
 import java.time.Instant;
 

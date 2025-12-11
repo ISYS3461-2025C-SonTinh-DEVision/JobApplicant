@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.subscription.exception;
+package com.DEVision.JobApplicant.search_profile.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;

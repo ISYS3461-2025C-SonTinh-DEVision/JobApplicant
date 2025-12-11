@@ -1,9 +1,9 @@
-package com.DEVision.JobApplicant.subscription.dto;
+package com.DEVision.JobApplicant.search_profile.dto;
 
 import java.math.BigDecimal;
 import java.util.List;
 
-import com.DEVision.JobApplicant.subscription.EmploymentType;
+import com.DEVision.JobApplicant.search_profile.EmploymentType;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;

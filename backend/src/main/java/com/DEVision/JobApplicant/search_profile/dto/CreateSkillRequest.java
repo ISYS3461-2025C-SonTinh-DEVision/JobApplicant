@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.subscription.dto;
+package com.DEVision.JobApplicant.search_profile.dto;
 
 import jakarta.validation.constraints.NotBlank;
 

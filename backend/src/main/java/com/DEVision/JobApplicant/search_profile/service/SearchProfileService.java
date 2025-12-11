@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.subscription.service;
+package com.DEVision.JobApplicant.search_profile.service;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -8,13 +8,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import com.DEVision.JobApplicant.subscription.dto.SearchProfileDto;
-import com.DEVision.JobApplicant.subscription.dto.SearchProfileRequest;
-import com.DEVision.JobApplicant.subscription.entity.SearchProfile;
-import com.DEVision.JobApplicant.subscription.exception.ResourceNotFoundException;
-import com.DEVision.JobApplicant.subscription.exception.ValidationException;
-import com.DEVision.JobApplicant.subscription.repository.SearchProfileRepository;
-import com.DEVision.JobApplicant.subscription.repository.SkillRepository;
+import com.DEVision.JobApplicant.search_profile.dto.SearchProfileDto;
+import com.DEVision.JobApplicant.search_profile.dto.SearchProfileRequest;
+import com.DEVision.JobApplicant.search_profile.entity.SearchProfile;
+import com.DEVision.JobApplicant.search_profile.exception.ResourceNotFoundException;
+import com.DEVision.JobApplicant.search_profile.exception.ValidationException;
+import com.DEVision.JobApplicant.search_profile.repository.SearchProfileRepository;
+import com.DEVision.JobApplicant.search_profile.repository.SkillRepository;
 
 @Service
 @RequiredArgsConstructor
