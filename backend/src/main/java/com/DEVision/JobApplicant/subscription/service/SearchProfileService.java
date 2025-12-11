@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -16,15 +17,11 @@ import com.DEVision.JobApplicant.subscription.repository.SearchProfileRepository
 import com.DEVision.JobApplicant.subscription.repository.SkillRepository;
 
 @Service
+@RequiredArgsConstructor
 public class SearchProfileService {
 
     private final SearchProfileRepository searchProfileRepository;
     private final SkillRepository skillRepository;
-
-    public SearchProfileService(SearchProfileRepository searchProfileRepository, SkillRepository skillRepository) {
-        this.searchProfileRepository = searchProfileRepository;
-        this.skillRepository = skillRepository;
-    }
 
     public SearchProfileDto createSearchProfile(String userId, SearchProfileRequest request) {
         List<String> desiredSkills = sanitizeStrings(request.desiredSkills());

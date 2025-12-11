@@ -1,7 +1,6 @@
 package com.DEVision.JobApplicant.subscription.repository;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
 
 import com.DEVision.JobApplicant.subscription.entity.Skill;
 

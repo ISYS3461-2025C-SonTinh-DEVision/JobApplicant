@@ -2,6 +2,7 @@ package com.DEVision.JobApplicant.subscription.controller;
 
 import java.util.List;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -27,15 +28,11 @@ import jakarta.validation.Valid;
 @Validated
 @RestController
 @RequestMapping("/api/subscription")
+@RequiredArgsConstructor
 public class SubscriptionController {
 
     private final SkillService skillService;
     private final SearchProfileService searchProfileService;
-
-    public SubscriptionController(SkillService skillService, SearchProfileService searchProfileService) {
-        this.skillService = skillService;
-        this.searchProfileService = searchProfileService;
-    }
 
     @PostMapping("/skills")
     public ResponseEntity<SkillDto> createSkill(@Valid @RequestBody CreateSkillRequest request) {
