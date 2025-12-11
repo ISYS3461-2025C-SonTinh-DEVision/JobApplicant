@@ -21,21 +21,10 @@ public class WorkExperience {
     private String description;
     private LocalDate startDate;
     private LocalDate endDate;
-    private boolean current; // Currently working at this company
+    private boolean current;
 
     public WorkExperience() {
         this.id = new ObjectId();
-    }
-
-    public WorkExperience(String company, String position, String description,
-                         LocalDate startDate, LocalDate endDate, boolean current) {
-        this.id = new ObjectId();
-        this.company = company;
-        this.position = position;
-        this.description = description;
-        this.startDate = startDate;
-        this.endDate = endDate;
-        this.current = current;
     }
 
     // Getters and Setters

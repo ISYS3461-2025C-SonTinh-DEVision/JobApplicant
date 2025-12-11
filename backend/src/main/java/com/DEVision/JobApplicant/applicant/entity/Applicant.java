@@ -20,9 +20,8 @@ public class Applicant {
     private String id;
 
     @NotBlank(message = "User ID is required")
-    private String userId; // Reference to AuthModel
+    private String userId;
 
-    // Core fields
     private String firstName;
     private String lastName;
 
@@ -33,7 +32,6 @@ public class Applicant {
     private String address;
     private String city;
 
-    // Profile management fields
     @Size(max = 20, message = "Maximum 20 education entries allowed")
     private List<Education> education;
 

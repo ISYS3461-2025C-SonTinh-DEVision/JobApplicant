@@ -22,22 +22,10 @@ public class Education {
     private LocalDate startDate;
     private LocalDate endDate;
     private String description;
-    private boolean current; // Currently pursuing this degree
+    private boolean current;
 
     public Education() {
         this.id = new ObjectId();
-    }
-
-    public Education(String institution, String degree, String fieldOfStudy,
-                    LocalDate startDate, LocalDate endDate, String description, boolean current) {
-        this.id = new ObjectId();
-        this.institution = institution;
-        this.degree = degree;
-        this.fieldOfStudy = fieldOfStudy;
-        this.startDate = startDate;
-        this.endDate = endDate;
-        this.description = description;
-        this.current = current;
     }
 
     // Getters and Setters
