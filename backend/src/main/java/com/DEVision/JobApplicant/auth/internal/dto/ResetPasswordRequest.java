@@ -1,20 +1,24 @@
-package com.DEVision.JobApplicant.auth.Dto;
+package com.DEVision.JobApplicant.auth.internal.dto;
 
 import com.DEVision.JobApplicant.common.validator.ValidPassword;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
-public class DtoResetPassword {
+/**
+ * Internal DTO for reset password request
+ */
+public class ResetPasswordRequest {
 
-    @NotBlank(message = "Token is required")
+    @NotNull(message = "Token is required")
     private String token;
 
-    @NotBlank(message = "Password is required")
+    @NotNull(message = "New password is required")
     @ValidPassword
     private String newPassword;
 
-    public DtoResetPassword() {}
+    public ResetPasswordRequest() {
+    }
 
-    public DtoResetPassword(String token, String newPassword) {
+    public ResetPasswordRequest(String token, String newPassword) {
         this.token = token;
         this.newPassword = newPassword;
     }

@@ -1,13 +1,16 @@
-package com.DEVision.JobApplicant.auth.Dto;
+package com.DEVision.JobApplicant.auth.internal.dto;
 
-public class DtoAuthResponse {
+/**
+ * Internal DTO for authentication response
+ */
+public class AuthResponse {
     private String accessToken;
     private String refreshToken;
 
-    public DtoAuthResponse() {
+    public AuthResponse() {
     }
 
-    public DtoAuthResponse(String accessToken, String refreshToken) {
+    public AuthResponse(String accessToken, String refreshToken) {
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
     }
@@ -19,4 +22,4 @@ public class DtoAuthResponse {
     public String getRefreshToken() {
         return refreshToken;
     }
-} 
+}

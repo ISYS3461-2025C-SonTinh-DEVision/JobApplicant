@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.auth.Dto;
+package com.DEVision.JobApplicant.auth.internal.dto;
 
 import com.DEVision.JobApplicant.common.model.Country;
 import com.DEVision.JobApplicant.common.validator.ValidEmail;
@@ -7,31 +7,33 @@ import com.DEVision.JobApplicant.common.validator.ValidPhoneNumber;
 
 import jakarta.validation.constraints.NotNull;
 
-public class DtoRegistration {
+/**
+ * Internal DTO for user registration
+ */
+public class RegisterRequest {
     // Mandatory fields
     @NotNull(message = "Email is required")
     @ValidEmail
     private String email;
-    
+
     @NotNull(message = "Password is required")
     @ValidPassword
     private String password;
-    
+
     @NotNull(message = "Country is required")
     private Country country;
-    
+
     // Optional fields
     private String firstName;
     private String lastName;
-    
+
     @ValidPhoneNumber(optional = true)
     private String phoneNumber;
-    
+
     private String address;
     private String city;
 
-    // Default constructor
-    public DtoRegistration() {
+    public RegisterRequest() {
     }
 
     // Getters and setters
@@ -50,11 +52,11 @@ public class DtoRegistration {
     public void setPassword(String password) {
         this.password = password;
     }
-    
+
     public Country getCountry() {
         return country;
     }
-    
+
     public void setCountry(Country country) {
         this.country = country;
     }
@@ -98,4 +100,4 @@ public class DtoRegistration {
     public void setCity(String city) {
         this.city = city;
     }
-} 
+}

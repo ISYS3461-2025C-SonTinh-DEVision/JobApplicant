@@ -3,7 +3,7 @@ package com.DEVision.JobApplicant.applicant.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.DEVision.JobApplicant.applicant.model.Applicant;
+import com.DEVision.JobApplicant.applicant.entity.Applicant;
 import com.DEVision.JobApplicant.applicant.repository.ApplicantRepository;
 
 import java.time.LocalDateTime;

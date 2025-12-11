@@ -1,12 +1,15 @@
-package com.DEVision.JobApplicant.auth.Dto;
+package com.DEVision.JobApplicant.auth.internal.dto;
 
-public class DtoRefreshToken {
+/**
+ * Internal DTO for refresh token request
+ */
+public class RefreshTokenRequest {
     private String refreshToken;
 
-    public DtoRefreshToken() {
+    public RefreshTokenRequest() {
     }
 
-    public DtoRefreshToken(String refreshToken) {
+    public RefreshTokenRequest(String refreshToken) {
         this.refreshToken = refreshToken;
     }
 
@@ -17,4 +20,4 @@ public class DtoRefreshToken {
     public void setRefreshToken(String refreshToken) {
         this.refreshToken = refreshToken;
     }
-} 
+}

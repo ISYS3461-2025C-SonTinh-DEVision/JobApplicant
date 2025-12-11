@@ -1,13 +1,16 @@
-package com.DEVision.JobApplicant.auth.Dto;
+package com.DEVision.JobApplicant.auth.internal.dto;
 
-public class DtoLogin {
+/**
+ * Internal DTO for login request
+ */
+public class LoginRequest {
     private String email;
     private String password;
 
-    public DtoLogin() {
+    public LoginRequest() {
     }
 
-    public DtoLogin(String email, String password) {
+    public LoginRequest(String email, String password) {
         this.email = email;
         this.password = password;
     }
@@ -27,4 +30,4 @@ public class DtoLogin {
     public void setPassword(String password) {
         this.password = password;
     }
-} 
+}

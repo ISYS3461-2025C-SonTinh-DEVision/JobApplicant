@@ -1,0 +1,247 @@
+package com.DEVision.JobApplicant.auth.internal.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.DEVision.JobApplicant.applicant.external.dto.ApplicantDto;
+import com.DEVision.JobApplicant.applicant.external.dto.CreateApplicantRequest;
+import com.DEVision.JobApplicant.applicant.external.service.ApplicantExternalService;
+import com.DEVision.JobApplicant.auth.entity.User;
+import com.DEVision.JobApplicant.auth.internal.dto.AuthResponse;
+import com.DEVision.JobApplicant.auth.internal.dto.LoginRequest;
+import com.DEVision.JobApplicant.auth.internal.dto.RegisterRequest;
+import com.DEVision.JobApplicant.auth.internal.dto.RegistrationResponse;
+import com.DEVision.JobApplicant.auth.repository.AuthRepository;
+import com.DEVision.JobApplicant.auth.service.AuthService;
+import com.DEVision.JobApplicant.common.config.RoleConfig;
+import com.DEVision.JobApplicant.common.service.EmailService;
+
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Internal service for auth module's own business logic
+ * Handles registration, login, activation, password reset
+ */
+@Service
+public class AuthInternalService {
+
+    @Autowired
+    private AuthenticationManager authenticationManager;
+
+    @Autowired
+    private AuthService authService;
+
+    @Autowired
+    private AuthRepository userRepository;
+
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private ApplicantExternalService applicantExternalService;
+
+    /**
+     * Register new user with applicant profile
+     */
+    @Transactional
+    public RegistrationResponse registerUser(RegisterRequest request) {
+        // Check if email already exists
+        if (userRepository.existsByEmail(request.getEmail())) {
+            return new RegistrationResponse(
+                null, null,
+                request.getEmail(),
+                "Registration failed: Email already in use",
+                false
+            );
+        }
+
+        // Generate activation token
+        String activationToken = UUID.randomUUID().toString();
+
+        // Create user
+        User newUser = new User();
+        newUser.setEmail(request.getEmail());
+        newUser.setPassword(passwordEncoder.encode(request.getPassword()));
+        newUser.setRole(RoleConfig.APPLICANT.getRoleName());
+        newUser.setEnabled(false);
+        newUser.setActivated(false);
+        newUser.setActivationToken(activationToken);
+        newUser.setActivationTokenExpiry(LocalDateTime.now().plusHours(24));
+
+        User savedUser = authService.createUser(newUser);
+
+        // Create applicant profile using external service
+        CreateApplicantRequest applicantRequest = new CreateApplicantRequest();
+        applicantRequest.setUserId(savedUser.getId());
+        applicantRequest.setCountry(request.getCountry());
+        applicantRequest.setFirstName(request.getFirstName());
+        applicantRequest.setLastName(request.getLastName());
+        applicantRequest.setPhoneNumber(request.getPhoneNumber());
+        applicantRequest.setAddress(request.getAddress());
+        applicantRequest.setCity(request.getCity());
+
+        ApplicantDto savedApplicant = applicantExternalService.createApplicant(applicantRequest);
+
+        // Send activation email
+        try {
+            emailService.sendActivationEmail(savedUser.getEmail(), activationToken);
+        } catch (Exception emailException) {
+            throw new RuntimeException("Failed to send activation email", emailException);
+        }
+
+        return new RegistrationResponse(
+            savedUser.getId(),
+            savedApplicant.getId(),
+            savedUser.getEmail(),
+            "Registration successful. Please check your email to activate your account.",
+            true
+        );
+    }
+
+    /**
+     * Activate user account
+     */
+    public Map<String, Object> activateAccount(String token) {
+        if (token == null || token.isEmpty()) {
+            return Map.of("message", "Activation token is required", "success", false);
+        }
+
+        User user = userRepository.findByActivationToken(token);
+
+        if (user == null) {
+            return Map.of("message", "Invalid activation token", "success", false);
+        }
+
+        if (user.getActivationTokenExpiry().isBefore(LocalDateTime.now())) {
+            return Map.of("message", "Activation token has expired. Please request a new activation email.", "success", false);
+        }
+
+        if (user.isActivated()) {
+            return Map.of("message", "Account is already activated. You can now login.", "success", true);
+        }
+
+        // Activate the account
+        user.setActivated(true);
+        user.setEnabled(true);
+        user.setActivationToken(null);
+        user.setActivationTokenExpiry(null);
+        userRepository.save(user);
+
+        return Map.of(
+            "message", "Account activated successfully! You can now login.",
+            "success", true
+        );
+    }
+
+    /**
+     * Login user and return tokens
+     */
+    public AuthResponse login(LoginRequest request) {
+        // Find user by email
+        User user = userRepository.findByEmail(request.getEmail());
+
+        if (user == null) {
+            throw new RuntimeException("Invalid email or password");
+        }
+
+        if (!user.isActivated()) {
+            throw new RuntimeException("Account not activated. Please check your email for activation link.");
+        }
+
+        if (!user.isEnabled()) {
+            throw new RuntimeException("Account is disabled. Please contact support.");
+        }
+
+        // Authenticate
+        Authentication authentication = authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+        );
+
+        if (!authentication.isAuthenticated()) {
+            throw new RuntimeException("Invalid email or password");
+        }
+
+        // Generate tokens
+        UserDetails userDetails = authService.loadUserByUsername(request.getEmail());
+        Map<String, String> tokens = authService.createAuthTokens(userDetails, true);
+
+        return new AuthResponse(tokens.get("accessToken"), tokens.get("refreshToken"));
+    }
+
+    /**
+     * Refresh access token
+     */
+    public AuthResponse refreshToken(String refreshToken) {
+        Map<String, String> tokens = authService.refreshToken(refreshToken);
+        return new AuthResponse(tokens.get("accessToken"), tokens.get("refreshToken"));
+    }
+
+    /**
+     * Request password reset
+     */
+    public Map<String, Object> forgotPassword(String email) {
+        User user = userRepository.findByEmail(email);
+
+        if (user == null) {
+            return Map.of(
+                "message", "If an account exists with this email, a password reset link will be sent.",
+                "success", true
+            );
+        }
+
+        // Generate reset token
+        String resetToken = UUID.randomUUID().toString();
+        user.setPasswordResetToken(resetToken);
+        user.setPasswordResetTokenExpiry(LocalDateTime.now().plusHours(1));
+        userRepository.save(user);
+
+        // Send reset email
+        try {
+            emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send password reset email", e);
+        }
+
+        return Map.of(
+            "message", "Password reset link has been sent to your email.",
+            "success", true
+        );
+    }
+
+    /**
+     * Reset password using token
+     */
+    public Map<String, Object> resetPassword(String token, String newPassword) {
+        User user = userRepository.findByPasswordResetToken(token);
+
+        if (user == null) {
+            return Map.of("message", "Invalid password reset token", "success", false);
+        }
+
+        if (user.getPasswordResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            return Map.of("message", "Password reset token has expired. Please request a new reset link.", "success", false);
+        }
+
+        // Update password
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordResetToken(null);
+        user.setPasswordResetTokenExpiry(null);
+        userRepository.save(user);
+
+        return Map.of(
+            "message", "Password has been reset successfully. You can now login with your new password.",
+            "success", true
+        );
+    }
+}
