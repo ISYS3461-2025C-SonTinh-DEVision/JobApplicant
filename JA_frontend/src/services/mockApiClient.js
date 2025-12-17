@@ -6,7 +6,7 @@ export const mockApiClient = {
         return {
           data: {
             id: "u01",
-            email: "student@example.com",
+            email: "tran.truong@gmail.com",
             role: "APPLICANT",
             country: "Vietnam",
             premium: true,
@@ -18,16 +18,16 @@ export const mockApiClient = {
         return {
           data: {
             id: "u01",
-            name: "Nguyen Van A",
-            email: "student@example.com",
+            name: "Trần Trường",
+            email: "tran.truong@gmail.com",
             phone: "+84901234567",
             country: "Vietnam",
-            city: "Ho Chi Minh City",
+            city: "Hồ Chí Minh",
             skills: ["React", "Spring Boot", "Docker"],
             education: [
               {
                 degree: "Bachelor of Software Engineering",
-                institution: "RMIT University",
+                institution: "RMIT University Vietnam",
                 from: 2021,
                 to: 2025,
                 gpa: 85,
@@ -38,7 +38,7 @@ export const mockApiClient = {
                 title: "Frontend Intern",
                 from: "06-2024",
                 to: "12-2024",
-                description: "Built React components and forms",
+                description: "Built React components and forms for job matching platform",
               },
             ],
           },
@@ -122,14 +122,14 @@ export const mockApiClient = {
           data: [
             {
               id: "u01",
-              email: "student@example.com",
+              email: "tran.truong@gmail.com",
               country: "Vietnam",
               premium: true,
               status: "Active",
             },
             {
               id: "u02",
-              email: "junior@example.com",
+              email: "le.minh@gmail.com",
               country: "Singapore",
               premium: false,
               status: "Inactive",

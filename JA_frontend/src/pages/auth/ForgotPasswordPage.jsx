@@ -164,7 +164,7 @@ export default function ForgotPasswordPage() {
                     setEmail(e.target.value);
                     setError('');
                   }}
-                  placeholder="you@example.com"
+                  placeholder="nguyen.an@gmail.com"
                   required
                   autoComplete="email"
                   className="input-field pl-12"

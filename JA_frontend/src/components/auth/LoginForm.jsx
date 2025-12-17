@@ -1,84 +1,17 @@
 /**
  * Login Form Component
  * Level Ultimo: Full validation, SSO, remember me, brute force protection feedback
+ * 
+ * Architecture Note: Uses reusable FormInput component from components/reusable/
+ * following requirement A.2.a (Medium Frontend) - common display elements as configurable components
  */
 
 import React, { useState, useCallback } from 'react';
-import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader2, ShieldAlert } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Loader2, ShieldAlert } from 'lucide-react';
 import { SSOButtonsGroup, OrDivider } from './SSOButtons';
+import { FormInput } from '../reusable/FormInput';
 import { validateEmail } from '../../utils/validators/authValidators';
 import { useAuth } from '../../context/AuthContext';
-
-/**
- * Input Field Component with Icon
- */
-function InputField({
-  label,
-  name,
-  type = 'text',
-  value,
-  onChange,
-  onBlur,
-  error,
-  icon: Icon,
-  placeholder,
-  required,
-  disabled,
-  autoComplete,
-}) {
-  const [showPassword, setShowPassword] = useState(false);
-  const isPassword = type === 'password';
-
-  return (
-    <div className="space-y-1.5">
-      {label && (
-        <label htmlFor={name} className="form-label">
-          {label}
-          {required && <span className="text-red-400 ml-1">*</span>}
-        </label>
-      )}
-      <div className="relative">
-        {Icon && (
-          <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400 pointer-events-none" />
-        )}
-        <input
-          id={name}
-          name={name}
-          type={isPassword && showPassword ? 'text' : type}
-          value={value}
-          onChange={onChange}
-          onBlur={onBlur}
-          placeholder={placeholder}
-          required={required}
-          disabled={disabled}
-          autoComplete={autoComplete}
-          className={`
-            input-field
-            ${Icon ? 'pl-12' : ''}
-            ${isPassword ? 'pr-12' : ''}
-            ${error ? 'error' : ''}
-          `}
-        />
-        {isPassword && (
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white transition-colors"
-            tabIndex={-1}
-          >
-            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-          </button>
-        )}
-      </div>
-      {error && (
-        <p className="error-message">
-          <AlertCircle className="w-3.5 h-3.5" />
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
 
 /**
  * Login Form
@@ -271,7 +204,7 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
       )}
 
       {/* Email */}
-      <InputField
+      <FormInput
         label="Email"
         name="email"
         type="email"
@@ -280,14 +213,15 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
         onBlur={handleBlur}
         error={touched.email && errors.email}
         icon={Mail}
-        placeholder="you@example.com"
+        placeholder="nguyen.an@gmail.com"
         required
         disabled={isBlocked}
         autoComplete="email"
+        variant="dark"
       />
 
       {/* Password */}
-      <InputField
+      <FormInput
         label="Password"
         name="password"
         type="password"
@@ -300,6 +234,7 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
         required
         disabled={isBlocked}
         autoComplete="current-password"
+        variant="dark"
       />
 
       {/* Remember Me & Forgot Password */}

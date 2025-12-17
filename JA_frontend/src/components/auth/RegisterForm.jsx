@@ -1,131 +1,18 @@
 /**
  * Registration Form Component
  * Level Ultimo: Full validation, SSO, country dropdown
+ * 
+ * Architecture Note: Uses reusable FormInput/FormSelect components from components/reusable/
+ * following requirement A.2.a (Medium Frontend) - common display elements as configurable components
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building2, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Phone, MapPin, Building2, AlertCircle, Loader2 } from 'lucide-react';
 import { SSOButtonsGroup, OrDivider } from './SSOButtons';
 import PasswordStrengthMeter from './PasswordStrengthMeter';
+import { FormInput, FormSelect } from '../reusable/FormInput';
 import { validateEmail, validatePassword, validatePhone, validateRegister } from '../../utils/validators/authValidators';
 import { useAuth } from '../../context/AuthContext';
-
-/**
- * Input Field Component with Icon
- */
-function InputField({
-  label,
-  name,
-  type = 'text',
-  value,
-  onChange,
-  onBlur,
-  error,
-  icon: Icon,
-  placeholder,
-  required,
-  disabled,
-  autoComplete,
-  children,
-}) {
-  const [showPassword, setShowPassword] = useState(false);
-  const isPassword = type === 'password';
-
-  return (
-    <div className="space-y-1.5">
-      {label && (
-        <label htmlFor={name} className="form-label">
-          {label}
-          {required && <span className="text-red-400 ml-1">*</span>}
-        </label>
-      )}
-      <div className="relative">
-        {Icon && (
-          <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400 pointer-events-none" />
-        )}
-        {children || (
-          <input
-            id={name}
-            name={name}
-            type={isPassword && showPassword ? 'text' : type}
-            value={value}
-            onChange={onChange}
-            onBlur={onBlur}
-            placeholder={placeholder}
-            required={required}
-            disabled={disabled}
-            autoComplete={autoComplete}
-            className={`
-              input-field
-              ${Icon ? 'pl-12' : ''}
-              ${isPassword ? 'pr-12' : ''}
-              ${error ? 'error' : ''}
-            `}
-          />
-        )}
-        {isPassword && (
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white transition-colors"
-            tabIndex={-1}
-          >
-            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-          </button>
-        )}
-      </div>
-      {error && (
-        <p className="error-message">
-          <AlertCircle className="w-3.5 h-3.5" />
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/**
- * Country Select Component
- */
-function CountrySelect({ value, onChange, onBlur, error, countries, loading }) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor="country" className="form-label">
-        Country <span className="text-red-400 ml-1">*</span>
-      </label>
-      <div className="relative">
-        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400 pointer-events-none" />
-        <select
-          id="country"
-          name="country"
-          value={value}
-          onChange={onChange}
-          onBlur={onBlur}
-          disabled={loading}
-          className={`
-            input-field pl-12 appearance-none cursor-pointer
-            bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20width%3d%2224%22%20height%3d%2224%22%20viewBox%3d%220%200%2024%2024%22%20fill%3d%22none%22%20stroke%3d%22%2394A3B8%22%20stroke-width%3d%222%22%20stroke-linecap%3d%22round%22%20stroke-linejoin%3d%22round%22%3e%3cpolyline%20points%3d%226%209%2012%2015%2018%209%22%3e%3c%2fpolyline%3e%3c%2fsvg%3e')]
-            bg-no-repeat bg-[right_1rem_center] bg-[length:1.25rem]
-            ${error ? 'error' : ''}
-          `}
-        >
-          <option value="" className="bg-dark-800">Select your country</option>
-          {countries.map((country) => (
-            <option key={country.value} value={country.value} className="bg-dark-800">
-              {country.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      {error && (
-        <p className="error-message">
-          <AlertCircle className="w-3.5 h-3.5" />
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
 
 /**
  * Registration Form
@@ -343,29 +230,31 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
 
       {/* Name Fields */}
       <div className="grid grid-cols-2 gap-4">
-        <InputField
+        <FormInput
           label="First Name"
           name="firstName"
           type="text"
           value={formData.firstName}
           onChange={handleChange}
           icon={User}
-          placeholder="John"
+          placeholder="Trường"
           autoComplete="given-name"
+          variant="dark"
         />
-        <InputField
+        <FormInput
           label="Last Name"
           name="lastName"
           type="text"
           value={formData.lastName}
           onChange={handleChange}
-          placeholder="Doe"
+          placeholder="Trần"
           autoComplete="family-name"
+          variant="dark"
         />
       </div>
 
       {/* Email */}
-      <InputField
+      <FormInput
         label="Email"
         name="email"
         type="email"
@@ -374,14 +263,15 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         onBlur={handleBlur}
         error={touched.email && errors.email}
         icon={Mail}
-        placeholder="you@example.com"
+        placeholder="nguyen.an@gmail.com"
         required
         autoComplete="email"
+        variant="dark"
       />
 
       {/* Password */}
       <div>
-        <InputField
+        <FormInput
           label="Password"
           name="password"
           type="password"
@@ -393,12 +283,13 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
           placeholder="••••••••"
           required
           autoComplete="new-password"
+          variant="dark"
         />
         <PasswordStrengthMeter password={formData.password} />
       </div>
 
       {/* Confirm Password */}
-      <InputField
+      <FormInput
         label="Confirm Password"
         name="confirmPassword"
         type="password"
@@ -410,20 +301,27 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         placeholder="••••••••"
         required
         autoComplete="new-password"
+        variant="dark"
       />
 
       {/* Country */}
-      <CountrySelect
+      <FormSelect
+        label="Country"
+        name="country"
         value={formData.country}
         onChange={handleChange}
         onBlur={handleBlur}
         error={touched.country && errors.country}
-        countries={countries}
-        loading={loadingCountries}
+        icon={MapPin}
+        options={countries}
+        placeholder="Select your country"
+        required
+        disabled={loadingCountries}
+        variant="dark"
       />
 
       {/* Phone Number (Optional) */}
-      <InputField
+      <FormInput
         label="Phone Number"
         name="phoneNumber"
         type="tel"
@@ -434,28 +332,31 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         icon={Phone}
         placeholder="+84 123 456 789"
         autoComplete="tel"
+        variant="dark"
       />
 
       {/* City & Address (Optional) */}
       <div className="grid grid-cols-2 gap-4">
-        <InputField
+        <FormInput
           label="City"
           name="city"
           type="text"
           value={formData.city}
           onChange={handleChange}
           icon={Building2}
-          placeholder="Ho Chi Minh"
+          placeholder="Hồ Chí Minh"
           autoComplete="address-level2"
+          variant="dark"
         />
-        <InputField
+        <FormInput
           label="Address"
           name="address"
           type="text"
           value={formData.address}
           onChange={handleChange}
-          placeholder="123 Street"
+          placeholder="123 Đường Lê Lợi"
           autoComplete="street-address"
+          variant="dark"
         />
       </div>
 
