@@ -15,8 +15,86 @@ import HeadlessTable from "../components/headless/HeadlessTable";
 /* ===== Mock API ===== */
 import { mockApiClient } from "../services/mockApiClient";
 
+/* ===== Auth Validators ===== */
+import {
+  validateEmail,
+  validatePassword,
+  validatePhone,
+} from "../utils/validators/authValidators";
+
+/* ===== Inline Test Component for Auth Fields ===== */
+function AuthValidatorDemo() {
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    phone: "",
+  });
+
+  const [errors, setErrors] = useState({});
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const newErrors = {};
+
+    const emailErr = validateEmail(form.email);
+    if (emailErr.length) newErrors.email = emailErr[0].message;
+
+    const pwErr = validatePassword(form.password);
+    if (pwErr.length) newErrors.password = pwErr[0].message;
+
+    if (form.phone) {
+      const phoneErr = validatePhone(form.phone);
+      if (phoneErr.length) newErrors.phone = phoneErr[0].message;
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length === 0) {
+      alert("All validators passed.");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+      <Input
+        label="Email"
+        name="email"
+        value={form.email}
+        onChange={handleChange}
+        placeholder="example@email.com"
+        error={errors.email}
+        required
+      />
+      <Input
+        label="Password"
+        name="password"
+        type="password"
+        value={form.password}
+        onChange={handleChange}
+        placeholder="••••••••"
+        error={errors.password}
+        required
+      />
+      <Input
+        label="Phone (optional)"
+        name="phone"
+        value={form.phone}
+        onChange={handleChange}
+        placeholder="+84..."
+        error={errors.phone}
+        required
+      />
+      <Button type="submit" label="Validate" />
+    </form>
+  );
+}
+
 export default function TestPage() {
-  /* ================= BASIC UI TEST ================= */
   const [modalOpen, setModalOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
@@ -32,7 +110,6 @@ export default function TestPage() {
     { name: "Charlie Pham", role: "Admin", status: "Suspended" },
   ];
 
-  /* ================= JOB TABLE (MOCK API) ================= */
   const [jobs, setJobs] = useState([]);
   const jobTable = HeadlessTable({ defaultSortKey: "title" });
 
@@ -65,12 +142,9 @@ export default function TestPage() {
     { key: "employmentType", label: "Type" },
   ];
 
-  /* ================= RENDER PAGE ================= */
   return (
     <div className="p-6 space-y-10 bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold text-gray-800">
-        Test Page
-      </h1>
+      <h1 className="text-2xl font-bold text-gray-800">Test Page</h1>
 
       {/* ===== Buttons ===== */}
       <Card>
@@ -126,7 +200,6 @@ export default function TestPage() {
       <Card>
         <h2 className="font-semibold mb-4">Modal</h2>
         <Button label="Open Modal" onClick={() => setModalOpen(true)} />
-
         {modalOpen && (
           <Modal
             title="Test Modal"
@@ -142,18 +215,15 @@ export default function TestPage() {
               </>
             }
           >
-            <p className="text-gray-700">
-              This is a mock modal
-            </p>
+            <p className="text-gray-700">This is a mock modal</p>
           </Modal>
         )}
       </Card>
 
-      {/* ===== Job Table – Mock API + HeadlessTable ===== */}
+      {/* ===== Job Table ===== */}
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold">Job Table (Mock API)</h2>
-
           <div className="flex gap-2">
             <Button
               size="sm"
@@ -169,13 +239,16 @@ export default function TestPage() {
             />
           </div>
         </div>
-
         <Table columns={jobColumns} data={sortedJobs} />
-
         <p className="mt-2 text-xs text-gray-500">
-          Sorted by <strong>{jobTable.sortKey}</strong> (
-          {jobTable.direction})
+          Sorted by <strong>{jobTable.sortKey}</strong> ({jobTable.direction})
         </p>
+      </Card>
+
+      {/* ===== Auth Validators Test ===== */}
+      <Card>
+        <h2 className="font-semibold mb-4">Auth Field Validators</h2>
+        <AuthValidatorDemo />
       </Card>
     </div>
   );
