@@ -26,11 +26,16 @@ export const API_ENDPOINTS = {
   // Country endpoints
   COUNTRIES: '/api/countries',
 
-  // Applicant endpoints
+  // Applicant endpoints - matches backend ApplicantController
   APPLICANT: {
-    PROFILE: '/api/applicants/profile',
-    UPDATE: '/api/applicants/update',
-    AVATAR: '/api/applicants/avatar',
+    // GET /api/applicants/user/{userId} - Get profile by user ID
+    PROFILE_BY_USER: (userId) => `/api/applicants/user/${userId}`,
+    // GET /api/applicants/{id} - Get profile by applicant ID
+    PROFILE: (id) => `/api/applicants/${id}`,
+    // PUT /api/applicants/{id} - Update profile
+    UPDATE: (id) => `/api/applicants/${id}`,
+    // DELETE /api/applicants/{id} - Delete profile
+    DELETE: (id) => `/api/applicants/${id}`,
   },
 
   // Job endpoints
