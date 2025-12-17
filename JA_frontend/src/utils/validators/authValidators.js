@@ -12,7 +12,7 @@ import {
 } from "./commonValidators";
 
 
-const EMAIL_FORBIDDEN = /[()\[\];:]/;
+const EMAIL_FORBIDDEN = /[()[\];:]/;
 
 export function validateEmail(email) {
   const errors = [];
