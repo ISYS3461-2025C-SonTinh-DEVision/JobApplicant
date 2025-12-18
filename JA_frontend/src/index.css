@@ -1,0 +1,258 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+@layer base {
+  :root {
+    --color-primary: #2563EB;
+    --color-primary-dark: #1D4ED8;
+    --color-accent: #14B8A6;
+    --color-background: #0F172A;
+    --color-surface: #1E293B;
+    --color-text: #F1F5F9;
+    --color-text-muted: #94A3B8;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-background);
+    color: var(--color-text);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #1E293B;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #64748B;
+  }
+
+  /* Focus styles */
+  *:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+/* Component styles */
+@layer components {
+  /* Glass effect card */
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-400 via-primary-300 to-accent-400 bg-clip-text text-transparent;
+  }
+
+  /* Button base */
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold transition-all duration-200;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-primary-600 to-primary-500 text-white;
+    @apply hover:from-primary-500 hover:to-primary-400 hover:shadow-glow;
+    @apply focus-visible:ring-primary-500;
+    @apply active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply btn bg-white/10 text-white border border-white/20;
+    @apply hover:bg-white/20 hover:border-white/30;
+    @apply focus-visible:ring-white/50;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-dark-300;
+    @apply hover:bg-white/5 hover:text-white;
+  }
+
+  /* Input base */
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white;
+    @apply placeholder:text-dark-400 transition-all duration-200;
+    @apply focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20;
+    @apply hover:border-white/20;
+  }
+
+  .input-field.error {
+    @apply border-red-500/50 focus:border-red-500 focus:ring-red-500/20;
+  }
+
+  .input-field.success {
+    @apply border-accent-500/50;
+  }
+
+  /* Form label */
+  .form-label {
+    @apply block text-sm font-medium text-dark-300 mb-2;
+  }
+
+  /* Error message */
+  .error-message {
+    @apply text-sm text-red-400 mt-1.5 flex items-center gap-1.5;
+  }
+
+  /* Link style */
+  .link {
+    @apply text-primary-400 hover:text-primary-300 transition-colors underline-offset-4 hover:underline;
+  }
+
+  /* Divider */
+  .divider {
+    @apply flex items-center gap-4 text-dark-400 text-sm;
+  }
+
+  .divider::before,
+  .divider::after {
+    @apply content-[''] flex-1 h-px bg-white/10;
+  }
+
+  /* Animated background shapes */
+  .bg-shape {
+    @apply absolute rounded-full opacity-30 blur-3xl;
+    animation: float 8s ease-in-out infinite;
+  }
+
+  /* Checkbox custom */
+  .checkbox-custom {
+    @apply w-5 h-5 rounded border-2 border-white/20 bg-white/5 appearance-none cursor-pointer transition-all;
+    @apply checked:bg-primary-500 checked:border-primary-500;
+    @apply focus:ring-2 focus:ring-primary-500/20 focus:ring-offset-0;
+  }
+
+  .checkbox-custom:checked {
+    background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  /* Password strength indicator */
+  .strength-bar {
+    @apply h-1 rounded-full transition-all duration-300;
+  }
+
+  .strength-weak {
+    @apply bg-red-500 w-1/4;
+  }
+
+  .strength-fair {
+    @apply bg-orange-500 w-2/4;
+  }
+
+  .strength-good {
+    @apply bg-yellow-500 w-3/4;
+  }
+
+  .strength-strong {
+    @apply bg-accent-500 w-full;
+  }
+
+  /* Toast notification */
+  .toast {
+    @apply fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-2xl z-50 animate-slide-up;
+    @apply flex items-center gap-3 min-w-[300px] max-w-md;
+  }
+
+  .toast-success {
+    @apply toast bg-accent-600 text-white;
+  }
+
+  .toast-error {
+    @apply toast bg-red-600 text-white;
+  }
+
+  .toast-info {
+    @apply toast bg-primary-600 text-white;
+  }
+}
+
+/* Utility styles */
+@layer utilities {
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Text balance */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Animation delays */
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animation-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  /* Gradient backgrounds */
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  }
+
+  .bg-gradient-dark {
+    background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+  }
+
+  .bg-gradient-mesh {
+    background: 
+      radial-gradient(at 40% 20%, rgba(37, 99, 235, 0.3) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, rgba(20, 184, 166, 0.2) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, rgba(37, 99, 235, 0.2) 0px, transparent 50%),
+      radial-gradient(at 80% 50%, rgba(20, 184, 166, 0.15) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(37, 99, 235, 0.15) 0px, transparent 50%),
+      #0F172A;
+  }
+}
+
+/* Code/Mono text */
+code {
+  font-family: 'JetBrains Mono', source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
