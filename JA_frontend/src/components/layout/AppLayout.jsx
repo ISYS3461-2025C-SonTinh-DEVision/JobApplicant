@@ -1,23 +1,28 @@
-import React from "react";
-import Sidebar from "./Sidebar";
+/**
+ * Application Layout Component
+ * Main layout wrapper with sidebar and content area
+ */
+
+import React from 'react';
+import Sidebar from './Sidebar';
 
 export default function AppLayout({ children }) {
   return (
-    <div className="flex min-h-screen bg-[#EFF6FF]">
-      {/* Sidebar wrapper (hover target) */}
-      <div
-        className="
-          group
-          transition-all duration-300
-          w-16 hover:w-56
-        "
-      >
-        <Sidebar />
-      </div>
+    <div className="flex min-h-screen bg-dark-950">
+      {/* Sidebar */}
+      <Sidebar />
 
       {/* Main content */}
-      <main className="flex-1 p-6">
-        {children}
+      <main className="flex-1 overflow-x-hidden">
+        {/* Background gradient */}
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-mesh opacity-50" />
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 min-h-screen">
+          {children}
+        </div>
       </main>
     </div>
   );

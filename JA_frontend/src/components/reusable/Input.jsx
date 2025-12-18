@@ -2,6 +2,7 @@ import React from "react";
 
 export function Input({
   label,
+  name,
   value,
   onChange,
   placeholder,
@@ -9,6 +10,7 @@ export function Input({
   error,
   disabled = false,
   className = "",
+  required = false,
 }) {
   return (
     <div className="flex flex-col gap-1 w-full">
@@ -18,10 +20,12 @@ export function Input({
 
       <input
         type={type}
+        name={name}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
         disabled={disabled}
+        required={required}
         className={[
           "h-10 px-3 rounded-md border text-sm",
           "focus:outline-none focus:ring-2 focus:ring-[#2c4270]",
