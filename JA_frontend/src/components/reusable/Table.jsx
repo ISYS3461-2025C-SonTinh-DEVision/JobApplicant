@@ -9,6 +9,7 @@
 
 import React from "react";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import useHeadlessTable from '../headless/HeadlessTable';
 
 /**
  * Sort Icon Component
@@ -166,9 +167,11 @@ export function Table({
 }
 
 /**
- * DataTable - Table with built-in HeadlessTable logic
+ * DataTable - Table with HeadlessTable hook for sorting logic
  * 
+ * Architecture: A.3.a (Ultimo Frontend) - Headless UI Pattern
  * Combines Table styling with HeadlessTable sorting logic.
+ * Demonstrates separation of concerns: styling vs logic.
  */
 export function DataTable({
   columns,
@@ -177,19 +180,13 @@ export function DataTable({
   defaultSortDirection = 'asc',
   ...props
 }) {
-  const [sortKey, setSortKey] = React.useState(defaultSortKey);
-  const [sortDirection, setSortDirection] = React.useState(defaultSortDirection);
+  // Use HeadlessTable hook for sorting logic (A.3.a - Headless UI)
+  const { sortKey, direction, toggleSort } = useHeadlessTable({
+    defaultSortKey,
+    defaultDirection: defaultSortDirection,
+  });
 
-  const handleSort = (key) => {
-    if (key === sortKey) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDirection('asc');
-    }
-  };
-
-  // Sort data
+  // Sort data using headless hook state
   const sortedData = React.useMemo(() => {
     if (!sortKey) return data;
 
@@ -198,25 +195,25 @@ export function DataTable({
       const bVal = b[sortKey];
 
       if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
-      if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal == null) return direction === 'asc' ? 1 : -1;
+      if (bVal == null) return direction === 'asc' ? -1 : 1;
 
       if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        return direction === 'asc' ? aVal - bVal : bVal - aVal;
       }
 
       const comparison = String(aVal).toLowerCase().localeCompare(String(bVal).toLowerCase());
-      return sortDirection === 'asc' ? comparison : -comparison;
+      return direction === 'asc' ? comparison : -comparison;
     });
-  }, [data, sortKey, sortDirection]);
+  }, [data, sortKey, direction]);
 
   return (
     <Table
       columns={columns}
       data={sortedData}
       sortKey={sortKey}
-      sortDirection={sortDirection}
-      onSort={handleSort}
+      sortDirection={direction}
+      onSort={toggleSort}
       {...props}
     />
   );

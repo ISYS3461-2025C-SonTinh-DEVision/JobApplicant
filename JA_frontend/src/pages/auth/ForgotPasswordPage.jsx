@@ -1,13 +1,17 @@
 /**
  * Forgot Password Page
  * Request password reset email
+ * 
+ * Architecture Notes:
+ * - Uses Headless Form hook (A.3.a - Headless UI) for form logic separation
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, ArrowLeft, Briefcase, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { validateEmail } from '../../utils/validators/authValidators';
 import { useAuth } from '../../context/AuthContext';
+import useHeadlessForm from '../../components/headless/HeadlessForm';
 
 // Background component
 function BackgroundShapes() {
@@ -32,43 +36,51 @@ function Logo() {
   );
 }
 
+/**
+ * Validation function for forgot password form
+ */
+const validateForgotPasswordForm = (values) => {
+  const errors = {};
+  const emailErrors = validateEmail(values.email);
+  if (emailErrors.length > 0) {
+    errors.email = emailErrors[0].message;
+  }
+  return errors;
+};
+
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
   const { forgotPassword } = useAuth();
-
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    setError('');
-
-    // Validate email
-    const emailErrors = validateEmail(email);
-    if (emailErrors.length > 0) {
-      setError(emailErrors[0].message);
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const result = await forgotPassword(email);
+  // Use Headless Form hook for form state management
+  const {
+    values,
+    errors,
+    touched,
+    isSubmitting,
+    submitError,
+    handleChange,
+    handleBlur,
+    handleSubmit,
+  } = useHeadlessForm({
+    initialValues: {
+      email: '',
+    },
+    validate: validateForgotPasswordForm,
+    onSubmit: async (formValues) => {
+      const result = await forgotPassword(formValues.email);
       
       if (result.success) {
         setIsSuccess(true);
+        return result;
       } else {
-        setError(result.message || 'Failed to send reset email');
+        throw new Error(result.message || 'Failed to send reset email');
       }
-    } catch (err) {
-      setError(err.message || 'An unexpected error occurred');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [email, forgotPassword]);
+    },
+  });
 
+  // Success view
   if (isSuccess) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
@@ -85,7 +97,7 @@ export default function ForgotPasswordPage() {
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Check your email</h2>
             <p className="text-dark-300 mb-6">
-              We've sent a password reset link to <span className="text-white font-medium">{email}</span>
+              We've sent a password reset link to <span className="text-white font-medium">{values.email}</span>
             </p>
             <p className="text-sm text-dark-400 mb-8">
               Didn't receive the email? Check your spam folder or{' '}
@@ -139,16 +151,16 @@ export default function ForgotPasswordPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" noValidate>
             {/* Error message */}
-            {error && (
+            {submitError && (
               <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-start gap-3 animate-shake">
                 <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <p className="text-sm">{error}</p>
+                <p className="text-sm">{submitError}</p>
               </div>
             )}
 
-            {/* Email input */}
+            {/* Email input - Using Headless Form values */}
             <div className="space-y-1.5">
               <label htmlFor="email" className="form-label">
                 Email address
@@ -159,17 +171,21 @@ export default function ForgotPasswordPage() {
                   id="email"
                   name="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setError('');
-                  }}
+                  value={values.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
                   placeholder="nguyen.an@gmail.com"
                   required
                   autoComplete="email"
-                  className="input-field pl-12"
+                  className={`input-field pl-12 ${touched.email && errors.email ? 'border-red-500' : ''}`}
                 />
               </div>
+              {touched.email && errors.email && (
+                <p className="text-red-400 text-xs flex items-center gap-1.5 mt-1.5">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  {errors.email}
+                </p>
+              )}
             </div>
 
             {/* Submit button */}
@@ -193,4 +209,3 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
-

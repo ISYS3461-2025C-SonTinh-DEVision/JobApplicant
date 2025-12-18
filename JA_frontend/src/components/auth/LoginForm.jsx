@@ -2,8 +2,9 @@
  * Login Form Component
  * Level Ultimo: Full validation, SSO, remember me, brute force protection feedback
  * 
- * Architecture Note: Uses reusable FormInput component from components/reusable/
- * following requirement A.2.a (Medium Frontend) - common display elements as configurable components
+ * Architecture Notes:
+ * - Uses reusable FormInput component (A.2.a - Componentized Frontend)
+ * - Uses Headless Form hook (A.3.a - Headless UI) for form logic separation
  */
 
 import React, { useState, useCallback } from 'react';
@@ -12,88 +13,83 @@ import { SSOButtonsGroup, OrDivider } from './SSOButtons';
 import { FormInput } from '../reusable/FormInput';
 import { validateEmail } from '../../utils/validators/authValidators';
 import { useAuth } from '../../context/AuthContext';
+import useHeadlessForm from '../headless/HeadlessForm';
 
 /**
- * Login Form
+ * Validation function for login form
+ */
+const validateLoginForm = (values) => {
+  const errors = {};
+  
+  // Email validation
+  const emailErrors = validateEmail(values.email);
+  if (emailErrors.length > 0) {
+    errors.email = emailErrors[0].message;
+  }
+  
+  // Password validation
+  if (!values.password) {
+    errors.password = 'Password is required';
+  }
+  
+  return errors;
+};
+
+/**
+ * Login Form - Uses Headless Form Pattern
  */
 export default function LoginForm({ onSuccess, onRegisterClick, onForgotPasswordClick }) {
   const { login, loginWithGoogle } = useAuth();
 
-  // Form state
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    rememberMe: false,
-  });
-
-  // UI state
-  const [errors, setErrors] = useState({});
-  const [touched, setTouched] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
+  // Brute force protection state (not part of form logic)
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockCountdown, setBlockCountdown] = useState(0);
   const [ssoLoading, setSsoLoading] = useState(null);
 
-  // Handle input change
-  const handleChange = useCallback((e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
-    
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: '' }));
-    }
-    setSubmitError('');
-  }, [errors]);
+  // Use Headless Form hook for form state management
+  const {
+    values,
+    errors,
+    touched,
+    isSubmitting,
+    submitError,
+    handleChange,
+    handleBlur,
+    handleSubmit,
+    setFieldValue,
+  } = useHeadlessForm({
+    initialValues: {
+      email: '',
+      password: '',
+      rememberMe: false,
+    },
+    validate: validateLoginForm,
+    onSubmit: async (formValues) => {
+      if (isBlocked) {
+        throw new Error('Account temporarily blocked');
+      }
 
-  // Handle blur for validation
-  const handleBlur = useCallback((e) => {
-    const { name } = e.target;
-    setTouched((prev) => ({ ...prev, [name]: true }));
-    
-    // Validate single field
-    let fieldErrors = [];
-    
-    switch (name) {
-      case 'email':
-        fieldErrors = validateEmail(formData.email);
-        break;
-      case 'password':
-        if (!formData.password) {
-          fieldErrors = [{ field: 'password', message: 'Password is required' }];
+      const result = await login({
+        email: formValues.email,
+        password: formValues.password,
+      });
+
+      if (result.success) {
+        if (onSuccess) {
+          onSuccess(result);
         }
-        break;
-      default:
-        break;
-    }
-    
-    if (fieldErrors.length > 0) {
-      setErrors((prev) => ({ ...prev, [name]: fieldErrors[0].message }));
-    }
-  }, [formData]);
+        return result;
+      } else {
+        // Check if account is blocked due to brute force protection
+        if (result.message?.includes('blocked') || result.message?.includes('Too many')) {
+          startBlockCountdown(60);
+        }
+        throw new Error(result.message || 'Invalid email or password');
+      }
+    },
+  });
 
-  // Validate all fields
-  const validateForm = useCallback(() => {
-    const emailErrors = validateEmail(formData.email);
-    const errorMap = {};
-    
-    emailErrors.forEach(({ field, message }) => {
-      errorMap[field] = message;
-    });
-    
-    if (!formData.password) {
-      errorMap.password = 'Password is required';
-    }
-    
-    setErrors(errorMap);
-    return Object.keys(errorMap).length === 0;
-  }, [formData]);
-
-  // Start block countdown
+  // Start block countdown for brute force protection
   const startBlockCountdown = useCallback((seconds) => {
     setIsBlocked(true);
     setBlockCountdown(seconds);
@@ -110,57 +106,21 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
     }, 1000);
   }, []);
 
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (isBlocked) {
-      return;
-    }
-    
-    // Mark all fields as touched
-    setTouched({
-      email: true,
-      password: true,
-    });
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    setIsSubmitting(true);
-    setSubmitError('');
-    
+  // Handle form submission with brute force handling
+  const onFormSubmit = async (e) => {
     try {
-      const result = await login({
-        email: formData.email,
-        password: formData.password,
-      });
-      
-      if (result.success) {
-        if (onSuccess) {
-          onSuccess(result);
-        }
-      } else {
-        // Check if account is blocked due to brute force protection
-        if (result.message?.includes('blocked') || result.message?.includes('Too many')) {
-          startBlockCountdown(60);
-          setSubmitError('Too many failed login attempts. Please wait 60 seconds before trying again.');
-        } else {
-          setSubmitError(result.message || 'Invalid email or password');
-        }
-      }
+      await handleSubmit(e);
     } catch (err) {
       // Handle brute force protection error
       if (err.status === 429) {
         startBlockCountdown(60);
-        setSubmitError('Too many failed login attempts. Please wait before trying again.');
-      } else {
-        setSubmitError(err.message || 'An unexpected error occurred');
       }
-    } finally {
-      setIsSubmitting(false);
     }
+  };
+
+  // Handle checkbox change (special case)
+  const handleCheckboxChange = (e) => {
+    setFieldValue('rememberMe', e.target.checked);
   };
 
   // Handle Google SSO
@@ -169,8 +129,11 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
     loginWithGoogle();
   };
 
+  // Determine error message to display
+  const displayError = submitError || (isBlocked ? 'Too many failed login attempts. Please wait before trying again.' : '');
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+    <form onSubmit={onFormSubmit} className="space-y-6" noValidate>
       {/* SSO Buttons */}
       <SSOButtonsGroup
         onGoogleClick={handleGoogleLogin}
@@ -181,7 +144,7 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
       <OrDivider />
 
       {/* Submit Error */}
-      {submitError && (
+      {displayError && (
         <div className={`p-4 rounded-xl flex items-start gap-3 animate-shake ${
           isBlocked 
             ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400'
@@ -193,7 +156,7 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           )}
           <div className="space-y-1">
-            <p className="text-sm">{submitError}</p>
+            <p className="text-sm">{displayError}</p>
             {isBlocked && blockCountdown > 0 && (
               <p className="text-xs font-mono">
                 Try again in: {blockCountdown}s
@@ -203,12 +166,12 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
         </div>
       )}
 
-      {/* Email */}
+      {/* Email - Using Headless Form values */}
       <FormInput
         label="Email"
         name="email"
         type="email"
-        value={formData.email}
+        value={values.email}
         onChange={handleChange}
         onBlur={handleBlur}
         error={touched.email && errors.email}
@@ -220,12 +183,12 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
         variant="dark"
       />
 
-      {/* Password */}
+      {/* Password - Using Headless Form values */}
       <FormInput
         label="Password"
         name="password"
         type="password"
-        value={formData.password}
+        value={values.password}
         onChange={handleChange}
         onBlur={handleBlur}
         error={touched.password && errors.password}
@@ -243,8 +206,8 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
           <input
             type="checkbox"
             name="rememberMe"
-            checked={formData.rememberMe}
-            onChange={handleChange}
+            checked={values.rememberMe}
+            onChange={handleCheckboxChange}
             className="checkbox-custom"
           />
           <span className="text-sm text-dark-300 group-hover:text-white transition-colors">
@@ -295,4 +258,3 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
     </form>
   );
 }
-

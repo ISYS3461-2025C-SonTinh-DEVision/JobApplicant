@@ -2,46 +2,117 @@
  * Registration Form Component
  * Level Ultimo: Full validation, SSO, country dropdown
  * 
- * Architecture Note: Uses reusable FormInput/FormSelect components from components/reusable/
- * following requirement A.2.a (Medium Frontend) - common display elements as configurable components
+ * Architecture Notes:
+ * - Uses reusable FormInput/FormSelect components (A.2.a - Componentized Frontend)
+ * - Uses Headless Form hook (A.3.a - Headless UI) for form logic separation
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, User, Phone, MapPin, Building2, AlertCircle, Loader2 } from 'lucide-react';
 import { SSOButtonsGroup, OrDivider } from './SSOButtons';
 import PasswordStrengthMeter from './PasswordStrengthMeter';
 import { FormInput, FormSelect } from '../reusable/FormInput';
-import { validateEmail, validatePassword, validatePhone, validateRegister } from '../../utils/validators/authValidators';
+import { validateEmail, validatePassword, validatePhone } from '../../utils/validators/authValidators';
 import { useAuth } from '../../context/AuthContext';
+import useHeadlessForm from '../headless/HeadlessForm';
 
 /**
- * Registration Form
+ * Validation function for register form
+ */
+const validateRegisterForm = (values) => {
+  const errors = {};
+  
+  // Email validation
+  const emailErrors = validateEmail(values.email);
+  if (emailErrors.length > 0) {
+    errors.email = emailErrors[0].message;
+  }
+  
+  // Password validation
+  const passwordErrors = validatePassword(values.password);
+  if (passwordErrors.length > 0) {
+    errors.password = passwordErrors[0].message;
+  }
+  
+  // Confirm password validation
+  if (values.confirmPassword !== values.password) {
+    errors.confirmPassword = 'Passwords do not match';
+  }
+  
+  // Country validation
+  if (!values.country) {
+    errors.country = 'Country is required';
+  }
+  
+  // Phone validation (optional)
+  if (values.phoneNumber) {
+    const phoneErrors = validatePhone(values.phoneNumber);
+    if (phoneErrors.length > 0) {
+      errors.phoneNumber = phoneErrors[0].message;
+    }
+  }
+  
+  return errors;
+};
+
+/**
+ * Registration Form - Uses Headless Form Pattern
  */
 export default function RegisterForm({ onSuccess, onLoginClick }) {
   const { register, loginWithGoogle, getCountries } = useAuth();
 
-  // Form state
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    phoneNumber: '',
-    country: '',
-    city: '',
-    address: '',
-  });
-
-  // UI state
-  const [errors, setErrors] = useState({});
-  const [touched, setTouched] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [submitSuccess, setSubmitSuccess] = useState(false);
+  // Countries and SSO state (not part of form logic)
   const [countries, setCountries] = useState([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
   const [ssoLoading, setSsoLoading] = useState(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Use Headless Form hook for form state management
+  const {
+    values,
+    errors,
+    touched,
+    isSubmitting,
+    submitError,
+    handleChange,
+    handleBlur,
+    handleSubmit,
+  } = useHeadlessForm({
+    initialValues: {
+      email: '',
+      password: '',
+      confirmPassword: '',
+      firstName: '',
+      lastName: '',
+      phoneNumber: '',
+      country: '',
+      city: '',
+      address: '',
+    },
+    validate: validateRegisterForm,
+    onSubmit: async (formValues) => {
+      const result = await register({
+        email: formValues.email,
+        password: formValues.password,
+        country: formValues.country,
+        firstName: formValues.firstName || undefined,
+        lastName: formValues.lastName || undefined,
+        phoneNumber: formValues.phoneNumber || undefined,
+        city: formValues.city || undefined,
+        address: formValues.address || undefined,
+      });
+      
+      if (result.success) {
+        setSubmitSuccess(true);
+        if (onSuccess) {
+          onSuccess(result);
+        }
+        return result;
+      } else {
+        throw new Error(result.message || 'Registration failed');
+      }
+    },
+  });
 
   // Fetch countries on mount
   useEffect(() => {
@@ -63,127 +134,6 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
     fetchCountries();
   }, [getCountries]);
 
-  // Handle input change
-  const handleChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: '' }));
-    }
-    setSubmitError('');
-  }, [errors]);
-
-  // Handle blur for validation
-  const handleBlur = useCallback((e) => {
-    const { name } = e.target;
-    setTouched((prev) => ({ ...prev, [name]: true }));
-    
-    // Validate single field
-    let fieldErrors = [];
-    
-    switch (name) {
-      case 'email':
-        fieldErrors = validateEmail(formData.email);
-        break;
-      case 'password':
-        fieldErrors = validatePassword(formData.password);
-        break;
-      case 'confirmPassword':
-        if (formData.confirmPassword !== formData.password) {
-          fieldErrors = [{ field: 'confirmPassword', message: 'Passwords do not match' }];
-        }
-        break;
-      case 'phoneNumber':
-        if (formData.phoneNumber) {
-          fieldErrors = validatePhone(formData.phoneNumber);
-        }
-        break;
-      case 'country':
-        if (!formData.country) {
-          fieldErrors = [{ field: 'country', message: 'Country is required' }];
-        }
-        break;
-      default:
-        break;
-    }
-    
-    if (fieldErrors.length > 0) {
-      setErrors((prev) => ({ ...prev, [name]: fieldErrors[0].message }));
-    }
-  }, [formData]);
-
-  // Validate all fields
-  const validateForm = useCallback(() => {
-    const validationErrors = validateRegister({
-      email: formData.email,
-      password: formData.password,
-      phone: formData.phoneNumber,
-      country: formData.country,
-    });
-    
-    const errorMap = {};
-    validationErrors.forEach(({ field, message }) => {
-      errorMap[field] = message;
-    });
-    
-    // Check confirm password
-    if (formData.confirmPassword !== formData.password) {
-      errorMap.confirmPassword = 'Passwords do not match';
-    }
-    
-    setErrors(errorMap);
-    return Object.keys(errorMap).length === 0;
-  }, [formData]);
-
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Mark all fields as touched
-    setTouched({
-      email: true,
-      password: true,
-      confirmPassword: true,
-      country: true,
-      phoneNumber: true,
-    });
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    setIsSubmitting(true);
-    setSubmitError('');
-    
-    try {
-      const result = await register({
-        email: formData.email,
-        password: formData.password,
-        country: formData.country,
-        firstName: formData.firstName || undefined,
-        lastName: formData.lastName || undefined,
-        phoneNumber: formData.phoneNumber || undefined,
-        city: formData.city || undefined,
-        address: formData.address || undefined,
-      });
-      
-      if (result.success) {
-        setSubmitSuccess(true);
-        if (onSuccess) {
-          onSuccess(result);
-        }
-      } else {
-        setSubmitError(result.message || 'Registration failed');
-      }
-    } catch (err) {
-      setSubmitError(err.message || 'An unexpected error occurred');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   // Handle Google SSO
   const handleGoogleLogin = () => {
     setSsoLoading('google');
@@ -199,7 +149,7 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         </div>
         <h3 className="text-xl font-semibold text-white mb-2">Check your email</h3>
         <p className="text-dark-300 mb-6">
-          We've sent an activation link to <span className="text-white font-medium">{formData.email}</span>
+          We've sent an activation link to <span className="text-white font-medium">{values.email}</span>
         </p>
         <p className="text-sm text-dark-400">
           Didn't receive the email? Check your spam folder or{' '}
@@ -228,13 +178,13 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         </div>
       )}
 
-      {/* Name Fields */}
+      {/* Name Fields - Using Headless Form values */}
       <div className="grid grid-cols-2 gap-4">
         <FormInput
           label="First Name"
           name="firstName"
           type="text"
-          value={formData.firstName}
+          value={values.firstName}
           onChange={handleChange}
           icon={User}
           placeholder="Trường"
@@ -245,7 +195,7 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
           label="Last Name"
           name="lastName"
           type="text"
-          value={formData.lastName}
+          value={values.lastName}
           onChange={handleChange}
           placeholder="Trần"
           autoComplete="family-name"
@@ -253,12 +203,12 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         />
       </div>
 
-      {/* Email */}
+      {/* Email - Using Headless Form values */}
       <FormInput
         label="Email"
         name="email"
         type="email"
-        value={formData.email}
+        value={values.email}
         onChange={handleChange}
         onBlur={handleBlur}
         error={touched.email && errors.email}
@@ -269,13 +219,13 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         variant="dark"
       />
 
-      {/* Password */}
+      {/* Password - Using Headless Form values */}
       <div>
         <FormInput
           label="Password"
           name="password"
           type="password"
-          value={formData.password}
+          value={values.password}
           onChange={handleChange}
           onBlur={handleBlur}
           error={touched.password && errors.password}
@@ -285,15 +235,15 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
           autoComplete="new-password"
           variant="dark"
         />
-        <PasswordStrengthMeter password={formData.password} />
+        <PasswordStrengthMeter password={values.password} />
       </div>
 
-      {/* Confirm Password */}
+      {/* Confirm Password - Using Headless Form values */}
       <FormInput
         label="Confirm Password"
         name="confirmPassword"
         type="password"
-        value={formData.confirmPassword}
+        value={values.confirmPassword}
         onChange={handleChange}
         onBlur={handleBlur}
         error={touched.confirmPassword && errors.confirmPassword}
@@ -304,11 +254,11 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         variant="dark"
       />
 
-      {/* Country */}
+      {/* Country - Using Headless Form values */}
       <FormSelect
         label="Country"
         name="country"
-        value={formData.country}
+        value={values.country}
         onChange={handleChange}
         onBlur={handleBlur}
         error={touched.country && errors.country}
@@ -320,12 +270,12 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         variant="dark"
       />
 
-      {/* Phone Number (Optional) */}
+      {/* Phone Number (Optional) - Using Headless Form values */}
       <FormInput
         label="Phone Number"
         name="phoneNumber"
         type="tel"
-        value={formData.phoneNumber}
+        value={values.phoneNumber}
         onChange={handleChange}
         onBlur={handleBlur}
         error={touched.phoneNumber && errors.phoneNumber}
@@ -335,13 +285,13 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         variant="dark"
       />
 
-      {/* City & Address (Optional) */}
+      {/* City & Address (Optional) - Using Headless Form values */}
       <div className="grid grid-cols-2 gap-4">
         <FormInput
           label="City"
           name="city"
           type="text"
-          value={formData.city}
+          value={values.city}
           onChange={handleChange}
           icon={Building2}
           placeholder="Hồ Chí Minh"
@@ -352,7 +302,7 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
           label="Address"
           name="address"
           type="text"
-          value={formData.address}
+          value={values.address}
           onChange={handleChange}
           placeholder="123 Đường Lê Lợi"
           autoComplete="street-address"
@@ -398,4 +348,3 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
     </form>
   );
 }
-
