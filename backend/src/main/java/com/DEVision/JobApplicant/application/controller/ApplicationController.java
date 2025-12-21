@@ -21,7 +21,6 @@ import com.DEVision.JobApplicant.application.internal.dto.CreateApplicationReque
 import com.DEVision.JobApplicant.application.internal.service.ApplicationInternalService;
 import com.DEVision.JobApplicant.auth.external.service.AuthExternalService;
 
-import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,18 +67,28 @@ public class ApplicationController {
     })
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<?> createApplication(
-            @Parameter(description = "Job post ID and optional job metadata")
-            @RequestPart("application") @Valid CreateApplicationRequest request,
+            @Parameter(description = "Job post ID (required)")
+            @RequestParam("jobPostId") String jobPostId,
+            @Parameter(description = "Job title (optional, cached from job post)")
+            @RequestParam(value = "jobTitle", required = false) String jobTitle,
+            @Parameter(description = "Company name (optional, cached from job post)")
+            @RequestParam(value = "companyName", required = false) String companyName,
             @Parameter(description = "CV file (required). Allowed types: PDF, DOC, DOCX. Max size: 10MB")
-            @RequestPart("cv") MultipartFile cvFile,
+            @RequestParam("cv") MultipartFile cvFile,
             @Parameter(description = "Cover Letter file (optional). Allowed types: PDF, DOC, DOCX. Max size: 10MB")
-            @RequestPart(value = "coverLetter", required = false) MultipartFile coverLetterFile,
+            @RequestParam(value = "coverLetter", required = false) MultipartFile coverLetterFile,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             String applicantId = getUserIdFromUserDetails(userDetails);
             if (applicantId == null) {
                 return new ResponseEntity<>(Map.of("error", "User not found"), HttpStatus.UNAUTHORIZED);
             }
+            
+            // Build request from params
+            CreateApplicationRequest request = new CreateApplicationRequest();
+            request.setJobPostId(jobPostId);
+            request.setJobTitle(jobTitle);
+            request.setCompanyName(companyName);
             
             ApplicationResponse response = internalService.createApplication(
                 applicantId, request, cvFile, coverLetterFile);
