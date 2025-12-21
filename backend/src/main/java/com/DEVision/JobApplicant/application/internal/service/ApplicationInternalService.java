@@ -122,9 +122,17 @@ public class ApplicationInternalService {
     
     /**
      * Get all applications for user with metadata
+     * @param applicantId the applicant ID
+     * @param statusFilter optional status filter (null for all applications)
      */
-    public ApplicationListResponse getUserApplications(String applicantId) {
-        List<Application> applications = applicationService.getApplicationsByApplicantId(applicantId);
+    public ApplicationListResponse getUserApplications(String applicantId, Application.ApplicationStatus statusFilter) {
+        List<Application> applications;
+        
+        if (statusFilter != null) {
+            applications = applicationService.getApplicationsByApplicantIdAndStatus(applicantId, statusFilter);
+        } else {
+            applications = applicationService.getApplicationsByApplicantId(applicantId);
+        }
         
         List<ApplicationResponse> responseList = applications.stream()
             .map(this::toResponse)
@@ -176,15 +184,6 @@ public class ApplicationInternalService {
             return applicationService.deleteApplication(applicationId);
         }
         return false;
-    }
-    
-    /**
-     * Get applications by status for a user
-     */
-    public List<ApplicationResponse> getUserApplicationsByStatus(String applicantId, Application.ApplicationStatus status) {
-        return applicationService.getApplicationsByApplicantIdAndStatus(applicantId, status).stream()
-            .map(this::toResponse)
-            .collect(Collectors.toList());
     }
     
     // Convert entity to response DTO

@@ -108,14 +108,17 @@ public class ApplicationController {
     
     @Operation(
         summary = "Get user applications",
-        description = "Retrieve all applications submitted by the authenticated user"
+        description = "Retrieve all applications submitted by the authenticated user. Optionally filter by status."
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Applications retrieved successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid status filter"),
         @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     @GetMapping("/my-applications")
     public ResponseEntity<?> getMyApplications(
+            @Parameter(description = "Optional status filter (PENDING, REVIEWING, ACCEPTED, REJECTED, WITHDRAWN)")
+            @RequestParam(value = "status", required = false) String status,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             String applicantId = getUserIdFromUserDetails(userDetails);
@@ -125,7 +128,19 @@ public class ApplicationController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
             
-            ApplicationListResponse response = internalService.getUserApplications(applicantId);
+            // Parse status filter if provided
+            Application.ApplicationStatus statusFilter = null;
+            if (status != null && !status.isEmpty()) {
+                try {
+                    statusFilter = Application.ApplicationStatus.valueOf(status.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    Map<String, String> error = new HashMap<>();
+                    error.put("error", "Invalid status: " + status + ". Valid values: PENDING, REVIEWING, ACCEPTED, REJECTED, WITHDRAWN");
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+                }
+            }
+            
+            ApplicationListResponse response = internalService.getUserApplications(applicantId, statusFilter);
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (Exception e) {
             System.err.println("Error fetching applications: " + e.getMessage());
@@ -188,46 +203,6 @@ public class ApplicationController {
             return new ResponseEntity<>(applications, HttpStatus.OK);
         } catch (Exception e) {
             System.err.println("Error fetching applications by job post: " + e.getMessage());
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Failed to fetch applications");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
-    }
-    
-    @Operation(
-        summary = "Get applications by status",
-        description = "Retrieve applications filtered by status for the authenticated user"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Applications retrieved successfully"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized")
-    })
-    @GetMapping("/my-applications/status/{status}")
-    public ResponseEntity<?> getMyApplicationsByStatus(
-            @Parameter(description = "Application status (PENDING, REVIEWING, ACCEPTED, REJECTED, WITHDRAWN)")
-            @PathVariable String status,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        try {
-            String applicantId = getUserIdFromUserDetails(userDetails);
-            if (applicantId == null) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "User not found");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
-            }
-            
-            Application.ApplicationStatus appStatus;
-            try {
-                appStatus = Application.ApplicationStatus.valueOf(status.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "Invalid status: " + status);
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-            }
-            
-            List<ApplicationResponse> applications = internalService.getUserApplicationsByStatus(applicantId, appStatus);
-            return new ResponseEntity<>(applications, HttpStatus.OK);
-        } catch (Exception e) {
-            System.err.println("Error fetching applications by status: " + e.getMessage());
             Map<String, String> error = new HashMap<>();
             error.put("error", "Failed to fetch applications");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
