@@ -12,6 +12,10 @@ import com.DEVision.JobApplicant.application.service.ApplicationService;
 import com.DEVision.JobApplicant.common.storage.dto.FileUploadResult;
 import com.DEVision.JobApplicant.common.storage.service.FileStorageService;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -121,13 +125,40 @@ public class ApplicationInternalService {
     }
     
     /**
-     * Get all applications for user with metadata
+     * Get all applications for user with metadata and pagination
      * @param applicantId the applicant ID
      * @param statusFilter optional status filter (null for all applications)
+     * @param page page number (0-based), null for no pagination
+     * @param size page size, null for no pagination
      */
-    public ApplicationListResponse getUserApplications(String applicantId, Application.ApplicationStatus statusFilter) {
-        List<Application> applications;
+    public ApplicationListResponse getUserApplications(String applicantId, Application.ApplicationStatus statusFilter, 
+                                                        Integer page, Integer size) {
+        // If pagination parameters are provided, use pagination
+        if (page != null && size != null && size > 0) {
+            Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "appliedAt"));
+            Page<Application> applicationPage;
+            
+            if (statusFilter != null) {
+                applicationPage = applicationService.getApplicationsByApplicantIdAndStatus(applicantId, statusFilter, pageable);
+            } else {
+                applicationPage = applicationService.getApplicationsByApplicantId(applicantId, pageable);
+            }
+            
+            List<ApplicationResponse> responseList = applicationPage.getContent().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+            
+            return new ApplicationListResponse(
+                responseList,
+                applicationPage.getTotalElements(),
+                applicationPage.getNumber(),
+                applicationPage.getSize(),
+                applicationPage.getTotalPages()
+            );
+        }
         
+        // No pagination - return all results
+        List<Application> applications;
         if (statusFilter != null) {
             applications = applicationService.getApplicationsByApplicantIdAndStatus(applicantId, statusFilter);
         } else {

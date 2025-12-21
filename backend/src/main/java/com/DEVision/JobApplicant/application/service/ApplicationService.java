@@ -1,6 +1,8 @@
 package com.DEVision.JobApplicant.application.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.DEVision.JobApplicant.application.entity.Application;
@@ -42,6 +44,11 @@ public class ApplicationService {
         return applicationRepository.findByApplicantId(applicantId);
     }
     
+    // Get all applications by an applicant (paginated)
+    public Page<Application> getApplicationsByApplicantId(String applicantId, Pageable pageable) {
+        return applicationRepository.findByApplicantId(applicantId, pageable);
+    }
+    
     // Get applications by status for a job post
     public List<Application> getApplicationsByJobPostIdAndStatus(String jobPostId, Application.ApplicationStatus status) {
         return applicationRepository.findByJobPostIdAndStatus(jobPostId, status);
@@ -50,6 +57,11 @@ public class ApplicationService {
     // Get applications by status for an applicant
     public List<Application> getApplicationsByApplicantIdAndStatus(String applicantId, Application.ApplicationStatus status) {
         return applicationRepository.findByApplicantIdAndStatus(applicantId, status);
+    }
+    
+    // Get applications by status for an applicant (paginated)
+    public Page<Application> getApplicationsByApplicantIdAndStatus(String applicantId, Application.ApplicationStatus status, Pageable pageable) {
+        return applicationRepository.findByApplicantIdAndStatus(applicantId, status, pageable);
     }
     
     // Check if applicant already applied to a job post
@@ -92,6 +104,11 @@ public class ApplicationService {
     // Count applications by an applicant
     public long countApplicationsByApplicantId(String applicantId) {
         return applicationRepository.countByApplicantId(applicantId);
+    }
+    
+    // Count applications by an applicant and status
+    public long countApplicationsByApplicantIdAndStatus(String applicantId, Application.ApplicationStatus status) {
+        return applicationRepository.countByApplicantIdAndStatus(applicantId, status);
     }
 }
 

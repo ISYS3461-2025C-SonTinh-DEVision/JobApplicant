@@ -108,17 +108,22 @@ public class ApplicationController {
     
     @Operation(
         summary = "Get user applications",
-        description = "Retrieve all applications submitted by the authenticated user. Optionally filter by status."
+        description = "Retrieve all applications submitted by the authenticated user. " +
+                      "Optionally filter by status and paginate results."
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Applications retrieved successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid status filter"),
+        @ApiResponse(responseCode = "400", description = "Invalid status filter or pagination parameters"),
         @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     @GetMapping("/my-applications")
     public ResponseEntity<?> getMyApplications(
             @Parameter(description = "Optional status filter (PENDING, REVIEWING, ACCEPTED, REJECTED, WITHDRAWN)")
             @RequestParam(value = "status", required = false) String status,
+            @Parameter(description = "Page number (0-based). If not provided, returns all results.")
+            @RequestParam(value = "page", required = false) Integer page,
+            @Parameter(description = "Page size (number of items per page). If not provided, returns all results.")
+            @RequestParam(value = "size", required = false) Integer size,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             String applicantId = getUserIdFromUserDetails(userDetails);
@@ -126,6 +131,13 @@ public class ApplicationController {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "User not found");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
+            // Validate pagination parameters
+            if ((page != null && page < 0) || (size != null && size <= 0)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Invalid pagination parameters. Page must be >= 0 and size must be > 0");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
             }
             
             // Parse status filter if provided
@@ -140,7 +152,7 @@ public class ApplicationController {
                 }
             }
             
-            ApplicationListResponse response = internalService.getUserApplications(applicantId, statusFilter);
+            ApplicationListResponse response = internalService.getUserApplications(applicantId, statusFilter, page, size);
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (Exception e) {
             System.err.println("Error fetching applications: " + e.getMessage());

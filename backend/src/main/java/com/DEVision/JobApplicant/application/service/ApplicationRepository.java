@@ -1,5 +1,7 @@
 package com.DEVision.JobApplicant.application.service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
@@ -16,11 +18,17 @@ public interface ApplicationRepository extends MongoRepository<Application, Stri
     // Find all applications by an applicant
     List<Application> findByApplicantId(String applicantId);
     
+    // Find all applications by an applicant (paginated)
+    Page<Application> findByApplicantId(String applicantId, Pageable pageable);
+    
     // Find applications by status for a job post
     List<Application> findByJobPostIdAndStatus(String jobPostId, Application.ApplicationStatus status);
     
     // Find applications by status for an applicant
     List<Application> findByApplicantIdAndStatus(String applicantId, Application.ApplicationStatus status);
+    
+    // Find applications by status for an applicant (paginated)
+    Page<Application> findByApplicantIdAndStatus(String applicantId, Application.ApplicationStatus status, Pageable pageable);
     
     // Check if applicant already applied to a job post
     boolean existsByJobPostIdAndApplicantId(String jobPostId, String applicantId);
@@ -30,5 +38,8 @@ public interface ApplicationRepository extends MongoRepository<Application, Stri
     
     // Count applications by an applicant
     long countByApplicantId(String applicantId);
+    
+    // Count applications by an applicant and status
+    long countByApplicantIdAndStatus(String applicantId, Application.ApplicationStatus status);
 }
 
