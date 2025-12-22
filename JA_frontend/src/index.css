@@ -25,11 +25,11 @@
     scroll-behavior: smooth;
   }
 
-  body {
-    margin: 0;
+body {
+  margin: 0;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
     background-color: var(--color-background);
     color: var(--color-text);
   }

@@ -6,7 +6,7 @@
 import React from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import { router } from './routes/routeConfig';
+import router from './routes/routeConfig';
 
 function App() {
   return (

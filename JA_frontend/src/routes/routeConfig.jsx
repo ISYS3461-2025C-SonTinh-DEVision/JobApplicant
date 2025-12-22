@@ -1,6 +1,11 @@
 /**
  * Route Configuration
  * Central routing configuration for the application
+ * 
+ * Architecture: React Router with nested routes
+ * - Public routes (login, register)
+ * - Protected routes (dashboard)
+ * - Admin routes
  */
 
 import React from 'react';
@@ -14,6 +19,12 @@ import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
 import SSOCallbackPage from '../pages/auth/SSOCallbackPage';
 
+// Dashboard Pages
+import DashboardLayout from '../components/layout/DashboardLayout';
+import DashboardHome from '../pages/dashboard/DashboardHome';
+import ProfileDashboard from '../pages/dashboard/ProfileDashboard';
+import EditProfile from '../pages/dashboard/EditProfile';
+
 // Main Pages
 import TestPage from '../pages/TestPage';
 
@@ -21,15 +32,12 @@ import TestPage from '../pages/TestPage';
 import NotFound from '../pages/error/NotFound';
 
 // Protected Route Components
-import { ProtectedRoute, PublicOnlyRoute, AdminRoute } from './ProtectedRoute';
-
-// Layout Components
-import AppLayout from '../components/layout/AppLayout';
+import { ProtectedRoute, PublicOnlyRoute } from './ProtectedRoute';
 
 /**
- * Route definitions
+ * Router configuration
  */
-export const routes = [
+const router = createBrowserRouter([
   // =====================================
   // Public Auth Routes (redirect if logged in)
   // =====================================
@@ -75,140 +83,78 @@ export const routes = [
   },
 
   // =====================================
-  // Protected Routes (requires authentication)
+  // Protected Dashboard Routes
   // =====================================
-  {
-    path: '/',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <TestPage />
-        </AppLayout>
-      </ProtectedRoute>
-    ),
-  },
   {
     path: '/dashboard',
     element: (
       <ProtectedRoute>
-        <AppLayout>
-          <TestPage />
-        </AppLayout>
+        <DashboardLayout />
       </ProtectedRoute>
     ),
-  },
-  // Job routes (placeholder for future implementation)
-  {
-    path: '/jobs',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">Job Search</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/jobs/:id',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">Job Details</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </ProtectedRoute>
-    ),
-  },
-  // Profile routes
-  {
-    path: '/profile',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">My Profile</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </ProtectedRoute>
-    ),
-  },
-  // Applications routes
-  {
-    path: '/applications',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">My Applications</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </ProtectedRoute>
-    ),
-  },
-  // Subscription routes
-  {
-    path: '/subscription',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">Subscription</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </ProtectedRoute>
-    ),
+    children: [
+      {
+        index: true,
+        element: <DashboardHome />,
+      },
+      {
+        path: 'profile',
+        element: <ProfileDashboard />,
+      },
+      {
+        path: 'profile/edit',
+        element: <EditProfile />,
+      },
+      {
+        path: 'applications',
+        element: <TestPage />, // Placeholder - will be implemented later
+      },
+      {
+        path: 'jobs',
+        element: <TestPage />, // Placeholder - needs Job Manager API
+      },
+      {
+        path: 'subscription',
+        element: <TestPage />, // Placeholder - will be implemented later
+      },
+      {
+        path: 'analytics',
+        element: <TestPage />, // Placeholder - will be implemented later
+      },
+      {
+        path: 'settings',
+        element: <TestPage />, // Placeholder - will be implemented later
+      },
+    ],
   },
 
   // =====================================
-  // Admin Routes
+  // Root Redirects
   // =====================================
   {
-    path: '/admin/login',
-    element: (
-      <PublicOnlyRoute redirectTo="/admin">
-        <LoginPage />
-      </PublicOnlyRoute>
-    ),
+    path: '/',
+    element: <Navigate to="/dashboard" replace />,
   },
   {
-    path: '/admin',
-    element: (
-      <AdminRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </AdminRoute>
-    ),
+    path: '/home',
+    element: <Navigate to="/dashboard" replace />,
   },
 
   // =====================================
-  // Error Routes
+  // Test/Development Routes
   // =====================================
   {
-    path: '/404',
-    element: <NotFound />,
+    path: '/test',
+    element: <TestPage />,
   },
+
+  // =====================================
+  // 404 Not Found
+  // =====================================
   {
     path: '*',
-    element: <Navigate to="/404" replace />,
+    element: <NotFound />,
   },
-];
-
-/**
- * Create router instance
- */
-export const router = createBrowserRouter(routes);
+]);
 
 export default router;
-
