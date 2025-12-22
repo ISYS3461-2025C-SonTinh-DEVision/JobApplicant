@@ -22,7 +22,7 @@ import {
   Briefcase, GraduationCap, Code, Award, FileText, TrendingUp,
   CheckCircle, Clock, XCircle, AlertCircle
 } from 'lucide-react';
-import { ProfileService } from '../../services/ProfileService';
+import ProfileService from '../../services/ProfileService';
 import { useAuth } from '../../hooks/useAuth';
 import useHeadlessModal from '../../components/headless/HeadlessModal';
 import { Card } from '../../components/reusable';
@@ -204,7 +204,8 @@ export default function ProfileDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const data = await ProfileService.getProfileByUserId(currentUser.userId);
+      const profileService = new ProfileService();
+      const data = await profileService.getProfileByUserId(currentUser.userId);
       setProfile({ ...data, email: currentUser.email }); // Add email from auth context
     } catch (err) {
       console.error('Error fetching profile:', err);

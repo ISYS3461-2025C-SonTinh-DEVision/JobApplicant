@@ -16,7 +16,7 @@ import {
   Save, X, Loader2, AlertCircle, ArrowLeft,
   User, Mail, Phone, MapPin, Building2
 } from 'lucide-react';
-import { ProfileService } from '../../services/ProfileService';
+import ProfileService from '../../services/ProfileService';
 import { useAuth } from '../../hooks/useAuth';
 import useHeadlessForm from '../../components/headless/HeadlessForm';
 import { FormInput, FormSelect, Card } from '../../components/reusable';
@@ -80,8 +80,9 @@ export default function EditProfile() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const profileService = new ProfileService();
         const [profileData, countriesData] = await Promise.all([
-          ProfileService.getProfileByUserId(currentUser.userId),
+          profileService.getProfileByUserId(currentUser.userId),
           fetch('http://localhost:8080/api/countries').then(res => res.json()).catch(() => [])
         ]);
         
@@ -125,7 +126,8 @@ export default function EditProfile() {
     validate: validateProfileForm,
     onSubmit: async (formValues) => {
       try {
-        await ProfileService.updateProfile(profile.id, formValues);
+        const profileService = new ProfileService();
+        await profileService.updateProfile(profile.id, formValues);
         setSaveSuccess(true);
         setTimeout(() => {
           navigate('/dashboard/profile');
