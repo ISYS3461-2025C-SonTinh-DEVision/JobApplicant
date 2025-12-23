@@ -126,6 +126,52 @@
 			"response": []
 		},
 		{
+			"name": "3B. OAuth2 Login (Google SSO)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    const response = pm.response.json();",
+							"    pm.environment.set('accessToken', response.accessToken);",
+							"    console.log('OAuth2 login successful!');",
+							"    console.log('Access Token:', response.accessToken);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"idToken\": \"paste-google-id-token-here\",\n  \"provider\": \"google\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/oauth2/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"oauth2",
+						"login"
+					]
+				},
+				"description": "Login with Google OAuth2. \n\n**How to get Google ID Token:**\n1. Use Google Sign-In button on your frontend\n2. After user signs in with Google, you'll receive an ID token\n3. Send that token to this endpoint\n4. If user doesn't exist, new account + profile will be created automatically\n5. User will be auto-activated (no email verification needed)\n\n**Note:** For testing, you can use Google OAuth2 Playground (https://developers.google.com/oauthplayground/) to get a test ID token."
+			},
+			"response": []
+		},
+		{
 			"name": "4. Check Session",
 			"request": {
 				"auth": {
