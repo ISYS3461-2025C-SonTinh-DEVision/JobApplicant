@@ -39,7 +39,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:3000")
 @Tag(name = "Authentication", description = "User authentication and authorization endpoints")
 class AuthController {
 
@@ -79,7 +78,6 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
     }
 }
 
-    
     /**
      * Activate user account using activation token
      */

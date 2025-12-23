@@ -28,7 +28,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/notifications")
-@CrossOrigin(origins = "https://localhost:3000")
 @Tag(name = "Notification Management", 
      description = "REST endpoints for notifications. Frontend connects via WebSocket at /ws/notifications for real-time updates.")
 public class NotificationController {

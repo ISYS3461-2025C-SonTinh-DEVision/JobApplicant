@@ -1,42 +1,35 @@
 package com.DEVision.JobApplicant.jwt;
 
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
-import org.springframework.util.ResourceUtils;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.security.*;
+import java.io.InputStream;
+import java.security.Key;
+import java.security.KeyStore;
+import java.security.PublicKey;
 import java.util.Base64;
 
 @Component
 class KeyStoreManager {
 
     private KeyStore keyStore;
-
     private String keyAlias;
 
-    private char[] password = "aseproject".toCharArray();
+    private final char[] password = "aseproject".toCharArray();
 
-    // RSA Key
-
-    public KeyStoreManager() throws KeyStoreException, IOException {
+    public KeyStoreManager() {
         loadKeyStore();
     }
 
-    private void loadKeyStore() throws KeyStoreException, IOException {
-
-        keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-
-        FileInputStream fis = null;
-
+    private void loadKeyStore() {
         try {
-            // Get the path to the keystore file in the resources folder
-            File keystoreFile = ResourceUtils.getFile("classpath:ase_project.keystore");
+            // JKS is default; PKCS12 can also be used
+            keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
 
-            fis = new FileInputStream(keystoreFile);
-
-            keyStore.load(fis, password);
+            ClassPathResource resource = new ClassPathResource("ase_project.keystore");
+            try (InputStream is = resource.getInputStream()) {
+                keyStore.load(is, password);
+            }
 
             keyAlias = keyStore.aliases().nextElement();
 
@@ -49,10 +42,7 @@ class KeyStoreManager {
         } catch (Exception e) {
             System.err.println("Error when loading KeyStore");
             e.printStackTrace();
-        } finally {
-            if (fis != null) {
-                fis.close();
-            }
+            throw new IllegalStateException("Failed to load keystore from classpath", e);
         }
     }
 
@@ -73,7 +63,6 @@ class KeyStoreManager {
             return null;
         }
     }
-
 
     public String getEncodedPublicKey() {
         try {

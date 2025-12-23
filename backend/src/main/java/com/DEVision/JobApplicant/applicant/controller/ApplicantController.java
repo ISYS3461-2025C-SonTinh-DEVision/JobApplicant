@@ -32,7 +32,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/applicants")
-@CrossOrigin(origins = "https://localhost:3000")
 @Tag(name = "Applicant Profile Management",
      description = "Endpoints for managing applicant profiles")
 public class ApplicantController {

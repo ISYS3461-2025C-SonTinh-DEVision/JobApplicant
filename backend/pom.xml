@@ -132,7 +132,7 @@
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>2.3.0</version>
+			<version>2.7.0</version>
 		</dependency>
 
 		<!-- Redis for token blacklist, caching, and rate limiting -->
@@ -153,8 +153,13 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-websocket</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<scope>annotationProcessor</scope>
+		</dependency>
 
- </dependencies>
+	</dependencies>
 
 	<build>
 		<plugins>

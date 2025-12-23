@@ -16,7 +16,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/countries")
-@CrossOrigin(origins = "https://localhost:3000")
 public class CountryController {
     
     /**
