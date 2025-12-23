@@ -2,28 +2,31 @@
  * Profile Dashboard Page
  * 
  * Displays complete user profile with all sections:
- * - Basic Info
- * - Education History
- * - Work Experience  
- * - Technical Skills
- * - Portfolio
- * - Application Statistics
+ * - Basic Info (Real API data)
+ * - Education History (Mock data - API not available)
+ * - Work Experience (Mock data - API not available)
+ * - Technical Skills (Mock data - API not available)
+ * - Portfolio (Mock data - API not available)
+ * - Application Statistics (Mock data - API not available)
  * 
  * Architecture:
  * - A.3.a (Ultimo): Uses Headless UI hooks for modal, tabs, form, and data management
  * - A.2.a: Uses reusable UI components
- * - Responsive design for mobile/desktop
+ * - Light/Dark mode support via ThemeContext
+ * - Data source indicators (real vs mock data)
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Mail, Phone, MapPin, Calendar, Edit, Loader2,
   Briefcase, GraduationCap, Code, Award, FileText, TrendingUp,
-  CheckCircle, Clock, XCircle, AlertCircle, Plus, Trash2, ExternalLink
+  CheckCircle, Clock, XCircle, AlertCircle, Plus, Trash2, ExternalLink,
+  Database, Server
 } from 'lucide-react';
 import ProfileService from '../../services/ProfileService';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../context/ThemeContext';
 
 import {
   useHeadlessModal,
@@ -35,19 +38,54 @@ import {
 import { Card, FormInput } from '../../components/reusable';
 
 /**
+ * Data Source Indicator Component
+ * Shows whether data is from real API or mock data
+ */
+function DataSourceIndicator({ isRealData, className = '' }) {
+  const { isDark } = useTheme();
+
+  return (
+    <div className={`inline-flex items-center gap-1.5 text-xs ${className}`}>
+      {isRealData ? (
+        <>
+          <Server className="w-3 h-3 text-green-500" />
+          <span className={isDark ? 'text-green-400' : 'text-green-600'}>API Data</span>
+        </>
+      ) : (
+        <>
+          <Database className="w-3 h-3 text-amber-500" />
+          <span className={isDark ? 'text-amber-400' : 'text-amber-600'}>Mock Data</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
  * Profile Header Section with Avatar and Basic Info
  */
-function ProfileHeader({ profile, onEdit }) {
+function ProfileHeader({ profile, onEdit, isRealData }) {
+  const { isDark } = useTheme();
   const fullName = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'No name set';
   const initial = (fullName[0] || 'U').toUpperCase();
 
   return (
-    <Card variant="dark" className="relative overflow-hidden">
+    <div className={`
+      relative overflow-hidden rounded-2xl border
+      ${isDark
+        ? 'bg-dark-800 border-dark-700'
+        : 'bg-white border-gray-200 shadow-sm'
+      }
+    `}>
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary-600/10 to-accent-500/10" />
-      <div className="absolute inset-0 bg-gradient-mesh opacity-20" />
 
       <div className="relative p-6 sm:p-8">
+        {/* Data Source Indicator */}
+        <div className="absolute top-4 right-4">
+          <DataSourceIndicator isRealData={isRealData} />
+        </div>
+
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           {/* Avatar */}
           <div className="relative">
@@ -71,10 +109,10 @@ function ProfileHeader({ profile, onEdit }) {
           <div className="flex-1">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                <h1 className={`text-2xl sm:text-3xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {fullName}
                 </h1>
-                <div className="flex flex-wrap items-center gap-4 text-dark-300">
+                <div className={`flex flex-wrap items-center gap-4 ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4" />
                     <span className="text-sm">{profile?.email || 'No email'}</span>
@@ -88,7 +126,7 @@ function ProfileHeader({ profile, onEdit }) {
                   {profile?.country && (
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
-                      <span className="text-sm">{profile.country}</span>
+                      <span className="text-sm">{typeof profile.country === 'object' ? profile.country.name : profile.country}</span>
                     </div>
                   )}
                 </div>
@@ -106,7 +144,7 @@ function ProfileHeader({ profile, onEdit }) {
 
             {/* Address */}
             {(profile?.address || profile?.city) && (
-              <div className="mt-4 flex items-start gap-2 text-dark-400">
+              <div className={`mt-4 flex items-start gap-2 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
                 <MapPin className="w-4 h-4 mt-0.5" />
                 <span className="text-sm">
                   {[profile.address, profile.city].filter(Boolean).join(', ')}
@@ -116,7 +154,7 @@ function ProfileHeader({ profile, onEdit }) {
 
             {/* Join Date */}
             {profile?.createdAt && (
-              <div className="mt-2 flex items-center gap-2 text-dark-500 text-xs">
+              <div className={`mt-2 flex items-center gap-2 text-xs ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>
                 <Calendar className="w-3.5 h-3.5" />
                 <span>Joined {new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
               </div>
@@ -124,7 +162,7 @@ function ProfileHeader({ profile, onEdit }) {
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -132,6 +170,8 @@ function ProfileHeader({ profile, onEdit }) {
  * Stats Card Component - Reusable statistic display
  */
 function StatsCard({ icon: Icon, label, value, color = 'primary' }) {
+  const { isDark } = useTheme();
+
   const colors = {
     primary: 'from-primary-500/20 to-primary-600/20 text-primary-400',
     accent: 'from-accent-500/20 to-accent-600/20 text-accent-400',
@@ -140,37 +180,54 @@ function StatsCard({ icon: Icon, label, value, color = 'primary' }) {
   };
 
   return (
-    <Card variant="dark" className="p-6 hover:scale-[1.02] transition-transform duration-200">
+    <div className={`
+      p-6 rounded-2xl border transition-all duration-200 hover:scale-[1.02]
+      ${isDark
+        ? 'bg-dark-800 border-dark-700'
+        : 'bg-white border-gray-200 shadow-sm'
+      }
+    `}>
       <div className="flex items-center gap-4">
         <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colors[color]} flex items-center justify-center`}>
           <Icon className="w-6 h-6" />
         </div>
         <div>
-          <p className="text-2xl font-bold text-white">{value}</p>
-          <p className="text-sm text-dark-400">{label}</p>
+          <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+          <p className={`text-sm ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>{label}</p>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
 /**
  * Section Card Component - Container for profile sections
  */
-function SectionCard({ icon: Icon, title, children, action }) {
+function SectionCard({ icon: Icon, title, children, action, isRealData }) {
+  const { isDark } = useTheme();
+
   return (
-    <Card variant="dark" className="p-6">
+    <div className={`
+      p-6 rounded-2xl border
+      ${isDark
+        ? 'bg-dark-800 border-dark-700'
+        : 'bg-white border-gray-200 shadow-sm'
+      }
+    `}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary-500/20 flex items-center justify-center">
             <Icon className="w-5 h-5 text-primary-400" />
           </div>
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{title}</h2>
+            {isRealData !== undefined && <DataSourceIndicator isRealData={isRealData} />}
+          </div>
         </div>
         {action}
       </div>
       {children}
-    </Card>
+    </div>
   );
 }
 
@@ -178,12 +235,14 @@ function SectionCard({ icon: Icon, title, children, action }) {
  * Empty State Component
  */
 function EmptyState({ icon: Icon, message, action }) {
+  const { isDark } = useTheme();
+
   return (
     <div className="text-center py-12">
-      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-dark-700 flex items-center justify-center">
-        <Icon className="w-8 h-8 text-dark-400" />
+      <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${isDark ? 'bg-dark-700' : 'bg-gray-100'}`}>
+        <Icon className={`w-8 h-8 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
       </div>
-      <p className="text-dark-400 mb-4">{message}</p>
+      <p className={`mb-4 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>{message}</p>
       {action}
     </div>
   );
@@ -193,13 +252,21 @@ function EmptyState({ icon: Icon, message, action }) {
  * Education Item Component
  */
 function EducationItem({ item, onEdit, onDelete }) {
+  const { isDark } = useTheme();
+
   return (
-    <div className="p-4 rounded-lg bg-dark-700/50 border border-dark-600 hover:border-primary-500/30 transition-colors">
+    <div className={`
+      p-4 rounded-lg border transition-colors
+      ${isDark
+        ? 'bg-dark-700/50 border-dark-600 hover:border-primary-500/30'
+        : 'bg-gray-50 border-gray-200 hover:border-primary-300'
+      }
+    `}>
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <h3 className="font-semibold text-white">{item.degree}</h3>
+          <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.degree}</h3>
           <p className="text-primary-400 text-sm">{item.institution}</p>
-          <p className="text-dark-400 text-xs mt-1">
+          <p className={`text-xs mt-1 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
             {item.startYear} - {item.endYear || 'Present'}
             {item.gpa && <span className="ml-2">• GPA: {item.gpa}</span>}
           </p>
@@ -207,13 +274,13 @@ function EducationItem({ item, onEdit, onDelete }) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => onEdit(item)}
-            className="p-2 text-dark-400 hover:text-primary-400 transition-colors"
+            className={`p-2 transition-colors ${isDark ? 'text-dark-400 hover:text-primary-400' : 'text-gray-400 hover:text-primary-600'}`}
           >
             <Edit className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(item.id)}
-            className="p-2 text-dark-400 hover:text-red-400 transition-colors"
+            className={`p-2 transition-colors ${isDark ? 'text-dark-400 hover:text-red-400' : 'text-gray-400 hover:text-red-600'}`}
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -227,29 +294,37 @@ function EducationItem({ item, onEdit, onDelete }) {
  * Experience Item Component
  */
 function ExperienceItem({ item, onEdit, onDelete }) {
+  const { isDark } = useTheme();
+
   return (
-    <div className="p-4 rounded-lg bg-dark-700/50 border border-dark-600 hover:border-primary-500/30 transition-colors">
+    <div className={`
+      p-4 rounded-lg border transition-colors
+      ${isDark
+        ? 'bg-dark-700/50 border-dark-600 hover:border-primary-500/30'
+        : 'bg-gray-50 border-gray-200 hover:border-primary-300'
+      }
+    `}>
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <h3 className="font-semibold text-white">{item.title}</h3>
+          <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.title}</h3>
           <p className="text-primary-400 text-sm">{item.company}</p>
-          <p className="text-dark-400 text-xs mt-1">
+          <p className={`text-xs mt-1 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
             {item.startDate} - {item.endDate || 'Present'}
           </p>
           {item.description && (
-            <p className="text-dark-300 text-sm mt-2">{item.description}</p>
+            <p className={`text-sm mt-2 ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>{item.description}</p>
           )}
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => onEdit(item)}
-            className="p-2 text-dark-400 hover:text-primary-400 transition-colors"
+            className={`p-2 transition-colors ${isDark ? 'text-dark-400 hover:text-primary-400' : 'text-gray-400 hover:text-primary-600'}`}
           >
             <Edit className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(item.id)}
-            className="p-2 text-dark-400 hover:text-red-400 transition-colors"
+            className={`p-2 transition-colors ${isDark ? 'text-dark-400 hover:text-red-400' : 'text-gray-400 hover:text-red-600'}`}
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -263,8 +338,16 @@ function ExperienceItem({ item, onEdit, onDelete }) {
  * Skill Tag Component
  */
 function SkillTag({ skill, onRemove }) {
+  const { isDark } = useTheme();
+
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary-500/20 text-primary-300 text-sm border border-primary-500/30 hover:border-primary-400 transition-colors group">
+    <span className={`
+      inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-colors group
+      ${isDark
+        ? 'bg-primary-500/20 text-primary-300 border-primary-500/30 hover:border-primary-400'
+        : 'bg-primary-50 text-primary-700 border-primary-200 hover:border-primary-400'
+      }
+    `}>
       {skill}
       {onRemove && (
         <button
@@ -282,6 +365,8 @@ function SkillTag({ skill, onRemove }) {
  * Generic Modal Component using Headless Modal hook
  */
 function Modal({ isOpen, onClose, title, children }) {
+  const { isDark } = useTheme();
+
   if (!isOpen) return null;
 
   return (
@@ -295,15 +380,21 @@ function Modal({ isOpen, onClose, title, children }) {
       {/* Modal */}
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
         <div
-          className="bg-dark-800 border border-dark-700 rounded-2xl shadow-2xl w-full max-w-md animate-scale-in"
+          className={`
+            rounded-2xl shadow-2xl w-full max-w-md animate-scale-in border
+            ${isDark
+              ? 'bg-dark-800 border-dark-700'
+              : 'bg-white border-gray-200'
+            }
+          `}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-dark-700">
-            <h3 className="text-lg font-semibold text-white">{title}</h3>
+          <div className={`flex items-center justify-between p-6 border-b ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
+            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
             <button
               onClick={onClose}
-              className="text-dark-400 hover:text-white transition-colors"
+              className={`transition-colors ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-400 hover:text-gray-900'}`}
             >
               <XCircle className="w-5 h-5" />
             </button>
@@ -325,9 +416,12 @@ function Modal({ isOpen, onClose, title, children }) {
 export default function ProfileDashboard() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { isDark } = useTheme();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isProfileFromApi, setIsProfileFromApi] = useState(false);
+  const hasInitialized = useRef(false);
 
   // === HEADLESS UI HOOKS INTEGRATION ===
 
@@ -352,15 +446,12 @@ export default function ProfileDashboard() {
     idKey: 'id'
   });
 
-  // Note: useHeadlessTabs is available for future tab-based UI
-  // Currently using grid layout instead
-
   // Skills state
   const [skills, setSkills] = useState([]);
   const [newSkill, setNewSkill] = useState('');
 
-  // Application stats (mock data - will be replaced with real API)
-  const [applications] = useState({ total: 0, pending: 0, accepted: 0, rejected: 0 });
+  // Application stats (mock data - API not available)
+  const [applications] = useState({ total: 12, pending: 5, accepted: 3, rejected: 4 });
 
   // Education Form using useHeadlessForm
   const educationForm = useHeadlessForm({
@@ -418,8 +509,61 @@ export default function ProfileDashboard() {
 
   // Fetch profile data
   const fetchProfile = useCallback(async () => {
+    // Prevent duplicate initialization
+    if (hasInitialized.current) {
+      setLoading(false);
+      return;
+    }
+
+    // If no user, show mock profile data (for demo/testing)
     if (!currentUser?.userId) {
-      setError('User not found');
+      hasInitialized.current = true;
+      setProfile({
+        firstName: 'Demo',
+        lastName: 'User',
+        email: 'demo@devision.com',
+        country: 'Vietnam',
+        phoneNumber: '+84 123 456 789',
+        address: '702 Nguyễn Văn Linh',
+        city: 'Ho Chi Minh City',
+        createdAt: new Date().toISOString()
+      });
+      setIsProfileFromApi(false);
+
+      // Add mock education/experience/skills
+      educationList.addItem({
+        id: '1',
+        degree: 'Bachelor of Software Engineering (Hons)',
+        institution: 'RMIT University Vietnam',
+        startYear: '2021',
+        endYear: '2025',
+        gpa: '3.7'
+      });
+      educationList.addItem({
+        id: '2',
+        degree: 'High School Diploma',
+        institution: 'Le Hong Phong High School',
+        startYear: '2018',
+        endYear: '2021',
+        gpa: ''
+      });
+      experienceList.addItem({
+        id: '1',
+        title: 'Frontend Developer Intern',
+        company: 'DEVision Technology',
+        startDate: '2024-06',
+        endDate: '',
+        description: 'Building responsive web applications using React and Tailwind CSS. Contributing to UI component library development.'
+      });
+      experienceList.addItem({
+        id: '2',
+        title: 'Teaching Assistant',
+        company: 'RMIT University',
+        startDate: '2023-09',
+        endDate: '2024-05',
+        description: 'Assisted students in Web Programming course with HTML, CSS, JavaScript fundamentals.'
+      });
+      setSkills(['React', 'JavaScript', 'TypeScript', 'Tailwind CSS', 'Node.js', 'Python', 'Git', 'Docker']);
       setLoading(false);
       return;
     }
@@ -427,32 +571,73 @@ export default function ProfileDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const profileService = new ProfileService();
-      const data = await profileService.getProfileByUserId(currentUser.userId);
-      setProfile({ ...data, email: currentUser.email });
+      const data = await ProfileService.getProfileByUserId(currentUser.userId);
 
-      // Load education, experience, skills from profile if available
-      if (data.education) {
-        data.education.forEach(item => educationList.addItem(item));
-      }
-      if (data.experience) {
-        data.experience.forEach(item => experienceList.addItem(item));
-      }
-      if (data.skills) {
-        setSkills(data.skills);
+      if (data && data.id) {
+        setProfile({ ...data, email: currentUser.email });
+        setIsProfileFromApi(true);
+
+        // Load education, experience, skills from profile if available
+        if (data.education && data.education.length > 0) {
+          data.education.forEach(item => educationList.addItem(item));
+        }
+        if (data.experience && data.experience.length > 0) {
+          data.experience.forEach(item => experienceList.addItem(item));
+        }
+        if (data.skills && data.skills.length > 0) {
+          setSkills(data.skills);
+        }
+      } else {
+        // Fallback to mock profile data
+        setProfile({
+          firstName: currentUser.firstName || 'Demo',
+          lastName: currentUser.lastName || 'User',
+          email: currentUser.email,
+          country: 'Vietnam',
+          createdAt: new Date().toISOString()
+        });
+        setIsProfileFromApi(false);
+
+        // Add mock education/experience/skills data
+        educationList.addItem({
+          id: '1',
+          degree: 'Bachelor of Software Engineering',
+          institution: 'RMIT University Vietnam',
+          startYear: '2021',
+          endYear: '2025',
+          gpa: '3.5'
+        });
+        experienceList.addItem({
+          id: '1',
+          title: 'Frontend Developer Intern',
+          company: 'Tech Corp Vietnam',
+          startDate: '2024-06',
+          endDate: '',
+          description: 'Developed responsive web applications using React and Tailwind CSS.'
+        });
+        setSkills(['React', 'JavaScript', 'TypeScript', 'Tailwind CSS', 'Node.js']);
       }
     } catch (err) {
       console.error('Error fetching profile:', err);
-      setError(err.message || 'Failed to load profile');
+      // Fallback to mock data on error
+      setProfile({
+        firstName: currentUser?.firstName || 'Demo',
+        lastName: currentUser?.lastName || 'User',
+        email: currentUser?.email || 'user@example.com',
+        country: 'Vietnam',
+        createdAt: new Date().toISOString()
+      });
+      setIsProfileFromApi(false);
+      setSkills(['React', 'JavaScript', 'Python']);
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   useEffect(() => {
     fetchProfile();
-  }, [fetchProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Add skill handler
   const handleAddSkill = () => {
@@ -473,21 +658,21 @@ export default function ProfileDashboard() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-primary-500 animate-spin mx-auto mb-4" />
-          <p className="text-dark-400">Loading profile...</p>
+          <p className={isDark ? 'text-dark-400' : 'text-gray-500'}>Loading profile...</p>
         </div>
       </div>
     );
   }
 
-  // Error state
-  if (error) {
+  // Error state with retry
+  if (error && !profile) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Card variant="dark" className="p-8 max-w-md">
+        <div className={`p-8 max-w-md rounded-2xl border ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200'}`}>
           <div className="text-center">
             <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-white mb-2">Error Loading Profile</h3>
-            <p className="text-dark-400 mb-4">{error}</p>
+            <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Error Loading Profile</h3>
+            <p className={`mb-4 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>{error}</p>
             <button
               onClick={fetchProfile}
               className="btn-primary"
@@ -495,7 +680,7 @@ export default function ProfileDashboard() {
               Try Again
             </button>
           </div>
-        </Card>
+        </div>
       </div>
     );
   }
@@ -506,9 +691,13 @@ export default function ProfileDashboard() {
       <ProfileHeader
         profile={profile}
         onEdit={() => navigate('/dashboard/profile/edit')}
+        isRealData={isProfileFromApi}
       />
 
       {/* Stats Grid */}
+      <div className="mb-4">
+        <DataSourceIndicator isRealData={false} className="mb-2" />
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           icon={FileText}
@@ -531,7 +720,7 @@ export default function ProfileDashboard() {
         <StatsCard
           icon={TrendingUp}
           label="Profile Views"
-          value="24"
+          value="84"
           color="accent"
         />
       </div>
@@ -544,6 +733,7 @@ export default function ProfileDashboard() {
           <SectionCard
             icon={GraduationCap}
             title="Education"
+            isRealData={false}
             action={
               <button
                 onClick={educationModal.open}
@@ -588,6 +778,7 @@ export default function ProfileDashboard() {
           <SectionCard
             icon={Briefcase}
             title="Work Experience"
+            isRealData={false}
             action={
               <button
                 onClick={experienceModal.open}
@@ -635,6 +826,7 @@ export default function ProfileDashboard() {
           <SectionCard
             icon={Code}
             title="Skills"
+            isRealData={false}
             action={
               <button
                 onClick={skillsModal.open}
@@ -675,6 +867,7 @@ export default function ProfileDashboard() {
           <SectionCard
             icon={Award}
             title="Portfolio"
+            isRealData={false}
             action={
               <button className="flex items-center gap-1 text-sm text-primary-400 hover:text-primary-300 transition-colors">
                 <Plus className="w-4 h-4" />
@@ -694,14 +887,23 @@ export default function ProfileDashboard() {
           </SectionCard>
 
           {/* Quick Links */}
-          <Card variant="dark" className="p-6">
-            <h3 className="text-sm font-semibold text-dark-300 uppercase tracking-wider mb-4">
+          <div className={`
+            p-6 rounded-2xl border
+            ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'}
+          `}>
+            <h3 className={`text-sm font-semibold uppercase tracking-wider mb-4 ${isDark ? 'text-dark-300' : 'text-gray-500'}`}>
               Quick Actions
             </h3>
             <div className="space-y-2">
               <button
                 onClick={() => navigate('/dashboard/jobs')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-dark-700/50 hover:bg-dark-700 text-dark-300 hover:text-white transition-colors"
+                className={`
+                  w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
+                  ${isDark
+                    ? 'bg-dark-700/50 hover:bg-dark-700 text-dark-300 hover:text-white'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900'
+                  }
+                `}
               >
                 <Briefcase className="w-5 h-5" />
                 <span>Find Jobs</span>
@@ -709,14 +911,20 @@ export default function ProfileDashboard() {
               </button>
               <button
                 onClick={() => navigate('/dashboard/applications')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-dark-700/50 hover:bg-dark-700 text-dark-300 hover:text-white transition-colors"
+                className={`
+                  w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
+                  ${isDark
+                    ? 'bg-dark-700/50 hover:bg-dark-700 text-dark-300 hover:text-white'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900'
+                  }
+                `}
               >
                 <FileText className="w-5 h-5" />
                 <span>My Applications</span>
                 <ExternalLink className="w-4 h-4 ml-auto" />
               </button>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
 
@@ -738,7 +946,7 @@ export default function ProfileDashboard() {
             onBlur={educationForm.handleBlur}
             error={educationForm.touched.degree && educationForm.errors.degree}
             required
-            variant="dark"
+            variant={isDark ? 'dark' : 'light'}
           />
           <FormInput
             label="Institution"
@@ -749,7 +957,7 @@ export default function ProfileDashboard() {
             onBlur={educationForm.handleBlur}
             error={educationForm.touched.institution && educationForm.errors.institution}
             required
-            variant="dark"
+            variant={isDark ? 'dark' : 'light'}
           />
           <div className="grid grid-cols-2 gap-4">
             <FormInput
@@ -762,7 +970,7 @@ export default function ProfileDashboard() {
               onBlur={educationForm.handleBlur}
               error={educationForm.touched.startYear && educationForm.errors.startYear}
               required
-              variant="dark"
+              variant={isDark ? 'dark' : 'light'}
             />
             <FormInput
               label="End Year"
@@ -772,7 +980,7 @@ export default function ProfileDashboard() {
               value={educationForm.values.endYear}
               onChange={educationForm.handleChange}
               onBlur={educationForm.handleBlur}
-              variant="dark"
+              variant={isDark ? 'dark' : 'light'}
             />
           </div>
           <FormInput
@@ -783,7 +991,7 @@ export default function ProfileDashboard() {
             placeholder="3.5"
             value={educationForm.values.gpa}
             onChange={educationForm.handleChange}
-            variant="dark"
+            variant={isDark ? 'dark' : 'light'}
           />
           <div className="flex justify-end gap-3 pt-4">
             <button
@@ -820,7 +1028,7 @@ export default function ProfileDashboard() {
             onBlur={experienceForm.handleBlur}
             error={experienceForm.touched.title && experienceForm.errors.title}
             required
-            variant="dark"
+            variant={isDark ? 'dark' : 'light'}
           />
           <FormInput
             label="Company"
@@ -831,7 +1039,7 @@ export default function ProfileDashboard() {
             onBlur={experienceForm.handleBlur}
             error={experienceForm.touched.company && experienceForm.errors.company}
             required
-            variant="dark"
+            variant={isDark ? 'dark' : 'light'}
           />
           <div className="grid grid-cols-2 gap-4">
             <FormInput
@@ -843,7 +1051,7 @@ export default function ProfileDashboard() {
               onBlur={experienceForm.handleBlur}
               error={experienceForm.touched.startDate && experienceForm.errors.startDate}
               required
-              variant="dark"
+              variant={isDark ? 'dark' : 'light'}
             />
             <FormInput
               label="End Date"
@@ -851,11 +1059,11 @@ export default function ProfileDashboard() {
               type="month"
               value={experienceForm.values.endDate}
               onChange={experienceForm.handleChange}
-              variant="dark"
+              variant={isDark ? 'dark' : 'light'}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-dark-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-dark-300' : 'text-gray-700'}`}>
               Description
             </label>
             <textarea
@@ -864,7 +1072,14 @@ export default function ProfileDashboard() {
               placeholder="Describe your responsibilities and achievements..."
               value={experienceForm.values.description}
               onChange={experienceForm.handleChange}
-              className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              className={`
+                w-full px-4 py-3 border rounded-lg resize-none transition-colors
+                focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                ${isDark
+                  ? 'bg-dark-700 border-dark-600 text-white placeholder-dark-400'
+                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+                }
+              `}
             />
           </div>
           <div className="flex justify-end gap-3 pt-4">
@@ -900,7 +1115,14 @@ export default function ProfileDashboard() {
               value={newSkill}
               onChange={(e) => setNewSkill(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
-              className="flex-1 px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className={`
+                flex-1 px-4 py-3 border rounded-lg transition-colors
+                focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                ${isDark
+                  ? 'bg-dark-700 border-dark-600 text-white placeholder-dark-400'
+                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+                }
+              `}
             />
             <button
               type="button"
@@ -912,8 +1134,8 @@ export default function ProfileDashboard() {
           </div>
 
           {skills.length > 0 && (
-            <div className="pt-4 border-t border-dark-700">
-              <p className="text-sm text-dark-400 mb-3">Current Skills:</p>
+            <div className={`pt-4 border-t ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
+              <p className={`text-sm mb-3 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Current Skills:</p>
               <div className="flex flex-wrap gap-2">
                 {skills.map((skill) => (
                   <SkillTag
@@ -927,7 +1149,7 @@ export default function ProfileDashboard() {
           )}
 
           <div className="pt-4">
-            <p className="text-xs text-dark-500">
+            <p className={`text-xs ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>
               Popular skills: React, Node.js, Python, Java, TypeScript, Docker, AWS, MongoDB
             </p>
           </div>

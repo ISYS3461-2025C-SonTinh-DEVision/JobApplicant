@@ -7,20 +7,22 @@
  * - A.3.a: Uses useHeadlessForm for form state management
  * - A.2.a: Uses reusable FormInput components
  * - Full client-side validation
+ * - Light/Dark mode support via ThemeContext
  * - Responsive layout
  */
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Save, X, Loader2, AlertCircle, ArrowLeft,
+  Save, X, Loader2, AlertCircle, ArrowLeft, CheckCircle,
   User, Mail, Phone, MapPin, Building2
 } from 'lucide-react';
 import ProfileService from '../../services/ProfileService';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../context/ThemeContext';
 import useHeadlessForm from '../../components/headless/HeadlessForm';
 import { FormInput, FormSelect, Card } from '../../components/reusable';
-import { validateEmail, validatePhone } from '../../utils/validators/authValidators';
+import { validatePhone } from '../../utils/validators/authValidators';
 
 /**
  * Validation function for profile form
@@ -70,6 +72,7 @@ const validateProfileForm = (values) => {
 export default function EditProfile() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { isDark } = useTheme();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [countries, setCountries] = useState([]);
@@ -80,27 +83,64 @@ export default function EditProfile() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const profileService = new ProfileService();
-        const [profileData, countriesData] = await Promise.all([
-          profileService.getProfileByUserId(currentUser.userId),
-          fetch('http://localhost:8080/api/countries').then(res => res.json()).catch(() => [])
-        ]);
 
-        setProfile(profileData);
-        setCountries(countriesData.map(c => ({
-          value: c.code || c.name,
-          label: c.name
-        })));
+        // Fetch countries
+        const countriesData = await fetch('http://localhost:8080/api/countries')
+          .then(res => res.json())
+          .catch(() => []);
+
+        setCountries(countriesData.length > 0
+          ? countriesData.map(c => ({ value: c.code || c.name, label: c.name }))
+          : [
+            { value: 'VN', label: 'Vietnam' },
+            { value: 'SG', label: 'Singapore' },
+            { value: 'US', label: 'United States' },
+            { value: 'JP', label: 'Japan' },
+            { value: 'AU', label: 'Australia' },
+          ]
+        );
+
+        // Fetch profile or use mock data
+        if (currentUser?.userId) {
+          const profileData = await ProfileService.getProfileByUserId(currentUser.userId);
+          setProfile(profileData);
+        } else {
+          // Mock profile for demo mode
+          setProfile({
+            id: 'demo',
+            firstName: 'Demo',
+            lastName: 'User',
+            country: 'VN',
+            phoneNumber: '+84 123 456 789',
+            address: '702 Nguyễn Văn Linh',
+            city: 'Ho Chi Minh City',
+          });
+        }
       } catch (err) {
         console.error('Error loading data:', err);
+        // Fallback to mock profile
+        setProfile({
+          id: 'demo',
+          firstName: 'Demo',
+          lastName: 'User',
+          country: 'VN',
+          phoneNumber: '',
+          address: '',
+          city: '',
+        });
+        setCountries([
+          { value: 'VN', label: 'Vietnam' },
+          { value: 'SG', label: 'Singapore' },
+          { value: 'US', label: 'United States' },
+          { value: 'JP', label: 'Japan' },
+          { value: 'AU', label: 'Australia' },
+        ]);
       } finally {
         setLoading(false);
       }
     };
 
-    if (currentUser?.userId) {
-      fetchData();
-    }
+    fetchData();
   }, [currentUser]);
 
   // Headless form for profile editing
@@ -126,8 +166,7 @@ export default function EditProfile() {
     validate: validateProfileForm,
     onSubmit: async (formValues) => {
       try {
-        const profileService = new ProfileService();
-        await profileService.updateProfile(profile.id, formValues);
+        await ProfileService.updateProfile(profile.id, formValues);
         setSaveSuccess(true);
         setTimeout(() => {
           navigate('/dashboard/profile');
@@ -145,7 +184,7 @@ export default function EditProfile() {
       setValues({
         firstName: profile.firstName || '',
         lastName: profile.lastName || '',
-        country: profile.country || '',
+        country: typeof profile.country === 'object' ? profile.country.code : (profile.country || ''),
         phoneNumber: profile.phoneNumber || '',
         address: profile.address || '',
         city: profile.city || '',
@@ -158,7 +197,7 @@ export default function EditProfile() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-primary-500 animate-spin mx-auto mb-4" />
-          <p className="text-dark-400">Loading profile...</p>
+          <p className={isDark ? 'text-dark-400' : 'text-gray-500'}>Loading profile...</p>
         </div>
       </div>
     );
@@ -170,22 +209,29 @@ export default function EditProfile() {
       <div className="mb-6">
         <button
           onClick={() => navigate('/dashboard/profile')}
-          className="flex items-center gap-2 text-dark-400 hover:text-white transition-colors mb-4"
+          className={`flex items-center gap-2 transition-colors mb-4 ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+            }`}
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Profile</span>
         </button>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Edit Profile</h1>
-        <p className="text-dark-400 mt-2">Update your personal information</p>
+        <h1 className={`text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Edit Profile</h1>
+        <p className={`mt-2 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Update your personal information</p>
       </div>
 
       {/* Success Message */}
       {saveSuccess && (
-        <div className="mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 flex items-start gap-3 animate-fade-in">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+        <div className={`
+          mb-6 p-4 rounded-xl flex items-start gap-3 animate-fade-in
+          ${isDark
+            ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+            : 'bg-green-50 border border-green-200 text-green-700'
+          }
+        `}>
+          <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-medium">Profile updated successfully!</p>
-            <p className="text-sm text-green-400/70 mt-1">Redirecting to profile...</p>
+            <p className={`text-sm mt-1 ${isDark ? 'text-green-400/70' : 'text-green-600'}`}>Redirecting to profile...</p>
           </div>
         </div>
       )}
@@ -193,8 +239,11 @@ export default function EditProfile() {
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Information */}
-        <Card variant="dark" className="p-6">
-          <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+        <div className={`
+          p-6 rounded-2xl border
+          ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'}
+        `}>
+          <h2 className={`text-lg font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             <User className="w-5 h-5 text-primary-400" />
             Basic Information
           </h2>
@@ -211,8 +260,8 @@ export default function EditProfile() {
                 onBlur={handleBlur}
                 error={touched.firstName && errors.firstName}
                 icon={User}
-                placeholder="Trường"
-                variant="dark"
+                placeholder="Your first name"
+                variant={isDark ? 'dark' : 'light'}
               />
               <FormInput
                 label="Last Name"
@@ -222,8 +271,8 @@ export default function EditProfile() {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 error={touched.lastName && errors.lastName}
-                placeholder="Trần"
-                variant="dark"
+                placeholder="Your last name"
+                variant={isDark ? 'dark' : 'light'}
               />
             </div>
 
@@ -235,9 +284,9 @@ export default function EditProfile() {
               value={currentUser?.email || ''}
               icon={Mail}
               disabled
-              variant="dark"
+              variant={isDark ? 'dark' : 'light'}
             />
-            <p className="text-xs text-dark-500 -mt-2">
+            <p className={`text-xs -mt-2 ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>
               Email cannot be changed. Contact support if you need to update it.
             </p>
 
@@ -253,14 +302,17 @@ export default function EditProfile() {
               icon={MapPin}
               placeholder="Select your country"
               required
-              variant="dark"
+              variant={isDark ? 'dark' : 'light'}
             />
           </div>
-        </Card>
+        </div>
 
         {/* Contact Information */}
-        <Card variant="dark" className="p-6">
-          <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+        <div className={`
+          p-6 rounded-2xl border
+          ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'}
+        `}>
+          <h2 className={`text-lg font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             <Phone className="w-5 h-5 text-primary-400" />
             Contact Information
           </h2>
@@ -277,7 +329,7 @@ export default function EditProfile() {
               error={touched.phoneNumber && errors.phoneNumber}
               icon={Phone}
               placeholder="+84 123 456 789"
-              variant="dark"
+              variant={isDark ? 'dark' : 'light'}
             />
 
             {/* Address */}
@@ -290,8 +342,8 @@ export default function EditProfile() {
               onBlur={handleBlur}
               error={touched.address && errors.address}
               icon={MapPin}
-              placeholder="123 Đường Lê Lợi"
-              variant="dark"
+              placeholder="Your street address"
+              variant={isDark ? 'dark' : 'light'}
             />
 
             {/* City */}
@@ -304,15 +356,21 @@ export default function EditProfile() {
               onBlur={handleBlur}
               error={touched.city && errors.city}
               icon={Building2}
-              placeholder="Hồ Chí Minh"
-              variant="dark"
+              placeholder="Your city"
+              variant={isDark ? 'dark' : 'light'}
             />
           </div>
-        </Card>
+        </div>
 
         {/* Submit Error */}
         {submitError && (
-          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-start gap-3 animate-shake">
+          <div className={`
+            p-4 rounded-xl flex items-start gap-3 animate-shake
+            ${isDark
+              ? 'bg-red-500/10 border border-red-500/20 text-red-400'
+              : 'bg-red-50 border border-red-200 text-red-700'
+            }
+          `}>
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <p className="text-sm">{submitError}</p>
           </div>
@@ -323,7 +381,13 @@ export default function EditProfile() {
           <button
             type="button"
             onClick={() => navigate('/dashboard/profile')}
-            className="btn-secondary"
+            className={`
+              inline-flex items-center px-6 py-3 rounded-xl font-medium transition-colors
+              ${isDark
+                ? 'bg-dark-700 text-white hover:bg-dark-600 border border-dark-600'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+              }
+            `}
             disabled={isSubmitting}
           >
             <X className="w-4 h-4 mr-2" />
@@ -351,4 +415,3 @@ export default function EditProfile() {
     </div>
   );
 }
-
