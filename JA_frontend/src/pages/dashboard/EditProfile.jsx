@@ -12,7 +12,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   Save, X, Loader2, AlertCircle, ArrowLeft,
   User, Mail, Phone, MapPin, Building2
 } from 'lucide-react';
@@ -85,11 +85,11 @@ export default function EditProfile() {
           profileService.getProfileByUserId(currentUser.userId),
           fetch('http://localhost:8080/api/countries').then(res => res.json()).catch(() => [])
         ]);
-        
+
         setProfile(profileData);
-        setCountries(countriesData.map(c => ({ 
-          value: c.code || c.name, 
-          label: c.name 
+        setCountries(countriesData.map(c => ({
+          value: c.code || c.name,
+          label: c.name
         })));
       } catch (err) {
         console.error('Error loading data:', err);

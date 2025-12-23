@@ -81,6 +81,10 @@ const router = createBrowserRouter([
     path: '/auth/activate',
     element: <VerifyEmailPage />,
   },
+  {
+    path: '/activate',
+    element: <VerifyEmailPage />,
+  },
 
   // =====================================
   // Protected Dashboard Routes
