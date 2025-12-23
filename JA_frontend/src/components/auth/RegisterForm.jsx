@@ -7,12 +7,140 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Mail, Lock, User, Phone, MapPin, Building2, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Phone, MapPin, Building2, AlertCircle, Loader2, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
 import { SSOButtonsGroup, OrDivider } from './SSOButtons';
 import PasswordStrengthMeter from './PasswordStrengthMeter';
 import { FormInput, FormSelect } from '../reusable/FormInput';
 import { validateEmail, validatePassword, validatePhone, validateRegister } from '../../utils/validators/authValidators';
 import { useAuth } from '../../context/AuthContext';
+import authService from '../../services/authService';
+
+/**
+ * Success message component with resend activation email functionality
+ * Includes 60-second cooldown timer to prevent spam
+ */
+function SuccessWithResend({ email, onLoginClick }) {
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => {
+        setCooldown(c => c - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
+
+  // Handle resend activation email
+  const handleResend = async () => {
+    if (cooldown > 0 || resendLoading) return;
+
+    setResendLoading(true);
+    setResendMessage('');
+    setResendSuccess(false);
+
+    try {
+      const result = await authService.resendActivationEmail(email);
+
+      if (result.success) {
+        if (result.alreadyActivated) {
+          setResendMessage('Your account is already activated! You can login now.');
+          setResendSuccess(true);
+        } else {
+          setResendMessage('A new activation link has been sent to your email!');
+          setResendSuccess(true);
+          setCooldown(60); // Start 60 second cooldown
+        }
+      } else if (result.rateLimited) {
+        setCooldown(result.retryAfter || 60);
+        setResendMessage(`Please wait ${result.retryAfter || 60} seconds before requesting again.`);
+      } else {
+        setResendMessage(result.message || 'Failed to send activation email.');
+      }
+    } catch (error) {
+      console.error('Resend activation error:', error);
+      setResendMessage('Failed to send activation email. Please try again.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  return (
+    <div className="text-center py-6 animate-fade-in">
+      {/* Success Icon */}
+      <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-accent-500/20 flex items-center justify-center">
+        <Mail className="w-8 h-8 text-accent-400" />
+      </div>
+
+      {/* Title */}
+      <h3 className="text-xl font-semibold text-white mb-2">Check your email</h3>
+
+      {/* Description */}
+      <p className="text-dark-300 mb-6">
+        We've sent an activation link to{' '}
+        <span className="text-white font-medium">{email}</span>
+      </p>
+
+      {/* Resend Section */}
+      <div className="bg-dark-700/50 rounded-xl p-4 mb-6">
+        <p className="text-sm text-dark-400 mb-3">
+          Didn't receive the email? Check your spam folder or click below to resend.
+        </p>
+
+        <button
+          onClick={handleResend}
+          disabled={resendLoading || cooldown > 0}
+          className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all
+            ${cooldown > 0
+              ? 'bg-dark-600 text-dark-400 cursor-not-allowed'
+              : 'bg-primary-600 hover:bg-primary-500 text-white'
+            }
+            disabled:opacity-60`}
+        >
+          {resendLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Sending...</span>
+            </>
+          ) : cooldown > 0 ? (
+            <>
+              <Clock className="w-4 h-4" />
+              <span>Wait {cooldown}s</span>
+            </>
+          ) : (
+            <>
+              <Mail className="w-4 h-4" />
+              <span>Resend Activation Email</span>
+            </>
+          )}
+        </button>
+
+        {/* Resend Feedback Message */}
+        {resendMessage && (
+          <p className={`mt-3 text-sm flex items-center justify-center gap-1.5 ${resendSuccess ? 'text-green-400' : 'text-amber-400'
+            }`}>
+            {resendSuccess && <CheckCircle2 className="w-4 h-4" />}
+            {resendMessage}
+          </p>
+        )}
+      </div>
+
+      {/* Login Button */}
+      <button
+        onClick={onLoginClick}
+        className="btn-secondary w-full inline-flex items-center justify-center gap-2"
+      >
+        <span>Go to Login</span>
+        <ArrowRight className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
 
 /**
  * Registration Form
@@ -67,7 +195,7 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
@@ -79,10 +207,10 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
   const handleBlur = useCallback((e) => {
     const { name } = e.target;
     setTouched((prev) => ({ ...prev, [name]: true }));
-    
+
     // Validate single field
     let fieldErrors = [];
-    
+
     switch (name) {
       case 'email':
         fieldErrors = validateEmail(formData.email);
@@ -108,7 +236,7 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
       default:
         break;
     }
-    
+
     if (fieldErrors.length > 0) {
       setErrors((prev) => ({ ...prev, [name]: fieldErrors[0].message }));
     }
@@ -122,17 +250,17 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
       phone: formData.phoneNumber,
       country: formData.country,
     });
-    
+
     const errorMap = {};
     validationErrors.forEach(({ field, message }) => {
       errorMap[field] = message;
     });
-    
+
     // Check confirm password
     if (formData.confirmPassword !== formData.password) {
       errorMap.confirmPassword = 'Passwords do not match';
     }
-    
+
     setErrors(errorMap);
     return Object.keys(errorMap).length === 0;
   }, [formData]);
@@ -140,7 +268,7 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Mark all fields as touched
     setTouched({
       email: true,
@@ -149,14 +277,14 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
       country: true,
       phoneNumber: true,
     });
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSubmitting(true);
     setSubmitError('');
-    
+
     try {
       const result = await register({
         email: formData.email,
@@ -168,7 +296,7 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         city: formData.city || undefined,
         address: formData.address || undefined,
       });
-      
+
       if (result.success) {
         setSubmitSuccess(true);
         if (onSuccess) {
@@ -190,22 +318,13 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
     loginWithGoogle();
   };
 
-  // Success message
+  // Success message with resend functionality
   if (submitSuccess) {
     return (
-      <div className="text-center py-8 animate-fade-in">
-        <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-accent-500/20 flex items-center justify-center">
-          <Mail className="w-8 h-8 text-accent-400" />
-        </div>
-        <h3 className="text-xl font-semibold text-white mb-2">Check your email</h3>
-        <p className="text-dark-300 mb-6">
-          We've sent an activation link to <span className="text-white font-medium">{formData.email}</span>
-        </p>
-        <p className="text-sm text-dark-400">
-          Didn't receive the email? Check your spam folder or{' '}
-          <button className="link">resend activation email</button>
-        </p>
-      </div>
+      <SuccessWithResend
+        email={formData.email}
+        onLoginClick={onLoginClick}
+      />
     );
   }
 

@@ -129,4 +129,31 @@ public class RedisService {
     public boolean exists(String key) {
         return Boolean.TRUE.equals(redisTemplate.hasKey(key));
     }
+
+    // ==================== RATE LIMITING HELPERS ====================
+
+    /**
+     * Set a value with expiration in seconds
+     * Used for rate limiting features
+     * @param key Cache key
+     * @param value Value to store
+     * @param expirationSeconds Time to live in seconds
+     */
+    public void setWithExpiry(String key, String value, long expirationSeconds) {
+        redisTemplate.opsForValue().set(key, value, expirationSeconds, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Get remaining TTL (time to live) for a key in seconds
+     * @param key Cache key
+     * @return Remaining TTL in seconds, null if key doesn't exist, -1 if no expiry
+     */
+    public Long getRemainingTTL(String key) {
+        Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        // Redis returns -2 if key doesn't exist, -1 if no expiry
+        if (ttl == null || ttl < 0) {
+            return null;
+        }
+        return ttl;
+    }
 }

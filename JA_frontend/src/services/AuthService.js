@@ -97,19 +97,24 @@ class AuthService {
   }
 
   /**
-   * Resend activation email
-   * Rate limited: 1 email per 60 seconds
+   * Resend activation email to user
+   * Handles rate limiting (60 seconds cooldown between requests)
    * @param {string} email - User email
-   * @returns {Promise<Object>} Resend result with success and optional retryAfter
+   * @returns {Promise<Object>} Result with success, alreadyActivated, rateLimited flags
    */
   async resendActivationEmail(email) {
     try {
       const response = await httpUtil.post(API_ENDPOINTS.AUTH.RESEND_ACTIVATION, { email });
       return response;
     } catch (error) {
-      // Handle rate limiting specially
-      if (error.status === 429 && error.data) {
-        return error.data;
+      // Handle rate limiting (429 status)
+      if (error.status === 429) {
+        return {
+          success: false,
+          rateLimited: true,
+          retryAfter: error.data?.retryAfter || 60,
+          message: error.data?.message || 'Please wait before requesting again.'
+        };
       }
       throw error;
     }
