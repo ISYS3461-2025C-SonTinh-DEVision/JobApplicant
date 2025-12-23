@@ -5,27 +5,32 @@
  * 
  * Architecture:
  * - A.3.a: Uses useHeadlessForm for form state management
- * - A.2.a: Uses reusable FormInput components
- * - Full client-side validation
+ * - A.2.a: Uses reusable FormInput, CountrySelect, PhoneInput components
+ * - Full client-side validation matching project requirements
  * - Light/Dark mode support via ThemeContext
  * - Responsive layout
+ * 
+ * Validation Requirements:
+ * - Country: Required (1.1.1)
+ * - Phone: Optional, but if provided must be valid format (1.2.3)
+ * - Address, City: Optional text fields
  */
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Save, X, Loader2, AlertCircle, ArrowLeft, CheckCircle,
-  User, Mail, Phone, MapPin, Building2
+  User, Mail, Building2
 } from 'lucide-react';
 import ProfileService from '../../services/ProfileService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
 import useHeadlessForm from '../../components/headless/HeadlessForm';
-import { FormInput, FormSelect, Card } from '../../components/reusable';
-import { validatePhone } from '../../utils/validators/authValidators';
+import { FormInput, Card, PhoneInput, CountrySelect } from '../../components/reusable';
 
 /**
  * Validation function for profile form
+ * Matches project requirements for profile management
  */
 const validateProfileForm = (values) => {
   const errors = {};
@@ -40,16 +45,25 @@ const validateProfileForm = (values) => {
     errors.lastName = 'Last name must be less than 50 characters';
   }
 
-  // Country validation (required)
+  // Country validation (required - Requirement 1.1.1)
   if (!values.country) {
     errors.country = 'Country is required';
   }
 
-  // Phone validation (optional, but if provided must be valid)
+  // Phone validation (optional, but if provided must be valid - Requirement 1.2.3)
   if (values.phoneNumber) {
-    const phoneErrors = validatePhone(values.phoneNumber);
-    if (phoneErrors.length > 0) {
-      errors.phoneNumber = phoneErrors[0].message;
+    // Must start with + and dial code
+    if (!values.phoneNumber.startsWith('+')) {
+      errors.phoneNumber = 'Phone number must include country dial code (e.g., +84)';
+    } else {
+      // Extract digits after +
+      const digits = values.phoneNumber.replace(/\D/g, '');
+      if (digits.length > 15) {
+        errors.phoneNumber = 'Phone number is too long (max 15 digits)';
+      }
+      if (digits.length < 7) {
+        errors.phoneNumber = 'Phone number is too short (min 7 digits)';
+      }
     }
   }
 
@@ -75,30 +89,13 @@ export default function EditProfile() {
   const { isDark } = useTheme();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [countries, setCountries] = useState([]);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Fetch profile and countries on mount
+  // Fetch profile on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-
-        // Fetch countries
-        const countriesData = await fetch('http://localhost:8080/api/countries')
-          .then(res => res.json())
-          .catch(() => []);
-
-        setCountries(countriesData.length > 0
-          ? countriesData.map(c => ({ value: c.code || c.name, label: c.name }))
-          : [
-            { value: 'VN', label: 'Vietnam' },
-            { value: 'SG', label: 'Singapore' },
-            { value: 'US', label: 'United States' },
-            { value: 'JP', label: 'Japan' },
-            { value: 'AU', label: 'Australia' },
-          ]
-        );
 
         // Fetch profile or use mock data
         if (currentUser?.userId) {
@@ -111,7 +108,7 @@ export default function EditProfile() {
             firstName: 'Demo',
             lastName: 'User',
             country: 'VN',
-            phoneNumber: '+84 123 456 789',
+            phoneNumber: '+84123456789',
             address: '702 Nguyễn Văn Linh',
             city: 'Ho Chi Minh City',
           });
@@ -128,13 +125,6 @@ export default function EditProfile() {
           address: '',
           city: '',
         });
-        setCountries([
-          { value: 'VN', label: 'Vietnam' },
-          { value: 'SG', label: 'Singapore' },
-          { value: 'US', label: 'United States' },
-          { value: 'JP', label: 'Japan' },
-          { value: 'AU', label: 'Australia' },
-        ]);
       } finally {
         setLoading(false);
       }
@@ -290,16 +280,14 @@ export default function EditProfile() {
               Email cannot be changed. Contact support if you need to update it.
             </p>
 
-            {/* Country */}
-            <FormSelect
+            {/* Country - Using new CountrySelect component */}
+            <CountrySelect
               label="Country"
               name="country"
               value={values.country}
               onChange={handleChange}
               onBlur={handleBlur}
               error={touched.country && errors.country}
-              options={countries}
-              icon={MapPin}
               placeholder="Select your country"
               required
               variant={isDark ? 'dark' : 'light'}
@@ -313,35 +301,33 @@ export default function EditProfile() {
           ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'}
         `}>
           <h2 className={`text-lg font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            <Phone className="w-5 h-5 text-primary-400" />
+            <Building2 className="w-5 h-5 text-primary-400" />
             Contact Information
           </h2>
 
           <div className="space-y-4">
-            {/* Phone */}
-            <FormInput
+            {/* Phone - Using new PhoneInput component */}
+            <PhoneInput
               label="Phone Number"
               name="phoneNumber"
-              type="tel"
               value={values.phoneNumber}
               onChange={handleChange}
               onBlur={handleBlur}
               error={touched.phoneNumber && errors.phoneNumber}
-              icon={Phone}
-              placeholder="+84 123 456 789"
+              placeholder="Enter phone number"
+              defaultCountry="VN"
               variant={isDark ? 'dark' : 'light'}
             />
 
             {/* Address */}
             <FormInput
-              label="Address"
+              label="Street Address"
               name="address"
               type="text"
               value={values.address}
               onChange={handleChange}
               onBlur={handleBlur}
               error={touched.address && errors.address}
-              icon={MapPin}
               placeholder="Your street address"
               variant={isDark ? 'dark' : 'light'}
             />

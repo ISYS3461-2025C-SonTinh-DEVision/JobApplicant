@@ -22,7 +22,7 @@ import {
   Mail, Phone, MapPin, Calendar, Edit, Loader2,
   Briefcase, GraduationCap, Code, Award, FileText, TrendingUp,
   CheckCircle, Clock, XCircle, AlertCircle, Plus, Trash2, ExternalLink,
-  Database, Server
+  Database, Server, Target, Save
 } from 'lucide-react';
 import ProfileService from '../../services/ProfileService';
 import { useAuth } from '../../hooks/useAuth';
@@ -450,6 +450,11 @@ export default function ProfileDashboard() {
   const [skills, setSkills] = useState([]);
   const [newSkill, setNewSkill] = useState('');
 
+  // Objective Summary state (Requirement 3.1.2)
+  const [objectiveSummary, setObjectiveSummary] = useState('');
+  const [isEditingObjective, setIsEditingObjective] = useState(false);
+  const [tempObjective, setTempObjective] = useState('');
+
   // Application stats (mock data - API not available)
   const [applications] = useState({ total: 12, pending: 5, accepted: 3, rejected: 4 });
 
@@ -564,6 +569,7 @@ export default function ProfileDashboard() {
         description: 'Assisted students in Web Programming course with HTML, CSS, JavaScript fundamentals.'
       });
       setSkills(['React', 'JavaScript', 'TypeScript', 'Tailwind CSS', 'Node.js', 'Python', 'Git', 'Docker']);
+      setObjectiveSummary('Passionate software engineering student seeking challenging opportunities to apply my technical skills in real-world projects. Eager to learn and grow in a dynamic, innovative environment.');
       setLoading(false);
       return;
     }
@@ -634,10 +640,21 @@ export default function ProfileDashboard() {
     }
   }, [currentUser]);
 
+  // Track previous userId to detect user changes
+  const prevUserIdRef = useRef(null);
+
   useEffect(() => {
+    // Reset hasInitialized if userId changes (user logged in/out or switched)
+    if (prevUserIdRef.current !== currentUser?.userId) {
+      hasInitialized.current = false;
+      // Clear existing data when user changes
+      educationList.clearItems?.() || educationList.setItems?.([]);
+      experienceList.clearItems?.() || experienceList.setItems?.([]);
+      setSkills([]);
+      prevUserIdRef.current = currentUser?.userId;
+    }
     fetchProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentUser?.userId, fetchProfile]);
 
   // Add skill handler
   const handleAddSkill = () => {
@@ -685,6 +702,22 @@ export default function ProfileDashboard() {
     );
   }
 
+  // Objective Summary handlers
+  const handleEditObjective = () => {
+    setTempObjective(objectiveSummary);
+    setIsEditingObjective(true);
+  };
+
+  const handleSaveObjective = () => {
+    setObjectiveSummary(tempObjective);
+    setIsEditingObjective(false);
+  };
+
+  const handleCancelObjective = () => {
+    setIsEditingObjective(false);
+    setTempObjective('');
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Profile Header */}
@@ -693,6 +726,78 @@ export default function ProfileDashboard() {
         onEdit={() => navigate('/dashboard/profile/edit')}
         isRealData={isProfileFromApi}
       />
+
+      {/* Objective Summary Section (Requirement 3.1.2) */}
+      <div className={`
+        p-6 rounded-2xl border
+        ${isDark
+          ? 'bg-dark-800 border-dark-700'
+          : 'bg-white border-gray-200 shadow-sm'
+        }
+      `}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-accent-500/20 flex items-center justify-center">
+              <Target className="w-5 h-5 text-accent-400" />
+            </div>
+            <div className="flex items-center gap-3">
+              <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Objective Summary</h2>
+              <DataSourceIndicator isRealData={false} />
+            </div>
+          </div>
+          {!isEditingObjective && (
+            <button
+              onClick={handleEditObjective}
+              className="flex items-center gap-1 text-sm text-primary-400 hover:text-primary-300 transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+              Edit
+            </button>
+          )}
+        </div>
+
+        {isEditingObjective ? (
+          <div className="space-y-4">
+            <textarea
+              value={tempObjective}
+              onChange={(e) => setTempObjective(e.target.value)}
+              placeholder="Write a brief summary of your career objectives..."
+              rows={4}
+              className={`
+                w-full px-4 py-3 rounded-xl border transition-colors resize-none
+                ${isDark
+                  ? 'bg-dark-700 border-dark-600 text-white placeholder:text-dark-500 focus:border-primary-500'
+                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-primary-500'
+                }
+                focus:outline-none focus:ring-2 focus:ring-primary-500/20
+              `}
+            />
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={handleCancelObjective}
+                className={`px-4 py-2 rounded-lg transition-colors ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveObjective}
+                className="btn-primary px-4 py-2 flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className={`leading-relaxed ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
+            {objectiveSummary || (
+              <span className={isDark ? 'text-dark-500 italic' : 'text-gray-400 italic'}>
+                No objective summary yet. Click "Edit" to add one.
+              </span>
+            )}
+          </p>
+        )}
+      </div>
 
       {/* Stats Grid */}
       <div className="mb-4">

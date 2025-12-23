@@ -7,10 +7,12 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Mail, Lock, User, Phone, MapPin, Building2, AlertCircle, Loader2, Clock, RefreshCw } from 'lucide-react';
+import { Mail, Lock, User, MapPin, Building2, AlertCircle, Loader2, Clock, RefreshCw } from 'lucide-react';
 import { SSOButtonsGroup, OrDivider } from './SSOButtons';
 import PasswordStrengthMeter from './PasswordStrengthMeter';
-import { FormInput, FormSelect } from '../reusable/FormInput';
+import { FormInput } from '../reusable/FormInput';
+import CountrySelect from '../reusable/CountrySelect';
+import PhoneInput from '../reusable/PhoneInput';
 import { validateEmail, validatePassword, validatePhone, validateRegister } from '../../utils/validators/authValidators';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/AuthService';
@@ -394,34 +396,29 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         variant="dark"
       />
 
-      {/* Country */}
-      <FormSelect
+      {/* Country - Using new CountrySelect with flags and regions */}
+      <CountrySelect
         label="Country"
         name="country"
         value={formData.country}
         onChange={handleChange}
         onBlur={handleBlur}
         error={touched.country && errors.country}
-        icon={MapPin}
-        options={countries}
         placeholder="Select your country"
         required
-        disabled={loadingCountries}
         variant="dark"
       />
 
-      {/* Phone Number (Optional) */}
-      <FormInput
+      {/* Phone Number (Optional) - Using new PhoneInput with dial code selector */}
+      <PhoneInput
         label="Phone Number"
         name="phoneNumber"
-        type="tel"
         value={formData.phoneNumber}
         onChange={handleChange}
         onBlur={handleBlur}
         error={touched.phoneNumber && errors.phoneNumber}
-        icon={Phone}
-        placeholder="+84 123 456 789"
-        autoComplete="tel"
+        placeholder="Enter phone number"
+        defaultCountry="VN"
         variant="dark"
       />
 

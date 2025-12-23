@@ -38,6 +38,11 @@ import com.DEVision.JobApplicant.jwt.JwtUtil;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.DEVision.JobApplicant.auth.entity.User;
+import com.DEVision.JobApplicant.auth.repository.AuthRepository;
+import com.DEVision.JobApplicant.applicant.entity.Applicant;
+import com.DEVision.JobApplicant.applicant.service.ApplicantService;
+
 @RestController
 @RequestMapping("/api/auth")
 @Tag(name = "Authentication", description = "User authentication and authorization endpoints")
@@ -51,6 +56,12 @@ class AuthController {
 
     @Autowired
     private RedisService redisService;
+
+    @Autowired
+    private AuthRepository userRepository;
+
+    @Autowired
+    private ApplicantService applicantService;
 
 @Operation(summary = "Register new user", description = "Create a new applicant account with email activation")
 @ApiResponses(value = {
@@ -261,10 +272,25 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
         // (AuthRequestFilter already validated the token from cookie or Bearer header)
         if (userDetails != null) {
             try {
+                // Get user and applicant details for complete user info
+                User user = userRepository.findByEmail(userDetails.getUsername());
+                Applicant applicant = user != null ? applicantService.getApplicantByUserId(user.getId()) : null;
+
                 Map<String, Object> result = new HashMap<>();
                 result.put("authenticated", true);
                 result.put("username", userDetails.getUsername());
                 result.put("roles", userDetails.getAuthorities());
+                
+                // Add user and applicant IDs for profile lookup
+                if (user != null) {
+                    result.put("userId", user.getId());
+                    result.put("email", user.getEmail());
+                }
+                if (applicant != null) {
+                    result.put("applicantId", applicant.getId());
+                    result.put("firstName", applicant.getFirstName());
+                    result.put("lastName", applicant.getLastName());
+                }
 
                 // Optionally refresh the access token and update cookie
                 String newToken = jwtUtil.generateToken(userDetails);
