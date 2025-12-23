@@ -97,6 +97,25 @@ class AuthService {
   }
 
   /**
+   * Resend activation email
+   * Rate limited: 1 email per 60 seconds
+   * @param {string} email - User email
+   * @returns {Promise<Object>} Resend result with success and optional retryAfter
+   */
+  async resendActivationEmail(email) {
+    try {
+      const response = await httpUtil.post(API_ENDPOINTS.AUTH.RESEND_ACTIVATION, { email });
+      return response;
+    } catch (error) {
+      // Handle rate limiting specially
+      if (error.status === 429 && error.data) {
+        return error.data;
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Request password reset email
    * @param {string} email - User email
    * @returns {Promise<Object>} Request result

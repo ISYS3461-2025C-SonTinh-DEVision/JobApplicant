@@ -359,4 +359,41 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
             );
         }
     }
+
+    /**
+     * Resend activation email
+     * Rate limited: 1 email per 60 seconds per user
+     */
+    @Operation(summary = "Resend activation email", description = "Request a new activation email. Rate limited to 1 request per 60 seconds.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Activation email sent"),
+        @ApiResponse(responseCode = "429", description = "Too many requests - rate limited")
+    })
+    @PostMapping("/resend-activation")
+    public ResponseEntity<?> resendActivationEmail(@RequestBody Map<String, String> request) {
+        try {
+            String email = request.get("email");
+            Map<String, Object> response = authInternalService.resendActivationEmail(email);
+            
+            boolean success = (boolean) response.get("success");
+            Boolean rateLimited = (Boolean) response.get("rateLimited");
+            
+            if (rateLimited != null && rateLimited) {
+                return new ResponseEntity<>(response, HttpStatus.TOO_MANY_REQUESTS);
+            }
+            
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            System.err.println("Error resending activation email: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to send activation email. Please try again later.", "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
 }
+

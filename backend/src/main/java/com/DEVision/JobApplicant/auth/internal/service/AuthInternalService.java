@@ -244,4 +244,76 @@ public class AuthInternalService {
             "success", true
         );
     }
+
+    /**
+     * Resend activation email
+     * Rate limited: 1 email per 60 seconds per user
+     */
+    public Map<String, Object> resendActivationEmail(String email) {
+        if (email == null || email.isEmpty()) {
+            return Map.of("message", "Email is required", "success", false);
+        }
+
+        User user = userRepository.findByEmail(email);
+
+        if (user == null) {
+            // Don't reveal if email exists - security best practice
+            return Map.of(
+                "message", "If an account exists with this email, a new activation link will be sent.",
+                "success", true
+            );
+        }
+
+        // Check if already activated
+        if (user.isActivated()) {
+            return Map.of(
+                "message", "This account is already activated. You can login now.",
+                "success", true,
+                "alreadyActivated", true
+            );
+        }
+
+        // Rate limiting: Check if activation email was sent recently (within 60 seconds)
+        // We use the token expiry to track this - if token was created less than 23 hours and 59 minutes ago,
+        // and there's still more than 23 hours left, it means it was just sent
+        LocalDateTime tokenExpiry = user.getActivationTokenExpiry();
+        if (tokenExpiry != null) {
+            // If token was created less than 60 seconds ago (expiry - 24 hours + 60 seconds > now)
+            LocalDateTime tokenCreatedAt = tokenExpiry.minusHours(24);
+            LocalDateTime rateLimitThreshold = tokenCreatedAt.plusSeconds(60);
+            
+            if (LocalDateTime.now().isBefore(rateLimitThreshold)) {
+                long secondsRemaining = java.time.Duration.between(LocalDateTime.now(), rateLimitThreshold).getSeconds();
+                return Map.of(
+                    "message", "Please wait " + secondsRemaining + " seconds before requesting a new activation email.",
+                    "success", false,
+                    "rateLimited", true,
+                    "retryAfter", secondsRemaining
+                );
+            }
+        }
+
+        // Generate new activation token
+        String newActivationToken = UUID.randomUUID().toString();
+        user.setActivationToken(newActivationToken);
+        user.setActivationTokenExpiry(LocalDateTime.now().plusHours(24));
+        userRepository.save(user);
+
+        // Send activation email
+        try {
+            emailService.sendActivationEmail(user.getEmail(), newActivationToken);
+        } catch (Exception e) {
+            System.err.println("Failed to resend activation email: " + e.getMessage());
+            return Map.of(
+                "message", "Failed to send activation email. Please try again later.",
+                "success", false
+            );
+        }
+
+        return Map.of(
+            "message", "A new activation link has been sent to your email.",
+            "success", true
+        );
+    }
 }
+
