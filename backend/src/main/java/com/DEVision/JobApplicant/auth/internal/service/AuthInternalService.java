@@ -15,6 +15,7 @@ import com.DEVision.JobApplicant.applicant.external.service.ApplicantExternalSer
 import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.internal.dto.AuthResponse;
 import com.DEVision.JobApplicant.auth.internal.dto.LoginRequest;
+import com.DEVision.JobApplicant.auth.internal.dto.OAuth2CallbackRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.OAuth2LoginRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.OAuth2UserInfo;
 import com.DEVision.JobApplicant.auth.internal.dto.RegisterRequest;
@@ -251,6 +252,84 @@ public class AuthInternalService {
 
         } catch (Exception e) {
             throw new RuntimeException("OAuth2 login failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Get Google OAuth2 authorization URL
+     * Used for Authorization Code Flow
+     *
+     * @return Map containing the Google authorization URL
+     */
+    public Map<String, String> getGoogleAuthUrl() {
+        return oauth2Service.getGoogleAuthUrl();
+    }
+
+    /**
+     * Handle Google OAuth2 callback with authorization code
+     * Exchanges code for user info, creates/logs in user
+     * Used for Authorization Code Flow
+     *
+     * @param code Authorization code from Google
+     * @return AuthResponse with JWT tokens
+     */
+    @Transactional
+    public AuthResponse handleGoogleCallback(String code) {
+        try {
+            // Exchange code for user info
+            OAuth2UserInfo oauth2UserInfo = oauth2Service.exchangeCodeForUserInfo(code);
+
+            if (!oauth2UserInfo.isEmailVerified()) {
+                throw new RuntimeException("Email not verified by OAuth2 provider");
+            }
+
+            // Check if user exists
+            User existingUser = userRepository.findByEmail(oauth2UserInfo.getEmail());
+
+            if (existingUser == null) {
+                // New user - create account and applicant profile
+                User newUser = new User();
+                newUser.setEmail(oauth2UserInfo.getEmail());
+                // Generate random password for OAuth2 users (won't be used for login)
+                newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+                newUser.setRole(RoleConfig.APPLICANT.getRoleName());
+                newUser.setEnabled(true); // OAuth2 users are auto-enabled
+                newUser.setActivated(true); // OAuth2 users are auto-activated (email verified by provider)
+                newUser.setActivationToken(null);
+                newUser.setActivationTokenExpiry(null);
+
+                User savedUser = authService.createUser(newUser);
+
+                // Create applicant profile with OAuth2 info
+                CreateApplicantRequest applicantRequest = new CreateApplicantRequest();
+                applicantRequest.setUserId(savedUser.getId());
+                applicantRequest.setFirstName(oauth2UserInfo.getGivenName());
+                applicantRequest.setLastName(oauth2UserInfo.getFamilyName());
+                // Country will be null - user can update later
+                applicantRequest.setCountry(null);
+
+                applicantExternalService.createApplicant(applicantRequest);
+
+                existingUser = savedUser;
+            }
+
+            // Verify user is active
+            if (!existingUser.isActivated()) {
+                throw new RuntimeException("Account not activated");
+            }
+
+            if (!existingUser.isEnabled()) {
+                throw new RuntimeException("Account is disabled. Please contact support.");
+            }
+
+            // Generate JWT tokens
+            UserDetails userDetails = authService.loadUserByUsername(oauth2UserInfo.getEmail());
+            Map<String, String> tokens = authService.createAuthTokens(userDetails, true);
+
+            return new AuthResponse(tokens.get("accessToken"), tokens.get("refreshToken"));
+
+        } catch (Exception e) {
+            throw new RuntimeException("OAuth2 callback failed: " + e.getMessage(), e);
         }
     }
 
