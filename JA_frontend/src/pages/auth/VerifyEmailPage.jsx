@@ -8,22 +8,26 @@
  * - Handles edge cases: already activated, expired token, network errors
  * - Premium UI with smooth animations and clear feedback
  * - 5-minute cache for activation status to improve UX on link re-clicks
+ * - Resend activation with 60-second cooldown anti-spam protection
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   CheckCircle2, XCircle, Loader2, Mail, Briefcase, ArrowRight,
-  RefreshCw, PartyPopper, Sparkles, AlertTriangle, LogIn
+  RefreshCw, PartyPopper, Sparkles, AlertTriangle, LogIn, Clock, Send
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import AuthService from '../../services/authService';
 
 // ============================================
 // CONSTANTS & UTILITIES
 // ============================================
 
 const STORAGE_KEY_PREFIX = 'activation_status_';
+const RESEND_COOLDOWN_KEY = 'resend_cooldown_';
 const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+const RESEND_COOLDOWN_SECONDS = 60;
 
 /**
  * Save activation status to localStorage with expiry
@@ -62,6 +66,38 @@ const getCachedActivationStatus = (token) => {
   } catch (e) {
     console.warn('Failed to read activation status from localStorage:', e);
     return null;
+  }
+};
+
+/**
+ * Get remaining cooldown seconds for resend
+ */
+const getResendCooldownRemaining = (email) => {
+  try {
+    const key = `${RESEND_COOLDOWN_KEY}${email}`;
+    const expiresAt = localStorage.getItem(key);
+    if (!expiresAt) return 0;
+
+    const remaining = Math.ceil((parseInt(expiresAt, 10) - Date.now()) / 1000);
+    if (remaining <= 0) {
+      localStorage.removeItem(key);
+      return 0;
+    }
+    return remaining;
+  } catch (e) {
+    return 0;
+  }
+};
+
+/**
+ * Set resend cooldown
+ */
+const setResendCooldown = (email, seconds = RESEND_COOLDOWN_SECONDS) => {
+  try {
+    const key = `${RESEND_COOLDOWN_KEY}${email}`;
+    localStorage.setItem(key, String(Date.now() + seconds * 1000));
+  } catch (e) {
+    console.warn('Failed to set resend cooldown:', e);
   }
 };
 
@@ -140,6 +176,244 @@ function CountdownTimer({ seconds, onComplete }) {
   );
 }
 
+// Resend button with cooldown
+function ResendButton({ email, onSuccess, onError }) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Initialize cooldown from localStorage
+  useEffect(() => {
+    if (email) {
+      const remaining = getResendCooldownRemaining(email);
+      setCooldown(remaining);
+    }
+  }, [email]);
+
+  // Countdown timer for cooldown
+  useEffect(() => {
+    if (cooldown <= 0) return;
+
+    const timer = setInterval(() => {
+      setCooldown(c => {
+        if (c <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const handleResend = async () => {
+    if (!email || isLoading || cooldown > 0) return;
+
+    setIsLoading(true);
+    setSuccessMessage('');
+
+    try {
+      const authService = new AuthService();
+      const result = await authService.resendActivationEmail(email);
+
+      if (result.success) {
+        setSuccessMessage(result.message || 'Activation email sent!');
+        // Set cooldown
+        const cooldownSeconds = result.cooldownSeconds || RESEND_COOLDOWN_SECONDS;
+        setResendCooldown(email, cooldownSeconds);
+        setCooldown(cooldownSeconds);
+        onSuccess?.(result);
+      } else if (result.alreadyActivated) {
+        setSuccessMessage('Your account is already activated!');
+        onSuccess?.(result);
+      } else {
+        onError?.(result.message || 'Failed to send email');
+      }
+    } catch (err) {
+      // Handle rate limiting (429)
+      if (err.status === 429 && err.data?.retryAfterSeconds) {
+        const retryAfter = err.data.retryAfterSeconds;
+        setResendCooldown(email, retryAfter);
+        setCooldown(retryAfter);
+        onError?.(`Please wait ${retryAfter} seconds before trying again.`);
+      } else {
+        onError?.(err.message || 'Failed to send activation email');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <button
+        onClick={handleResend}
+        disabled={isLoading || cooldown > 0 || !email}
+        className={`w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${cooldown > 0 || isLoading
+            ? 'bg-dark-600 text-dark-400 cursor-not-allowed'
+            : 'bg-gradient-to-r from-primary-600 to-primary-500 text-white hover:from-primary-500 hover:to-primary-400 hover:shadow-glow'
+          }`}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Sending...</span>
+          </>
+        ) : cooldown > 0 ? (
+          <>
+            <Clock className="w-4 h-4" />
+            <span>Resend in {cooldown}s</span>
+          </>
+        ) : (
+          <>
+            <Send className="w-4 h-4" />
+            <span>Resend Activation Email</span>
+          </>
+        )}
+      </button>
+
+      {successMessage && (
+        <div className="flex items-center gap-2 text-sm text-accent-400 animate-fade-in">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Email input for resend (when we don't have it)
+function EmailInputResend({ onSuccess, onError }) {
+  const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Countdown timer for cooldown
+  useEffect(() => {
+    if (cooldown <= 0) return;
+
+    const timer = setInterval(() => {
+      setCooldown(c => {
+        if (c <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!email || isLoading || cooldown > 0) return;
+
+    // Check if already in cooldown for this email
+    const remaining = getResendCooldownRemaining(email);
+    if (remaining > 0) {
+      setCooldown(remaining);
+      setErrorMessage(`Please wait ${remaining} seconds before trying again.`);
+      return;
+    }
+
+    setIsLoading(true);
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    try {
+      const authService = new AuthService();
+      const result = await authService.resendActivationEmail(email);
+
+      if (result.success) {
+        setSuccessMessage(result.message || 'Activation email sent! Check your inbox.');
+        const cooldownSeconds = result.cooldownSeconds || RESEND_COOLDOWN_SECONDS;
+        setResendCooldown(email, cooldownSeconds);
+        setCooldown(cooldownSeconds);
+        onSuccess?.(result);
+      } else if (result.alreadyActivated) {
+        setSuccessMessage('Your account is already activated! You can login now.');
+      } else {
+        setErrorMessage(result.message || 'Failed to send email');
+        onError?.(result.message);
+      }
+    } catch (err) {
+      if (err.status === 429 && err.data?.retryAfterSeconds) {
+        const retryAfter = err.data.retryAfterSeconds;
+        setResendCooldown(email, retryAfter);
+        setCooldown(retryAfter);
+        setErrorMessage(`Rate limited. Please wait ${retryAfter} seconds.`);
+      } else {
+        setErrorMessage(err.message || 'Failed to send activation email');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="resend-email" className="block text-sm font-medium text-dark-300 mb-2">
+          Enter your email address
+        </label>
+        <input
+          id="resend-email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          className="input-field"
+          required
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={isLoading || cooldown > 0 || !email}
+        className={`w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${cooldown > 0 || isLoading
+            ? 'bg-dark-600 text-dark-400 cursor-not-allowed'
+            : 'bg-gradient-to-r from-primary-600 to-primary-500 text-white hover:from-primary-500 hover:to-primary-400 hover:shadow-glow'
+          }`}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Sending...</span>
+          </>
+        ) : cooldown > 0 ? (
+          <>
+            <Clock className="w-4 h-4" />
+            <span>Resend in {cooldown}s</span>
+          </>
+        ) : (
+          <>
+            <Send className="w-4 h-4" />
+            <span>Send Activation Email</span>
+          </>
+        )}
+      </button>
+
+      {successMessage && (
+        <div className="flex items-center gap-2 text-sm text-accent-400 animate-fade-in p-3 bg-accent-500/10 rounded-lg">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="flex items-center gap-2 text-sm text-red-400 animate-fade-in p-3 bg-red-500/10 rounded-lg">
+          <XCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+    </form>
+  );
+}
+
 // Status states
 const STATUS = {
   LOADING: 'loading',
@@ -162,6 +436,7 @@ export default function VerifyEmailPage() {
   const [status, setStatus] = useState(STATUS.LOADING);
   const [message, setMessage] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
+  const [resendError, setResendError] = useState('');
 
   const token = searchParams.get('token');
 
@@ -181,15 +456,8 @@ export default function VerifyEmailPage() {
 
   // Memoized activation function
   const performActivation = useCallback(async () => {
-    // Prevent multiple simultaneous calls
-    if (activationInProgress.current) {
-      return;
-    }
-
-    // Prevent duplicate activation attempts in same session
-    if (hasAttemptedActivation.current) {
-      return;
-    }
+    if (activationInProgress.current) return;
+    if (hasAttemptedActivation.current) return;
 
     if (!token) {
       setStatus(STATUS.NO_TOKEN);
@@ -197,9 +465,7 @@ export default function VerifyEmailPage() {
       return;
     }
 
-    // ========================================
-    // STEP 1: Check localStorage cache first
-    // ========================================
+    // Check localStorage cache first
     const cachedStatus = getCachedActivationStatus(token);
     if (cachedStatus === 'activated') {
       setStatus(STATUS.ALREADY_ACTIVATED);
@@ -212,75 +478,56 @@ export default function VerifyEmailPage() {
     hasAttemptedActivation.current = true;
 
     try {
-      // ========================================
-      // STEP 2: Call API if not cached
-      // ========================================
       const result = await activateAccount(token);
 
       if (result.success) {
-        // Check if already activated vs newly activated
         const isAlreadyActivated = result.message?.toLowerCase().includes('already activated');
 
         if (isAlreadyActivated) {
-          // Save to cache
           saveActivationStatus(token, 'activated');
           setStatus(STATUS.ALREADY_ACTIVATED);
           setMessage('Your account is already activated. You can login now!');
         } else {
-          // New activation - save to cache and show success
           saveActivationStatus(token, 'activated');
           setStatus(STATUS.SUCCESS);
           setMessage(result.message || 'Your account has been activated successfully!');
           setShowConfetti(true);
         }
       } else {
-        // Handle different error cases from result
         const errorMessage = result.message?.toLowerCase() || '';
 
         if (errorMessage.includes('expired')) {
           setStatus(STATUS.EXPIRED);
-          setMessage('Your activation link has expired. Please register again to get a new link.');
+          setMessage('Your activation link has expired. Please request a new one.');
         } else if (errorMessage.includes('already activated')) {
           saveActivationStatus(token, 'activated');
           setStatus(STATUS.ALREADY_ACTIVATED);
           setMessage('Your account is already activated. You can login now!');
         } else {
           setStatus(STATUS.ERROR);
-          setMessage(result.message || 'Failed to activate account. Please try again.');
+          setMessage(result.message || 'Failed to activate account.');
         }
       }
     } catch (err) {
-      // ========================================
-      // STEP 3: Handle HTTP errors
-      // ========================================
-      console.log('Activation error:', err); // Debug log
-
       const errorMessage = err.message?.toLowerCase() || '';
       const errorDataMessage = err.data?.message?.toLowerCase() || '';
       const httpStatus = err.status;
 
-      // For activation endpoint, 400 status usually means:
-      // 1. Token already used (account activated successfully on first attempt)
-      // 2. Token invalid or expired
-      // We treat 400 as "already activated" for better UX
       if (httpStatus === 400) {
-        // Check if it's an expiry issue
         if (errorMessage.includes('expired') || errorDataMessage.includes('expired')) {
           setStatus(STATUS.EXPIRED);
-          setMessage('Your activation link has expired. Please register again to get a new link.');
+          setMessage('Your activation link has expired. Please request a new one.');
         } else {
-          // Assume "already activated" for all other 400 errors
-          // Save to cache so future clicks show "Already Verified" immediately
           saveActivationStatus(token, 'activated');
           setStatus(STATUS.ALREADY_ACTIVATED);
           setMessage('Your account has been activated! You can now login.');
         }
       } else if (errorMessage.includes('expired') || errorDataMessage.includes('expired')) {
         setStatus(STATUS.EXPIRED);
-        setMessage('Your activation link has expired. Please register again to get a new link.');
+        setMessage('Your activation link has expired. Please request a new one.');
       } else {
         setStatus(STATUS.ERROR);
-        setMessage(err.message || 'An unexpected error occurred. Please try again.');
+        setMessage(err.message || 'An unexpected error occurred.');
       }
     } finally {
       activationInProgress.current = false;
@@ -296,7 +543,6 @@ export default function VerifyEmailPage() {
   // RENDER FUNCTIONS
   // ============================================
 
-  // Render loading state
   const renderLoading = () => (
     <div className="text-center animate-fade-in">
       <div className="relative w-24 h-24 mx-auto mb-6">
@@ -307,19 +553,9 @@ export default function VerifyEmailPage() {
       </div>
       <h2 className="text-2xl font-bold text-white mb-3">Verifying your email...</h2>
       <p className="text-dark-400">Please wait while we activate your account.</p>
-      <div className="mt-6 flex justify-center gap-2">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="w-2 h-2 rounded-full bg-primary-500 animate-bounce"
-            style={{ animationDelay: `${i * 0.15}s` }}
-          />
-        ))}
-      </div>
     </div>
   );
 
-  // Render success state
   const renderSuccess = () => (
     <div className="text-center animate-fade-in relative">
       {showConfetti && <ConfettiEffect />}
@@ -332,9 +568,7 @@ export default function VerifyEmailPage() {
         <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-yellow-400 animate-pulse" />
       </div>
 
-      <h2 className="text-3xl font-bold text-white mb-3">
-        🎉 Welcome Aboard!
-      </h2>
+      <h2 className="text-3xl font-bold text-white mb-3">🎉 Welcome Aboard!</h2>
       <p className="text-dark-300 mb-2 text-lg">{message}</p>
       <div className="mb-8">
         <CountdownTimer seconds={30} onComplete={handleRedirectToLogin} />
@@ -350,7 +584,6 @@ export default function VerifyEmailPage() {
     </div>
   );
 
-  // Render already activated state
   const renderAlreadyActivated = () => (
     <div className="text-center animate-fade-in">
       <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-green-500/20 to-accent-500/20 flex items-center justify-center">
@@ -378,7 +611,6 @@ export default function VerifyEmailPage() {
     </div>
   );
 
-  // Render expired state
   const renderExpired = () => (
     <div className="text-center animate-fade-in">
       <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-amber-500/20 flex items-center justify-center">
@@ -386,27 +618,27 @@ export default function VerifyEmailPage() {
       </div>
 
       <h2 className="text-2xl font-bold text-white mb-3">Link Expired</h2>
-      <p className="text-dark-300 mb-8">{message}</p>
+      <p className="text-dark-300 mb-6">{message}</p>
 
-      <div className="space-y-3">
-        <button
-          onClick={() => navigate('/register')}
-          className="btn-primary w-full inline-flex items-center justify-center gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span>Register Again</span>
-        </button>
-        <button
-          onClick={() => navigate('/login')}
-          className="btn-secondary w-full"
-        >
-          Back to Login
-        </button>
+      <div className="bg-dark-700/50 rounded-xl p-4 mb-6">
+        <p className="text-sm text-dark-400 mb-4">
+          Enter your email below to receive a new activation link:
+        </p>
+        <EmailInputResend
+          onSuccess={() => { }}
+          onError={(msg) => setResendError(msg)}
+        />
       </div>
+
+      <button
+        onClick={() => navigate('/login')}
+        className="text-dark-400 hover:text-white transition-colors text-sm"
+      >
+        Back to Login
+      </button>
     </div>
   );
 
-  // Render error state
   const renderError = () => (
     <div className="text-center animate-fade-in">
       <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-red-500/20 flex items-center justify-center">
@@ -414,7 +646,14 @@ export default function VerifyEmailPage() {
       </div>
 
       <h2 className="text-2xl font-bold text-white mb-3">Verification Failed</h2>
-      <p className="text-dark-300 mb-8">{message}</p>
+      <p className="text-dark-300 mb-6">{message}</p>
+
+      {resendError && (
+        <div className="flex items-center gap-2 text-sm text-red-400 mb-4 p-3 bg-red-500/10 rounded-lg">
+          <XCircle className="w-4 h-4" />
+          <span>{resendError}</span>
+        </div>
+      )}
 
       <div className="space-y-3">
         <button
@@ -444,7 +683,6 @@ export default function VerifyEmailPage() {
     </div>
   );
 
-  // Render no token state
   const renderNoToken = () => (
     <div className="text-center animate-fade-in">
       <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-amber-500/20 flex items-center justify-center">
@@ -456,28 +694,31 @@ export default function VerifyEmailPage() {
         We've sent you an activation link. Please check your inbox and click the link to verify your account.
       </p>
 
-      <div className="bg-dark-700/50 rounded-xl p-4 mb-8">
-        <p className="text-sm text-dark-400">
-          <strong className="text-dark-300">Tip:</strong> Don't forget to check your spam folder if you don't see the email.
+      <div className="bg-dark-700/50 rounded-xl p-4 mb-6">
+        <p className="text-sm text-dark-400 mb-1">
+          <strong className="text-dark-300">Tip:</strong> Don't forget to check your spam folder.
         </p>
       </div>
 
-      <div className="space-y-3">
-        <button className="btn-secondary w-full inline-flex items-center justify-center gap-2">
-          <RefreshCw className="w-4 h-4" />
-          <span>Resend Activation Email</span>
-        </button>
-        <button
-          onClick={() => navigate('/login')}
-          className="text-dark-400 hover:text-white transition-colors text-sm"
-        >
-          Back to Login
-        </button>
+      <div className="mb-6">
+        <p className="text-sm text-dark-400 mb-4">
+          Didn't receive the email? Enter your email to resend:
+        </p>
+        <EmailInputResend
+          onSuccess={() => { }}
+          onError={(msg) => setResendError(msg)}
+        />
       </div>
+
+      <button
+        onClick={() => navigate('/login')}
+        className="text-dark-400 hover:text-white transition-colors text-sm"
+      >
+        Back to Login
+      </button>
     </div>
   );
 
-  // Content renderer
   const renderContent = () => {
     switch (status) {
       case STATUS.LOADING:
@@ -502,17 +743,14 @@ export default function VerifyEmailPage() {
       <BackgroundShapes />
 
       <div className="relative z-10 w-full max-w-md">
-        {/* Logo */}
         <div className="flex justify-center mb-8">
           <Logo />
         </div>
 
-        {/* Card */}
         <div className="glass-card p-8 backdrop-blur-xl">
           {renderContent()}
         </div>
 
-        {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-dark-500 text-sm">
             Need help?{' '}

@@ -34,12 +34,12 @@ class AuthService {
    */
   async login(credentials) {
     const response = await httpUtil.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
-    
+
     // Store access token if returned
     if (response?.accessToken) {
       httpUtil.setAuthToken(response.accessToken);
     }
-    
+
     return response;
   }
 
@@ -63,11 +63,11 @@ class AuthService {
    */
   async refreshToken() {
     const response = await httpUtil.post(API_ENDPOINTS.AUTH.REFRESH);
-    
+
     if (response?.accessToken) {
       httpUtil.setAuthToken(response.accessToken);
     }
-    
+
     return response;
   }
 
@@ -77,12 +77,12 @@ class AuthService {
    */
   async checkSession() {
     const response = await httpUtil.get(API_ENDPOINTS.AUTH.CHECK_SESSION);
-    
+
     // Update token if new one is provided
     if (response?.accessToken) {
       httpUtil.setAuthToken(response.accessToken);
     }
-    
+
     return response;
   }
 
@@ -93,6 +93,16 @@ class AuthService {
    */
   async activateAccount(token) {
     const response = await httpUtil.get(API_ENDPOINTS.AUTH.ACTIVATE, { token });
+    return response;
+  }
+
+  /**
+   * Resend activation email
+   * @param {string} email - User email
+   * @returns {Promise<Object>} Result with cooldown info if rate limited
+   */
+  async resendActivationEmail(email) {
+    const response = await httpUtil.post(API_ENDPOINTS.AUTH.RESEND_ACTIVATION, { email });
     return response;
   }
 
@@ -139,7 +149,7 @@ class AuthService {
     const redirectUri = `${window.location.origin}/auth/callback/google`;
     const scope = 'email profile';
     const responseType = 'code';
-    
+
     const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     googleAuthUrl.searchParams.append('client_id', clientId);
     googleAuthUrl.searchParams.append('redirect_uri', redirectUri);
@@ -147,7 +157,7 @@ class AuthService {
     googleAuthUrl.searchParams.append('response_type', responseType);
     googleAuthUrl.searchParams.append('access_type', 'offline');
     googleAuthUrl.searchParams.append('prompt', 'consent');
-    
+
     window.location.href = googleAuthUrl.toString();
   }
 
@@ -158,11 +168,11 @@ class AuthService {
    */
   async handleGoogleCallback(code) {
     const response = await httpUtil.post(API_ENDPOINTS.AUTH.GOOGLE_CALLBACK, { code });
-    
+
     if (response?.accessToken) {
       httpUtil.setAuthToken(response.accessToken);
     }
-    
+
     return response;
   }
 

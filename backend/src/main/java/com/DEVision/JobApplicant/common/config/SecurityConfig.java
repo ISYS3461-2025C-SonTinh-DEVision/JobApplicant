@@ -42,7 +42,7 @@ public class SecurityConfig {
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests((requests) -> requests
 				// Public auth endpoints
-				.requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout", "/api/auth/activate", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/countries").permitAll()
+				.requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout", "/api/auth/activate", "/api/auth/resend-activation", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/countries").permitAll()
 				// Swagger/OpenAPI documentation endpoints
 				.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
 				// Notification endpoints (for testing - consider requiring auth in production)
