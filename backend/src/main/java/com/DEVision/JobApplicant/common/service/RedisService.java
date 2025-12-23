@@ -129,4 +129,37 @@ public class RedisService {
     public boolean exists(String key) {
         return Boolean.TRUE.equals(redisTemplate.hasKey(key));
     }
+
+    // ==================== RESEND ACTIVATION RATE LIMITING ====================
+
+    /**
+     * Check if resend activation email is allowed for the given email
+     * Implements rate limiting: 1 request per 60 seconds per email
+     *
+     * @param email User email address
+     * @return true if resend is allowed, false if rate limit exceeded
+     */
+    public boolean allowResendActivation(String email) {
+        String key = "resend_activation:" + email;
+        
+        // Check if cooldown is active
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+            return false;
+        }
+        
+        // Set cooldown for 60 seconds
+        redisTemplate.opsForValue().set(key, String.valueOf(System.currentTimeMillis()), 60, TimeUnit.SECONDS);
+        return true;
+    }
+
+    /**
+     * Get remaining cooldown time for resend activation
+     * @param email User email address
+     * @return Remaining seconds until next resend is allowed, 0 if allowed now
+     */
+    public long getRemainingResendCooldown(String email) {
+        String key = "resend_activation:" + email;
+        Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        return ttl != null && ttl > 0 ? ttl : 0;
+    }
 }

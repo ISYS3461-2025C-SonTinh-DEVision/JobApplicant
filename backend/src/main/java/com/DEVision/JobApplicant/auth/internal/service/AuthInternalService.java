@@ -244,4 +244,57 @@ public class AuthInternalService {
             "success", true
         );
     }
+
+    /**
+     * Resend activation email to user
+     * @param email User's email address
+     * @return Response with success status and message
+     */
+    public Map<String, Object> resendActivationEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return Map.of("message", "Email address is required", "success", false);
+        }
+
+        User user = userRepository.findByEmail(email.trim().toLowerCase());
+
+        // User not found - return generic message for security
+        if (user == null) {
+            return Map.of(
+                "message", "If an account exists with this email, a new activation link will be sent.",
+                "success", true
+            );
+        }
+
+        // Already activated
+        if (user.isActivated()) {
+            return Map.of(
+                "message", "This account is already activated. You can login now.",
+                "success", true,
+                "alreadyActivated", true
+            );
+        }
+
+        // Generate new activation token
+        String newActivationToken = UUID.randomUUID().toString();
+        user.setActivationToken(newActivationToken);
+        user.setActivationTokenExpiry(LocalDateTime.now().plusHours(24));
+        userRepository.save(user);
+
+        // Send activation email
+        try {
+            emailService.sendActivationEmail(user.getEmail(), newActivationToken);
+        } catch (Exception e) {
+            System.err.println("Failed to send activation email: " + e.getMessage());
+            return Map.of(
+                "message", "Failed to send activation email. Please try again later.",
+                "success", false
+            );
+        }
+
+        return Map.of(
+            "message", "A new activation link has been sent to your email.",
+            "success", true
+        );
+    }
 }
+

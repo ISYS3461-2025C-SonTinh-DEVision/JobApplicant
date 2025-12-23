@@ -27,6 +27,7 @@ import com.DEVision.JobApplicant.auth.internal.dto.ForgotPasswordRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.LoginRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.RegisterRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.RegistrationResponse;
+import com.DEVision.JobApplicant.auth.internal.dto.ResendActivationRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.ResetPasswordRequest;
 import com.DEVision.JobApplicant.auth.internal.service.AuthInternalService;
 import com.DEVision.JobApplicant.auth.config.AuthConfig;
@@ -104,6 +105,53 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
             );
         }
     }
+
+    /**
+     * Resend activation email with rate limiting
+     */
+    @Operation(summary = "Resend activation email", description = "Resend account activation email with 60s rate limit")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Activation email sent"),
+        @ApiResponse(responseCode = "429", description = "Rate limit exceeded - wait before retrying"),
+        @ApiResponse(responseCode = "400", description = "Invalid request")
+    })
+    @PostMapping("/resend-activation")
+    public ResponseEntity<?> resendActivation(@Valid @RequestBody ResendActivationRequest request) {
+        try {
+            String email = request.getEmail().trim().toLowerCase();
+            
+            // Check rate limit using Redis
+            if (!redisService.allowResendActivation(email)) {
+                long remainingCooldown = redisService.getRemainingResendCooldown(email);
+                return new ResponseEntity<>(
+                    Map.of(
+                        "message", "Please wait before requesting another activation email.",
+                        "success", false,
+                        "rateLimited", true,
+                        "retryAfter", remainingCooldown
+                    ),
+                    HttpStatus.TOO_MANY_REQUESTS
+                );
+            }
+            
+            // Process resend request
+            Map<String, Object> response = authInternalService.resendActivationEmail(email);
+            
+            boolean success = (boolean) response.get("success");
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            System.err.println("Error resending activation: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to resend activation email. Please try again later.", "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
 
     /**
      * Login endpoint (old implementation - to be updated)

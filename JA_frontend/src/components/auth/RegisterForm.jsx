@@ -7,12 +7,13 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Mail, Lock, User, Phone, MapPin, Building2, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Phone, MapPin, Building2, AlertCircle, Loader2, Clock, RefreshCw } from 'lucide-react';
 import { SSOButtonsGroup, OrDivider } from './SSOButtons';
 import PasswordStrengthMeter from './PasswordStrengthMeter';
 import { FormInput, FormSelect } from '../reusable/FormInput';
 import { validateEmail, validatePassword, validatePhone, validateRegister } from '../../utils/validators/authValidators';
 import { useAuth } from '../../context/AuthContext';
+import authService from '../../services/authService';
 
 /**
  * Registration Form
@@ -43,6 +44,11 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
   const [loadingCountries, setLoadingCountries] = useState(true);
   const [ssoLoading, setSsoLoading] = useState(null);
 
+  // Resend activation state
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendMessage, setResendMessage] = useState(null);
+
   // Fetch countries on mount
   useEffect(() => {
     const fetchCountries = async () => {
@@ -63,11 +69,22 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
     fetchCountries();
   }, [getCountries]);
 
+  // Cooldown timer for resend button
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => {
+        setResendCooldown(c => c - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+
   // Handle input change
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
@@ -79,10 +96,10 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
   const handleBlur = useCallback((e) => {
     const { name } = e.target;
     setTouched((prev) => ({ ...prev, [name]: true }));
-    
+
     // Validate single field
     let fieldErrors = [];
-    
+
     switch (name) {
       case 'email':
         fieldErrors = validateEmail(formData.email);
@@ -108,7 +125,7 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
       default:
         break;
     }
-    
+
     if (fieldErrors.length > 0) {
       setErrors((prev) => ({ ...prev, [name]: fieldErrors[0].message }));
     }
@@ -122,17 +139,17 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
       phone: formData.phoneNumber,
       country: formData.country,
     });
-    
+
     const errorMap = {};
     validationErrors.forEach(({ field, message }) => {
       errorMap[field] = message;
     });
-    
+
     // Check confirm password
     if (formData.confirmPassword !== formData.password) {
       errorMap.confirmPassword = 'Passwords do not match';
     }
-    
+
     setErrors(errorMap);
     return Object.keys(errorMap).length === 0;
   }, [formData]);
@@ -140,7 +157,7 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Mark all fields as touched
     setTouched({
       email: true,
@@ -149,14 +166,14 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
       country: true,
       phoneNumber: true,
     });
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSubmitting(true);
     setSubmitError('');
-    
+
     try {
       const result = await register({
         email: formData.email,
@@ -168,7 +185,7 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         city: formData.city || undefined,
         address: formData.address || undefined,
       });
-      
+
       if (result.success) {
         setSubmitSuccess(true);
         if (onSuccess) {
@@ -190,7 +207,38 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
     loginWithGoogle();
   };
 
-  // Success message
+  // Handle resend activation email
+  const handleResendActivation = async () => {
+    if (resendCooldown > 0 || resendLoading) return;
+
+    setResendLoading(true);
+    setResendMessage('');
+
+    try {
+      const result = await authService.resendActivationEmail(formData.email);
+
+      if (result.success) {
+        if (result.alreadyActivated) {
+          setResendMessage({ type: 'success', text: '✅ Account already activated! You can login now.' });
+        } else {
+          setResendMessage({ type: 'success', text: '✅ New activation link sent! Check your email.' });
+          setResendCooldown(60);
+        }
+      } else if (result.rateLimited) {
+        setResendCooldown(result.retryAfter || 60);
+        setResendMessage({ type: 'warning', text: `⏳ Please wait ${result.retryAfter || 60}s before trying again.` });
+      } else {
+        setResendMessage({ type: 'error', text: '❌ ' + (result.message || 'Failed to send email.') });
+      }
+    } catch (error) {
+      console.error('Resend activation error:', error);
+      setResendMessage({ type: 'error', text: '❌ Failed to send activation email. Please try again.' });
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  // Success message with resend functionality
   if (submitSuccess) {
     return (
       <div className="text-center py-8 animate-fade-in">
@@ -201,10 +249,52 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
         <p className="text-dark-300 mb-6">
           We've sent an activation link to <span className="text-white font-medium">{formData.email}</span>
         </p>
-        <p className="text-sm text-dark-400">
-          Didn't receive the email? Check your spam folder or{' '}
-          <button className="link">resend activation email</button>
-        </p>
+
+        {/* Resend section */}
+        <div className="bg-dark-700/50 rounded-xl p-4 mb-6">
+          <p className="text-sm text-dark-400 mb-3">
+            Didn't receive the email? Check your spam folder or:
+          </p>
+          <button
+            onClick={handleResendActivation}
+            disabled={resendCooldown > 0 || resendLoading}
+            className="btn-secondary inline-flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-50"
+          >
+            {resendLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Sending...</span>
+              </>
+            ) : resendCooldown > 0 ? (
+              <>
+                <Clock className="w-4 h-4" />
+                <span>Wait {resendCooldown}s</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                <span>Resend activation email</span>
+              </>
+            )}
+          </button>
+
+          {/* Resend message */}
+          {resendMessage && (
+            <p className={`mt-3 text-sm ${resendMessage.type === 'success' ? 'text-green-400' :
+              resendMessage.type === 'warning' ? 'text-amber-400' : 'text-red-400'
+              }`}>
+              {resendMessage.text}
+            </p>
+          )}
+        </div>
+
+        {/* Login link */}
+        <button
+          onClick={onLoginClick}
+          className="text-primary-400 hover:text-primary-300 transition-colors text-sm"
+        >
+          Already activated? Sign in
+        </button>
       </div>
     );
   }
