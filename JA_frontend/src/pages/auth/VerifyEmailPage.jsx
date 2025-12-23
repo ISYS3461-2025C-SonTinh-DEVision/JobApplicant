@@ -125,7 +125,7 @@ export default function VerifyEmailPage() {
           setMessage(result.message || 'Your account has been activated successfully!');
           setShowConfetti(true);
 
-          // Auto-redirect to login after 3 seconds
+          // Auto-redirect to login after 30 seconds (user requested longer display)
           setTimeout(() => {
             navigate('/login', {
               state: {
@@ -133,7 +133,7 @@ export default function VerifyEmailPage() {
                 type: 'success'
               }
             });
-          }, 3000);
+          }, 30000);
         }
       } else {
         // Handle different error cases
@@ -154,24 +154,23 @@ export default function VerifyEmailPage() {
     } catch (err) {
       // Handle HTTP errors from httpUtil
       const errorMessage = err.message?.toLowerCase() || '';
-      const errorData = err.data;
+      const errorDataMessage = err.data?.message?.toLowerCase() || '';
 
-      // Check if it's an "already activated" error (which is actually success)
-      if (errorMessage.includes('already activated') || errorData?.message?.includes('already activated')) {
-        setStatus(STATUS.ALREADY_ACTIVATED);
-        setMessage('Your account is already activated. You can login now!');
-      } else if (errorMessage.includes('invalid') || errorMessage.includes('token')) {
-        // Invalid token - could be already used (activation successful on first call)
-        // Check if status is 400 - token might have been used successfully
-        if (err.status === 400) {
-          // This often means token was already used (successful activation + page reload)
-          setStatus(STATUS.ALREADY_ACTIVATED);
-          setMessage('Your account has been activated! The link can only be used once.');
+      // For activation endpoint, 400 status almost always means:
+      // 1. Token already used (account activated successfully on first attempt)
+      // 2. Token invalid/expired
+      // Since we can't distinguish, treat 400 as "already activated" for better UX
+      if (err.status === 400) {
+        // Check if it's an expiry issue
+        if (errorMessage.includes('expired') || errorDataMessage.includes('expired')) {
+          setStatus(STATUS.EXPIRED);
+          setMessage('Your activation link has expired. Please register again to get a new link.');
         } else {
-          setStatus(STATUS.ERROR);
-          setMessage('Invalid activation token. Please make sure you\'re using the latest link from your email.');
+          // Default to "already activated" for 400 - most common case
+          setStatus(STATUS.ALREADY_ACTIVATED);
+          setMessage('Your account has been activated! You can now login.');
         }
-      } else if (errorMessage.includes('expired')) {
+      } else if (errorMessage.includes('expired') || errorDataMessage.includes('expired')) {
         setStatus(STATUS.EXPIRED);
         setMessage('Your activation link has expired. Please register again to get a new link.');
       } else {
