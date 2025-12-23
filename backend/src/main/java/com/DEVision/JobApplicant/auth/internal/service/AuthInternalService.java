@@ -145,6 +145,56 @@ public class AuthInternalService {
     }
 
     /**
+     * Resend activation email to user
+     * - If account already activated, return success with flag
+     * - If token expired, generate new token
+     * - Otherwise, resend existing token
+     */
+    public Map<String, Object> resendActivationEmail(String email) {
+        User user = userRepository.findByEmail(email);
+        
+        if (user == null) {
+            // Don't reveal if email exists for security
+            return Map.of(
+                "message", "If an account exists with this email, an activation link will be sent.",
+                "success", true
+            );
+        }
+        
+        // Check if already activated
+        if (user.isActivated()) {
+            return Map.of(
+                "message", "This account is already activated. You can login now.",
+                "success", true,
+                "alreadyActivated", true
+            );
+        }
+        
+        // Check if token expired or doesn't exist - generate new one
+        if (user.getActivationToken() == null || 
+            user.getActivationTokenExpiry() == null ||
+            user.getActivationTokenExpiry().isBefore(LocalDateTime.now())) {
+            
+            String newToken = UUID.randomUUID().toString();
+            user.setActivationToken(newToken);
+            user.setActivationTokenExpiry(LocalDateTime.now().plusHours(24));
+            userRepository.save(user);
+        }
+        
+        // Send activation email
+        try {
+            emailService.sendActivationEmail(user.getEmail(), user.getActivationToken());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send activation email", e);
+        }
+        
+        return Map.of(
+            "message", "Activation link has been sent to your email.",
+            "success", true
+        );
+    }
+
+    /**
      * Login user and return tokens
      */
     public AuthResponse login(LoginRequest request) {

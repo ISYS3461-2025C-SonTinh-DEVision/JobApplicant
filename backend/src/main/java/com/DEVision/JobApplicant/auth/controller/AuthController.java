@@ -106,6 +106,66 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
     }
 
     /**
+     * Resend activation email with rate limiting
+     * Rate limit: 1 request per 60 seconds per email
+     */
+    @Operation(summary = "Resend activation email", description = "Resend activation email to user with rate limiting (60s cooldown)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Activation email sent or already activated"),
+        @ApiResponse(responseCode = "429", description = "Too many requests - rate limited"),
+        @ApiResponse(responseCode = "400", description = "Invalid request")
+    })
+    @PostMapping("/resend-activation")
+    public ResponseEntity<?> resendActivationEmail(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        
+        if (email == null || email.trim().isEmpty()) {
+            return new ResponseEntity<>(
+                Map.of("message", "Email is required", "success", false),
+                HttpStatus.BAD_REQUEST
+            );
+        }
+        
+        email = email.trim().toLowerCase();
+        
+        try {
+            // Check rate limit using Redis (60 seconds cooldown)
+            String rateLimitKey = "resend_activation:" + email;
+            Long ttl = redisService.getRemainingTTL(rateLimitKey);
+            
+            if (ttl != null && ttl > 0) {
+                // Rate limited
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("rateLimited", true);
+                response.put("retryAfter", ttl);
+                response.put("message", "Please wait " + ttl + " seconds before requesting again.");
+                return new ResponseEntity<>(response, HttpStatus.TOO_MANY_REQUESTS);
+            }
+            
+            // Process resend activation
+            Map<String, Object> result = authInternalService.resendActivationEmail(email);
+            
+            boolean success = (boolean) result.get("success");
+            boolean alreadyActivated = result.containsKey("alreadyActivated") && (boolean) result.get("alreadyActivated");
+            
+            if (success && !alreadyActivated) {
+                // Set rate limit for 60 seconds
+                redisService.setWithExpiry(rateLimitKey, "1", 60);
+            }
+            
+            return new ResponseEntity<>(result, HttpStatus.OK);
+            
+        } catch (Exception e) {
+            System.err.println("Error resending activation email: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to send activation email. Please try again later.", "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
      * Login endpoint (old implementation - to be updated)
      */
     @Operation(summary = "User login", description = "Authenticate user and return JWT tokens in HttpOnly cookies")
