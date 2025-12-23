@@ -1,0 +1,638 @@
+{
+  "info": {
+    "name": "JobApplicant Profile Management API",
+    "_postman_id": "profile-management-api-collection",
+    "description": "API endpoints for managing applicant profiles including education, work experience, skills, and avatar",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "applicantId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "educationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "workExperienceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "My Profile (Current User)",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me"]
+            },
+            "description": "Retrieve current authenticated user's profile using JWT token"
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"country\": \"VIETNAM\",\n  \"phoneNumber\": \"+84123456789\",\n  \"address\": \"123 Main Street\",\n  \"city\": \"Ho Chi Minh City\",\n  \"objectiveSummary\": \"Seeking a challenging position as a Full Stack Developer where I can utilize my skills in Java, Spring Boot, and React to build scalable applications.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me"]
+            },
+            "description": "Update current user's profile information including objective summary"
+          },
+          "response": []
+        },
+        {
+          "name": "Add My Education",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution\": \"RMIT University Vietnam\",\n  \"degree\": \"Bachelor of Science\",\n  \"fieldOfStudy\": \"Information Technology\",\n  \"startDate\": \"2020-09-01\",\n  \"endDate\": \"2024-06-30\",\n  \"description\": \"Major in Software Engineering with focus on web development\",\n  \"current\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me/education",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me", "education"]
+            },
+            "description": "Add education entry to current user's profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Education",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution\": \"RMIT University Vietnam\",\n  \"degree\": \"Bachelor of Science (Honours)\",\n  \"fieldOfStudy\": \"Information Technology\",\n  \"startDate\": \"2020-09-01\",\n  \"endDate\": \"2024-06-30\",\n  \"description\": \"Graduated with First Class Honours. Major in Software Engineering.\",\n  \"current\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me/education/{{educationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me", "education", "{{educationId}}"]
+            },
+            "description": "Update education entry in current user's profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete My Education",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me/education/{{educationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me", "education", "{{educationId}}"]
+            },
+            "description": "Remove education entry from current user's profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Add My Work Experience",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company\": \"FPT Software\",\n  \"position\": \"Junior Software Engineer\",\n  \"description\": \"Developed web applications using Spring Boot and React. Participated in Agile ceremonies.\",\n  \"startDate\": \"2023-06-01\",\n  \"endDate\": \"2024-05-31\",\n  \"current\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me/work-experience",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me", "work-experience"]
+            },
+            "description": "Add work experience entry to current user's profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Work Experience",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company\": \"FPT Software\",\n  \"position\": \"Software Engineer\",\n  \"description\": \"Promoted to Software Engineer. Led a team of 3 developers. Delivered 5 major features.\",\n  \"startDate\": \"2023-06-01\",\n  \"endDate\": \"2024-05-31\",\n  \"current\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me/work-experience/{{workExperienceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me", "work-experience", "{{workExperienceId}}"]
+            },
+            "description": "Update work experience entry in current user's profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete My Work Experience",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me/work-experience/{{workExperienceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me", "work-experience", "{{workExperienceId}}"]
+            },
+            "description": "Remove work experience entry from current user's profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Add My Skill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skill\": \"Java\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me/skills",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me", "skills"]
+            },
+            "description": "Add a single skill to current user's profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Add My Skills (Batch)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skills\": [\n    \"Spring Boot\",\n    \"React\",\n    \"MongoDB\",\n    \"Docker\",\n    \"Kubernetes\",\n    \"AWS\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me/skills/batch",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me", "skills", "batch"]
+            },
+            "description": "Add multiple skills to current user's profile at once"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete My Skill",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me/skills/Java",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me", "skills", "Java"]
+            },
+            "description": "Remove a skill from current user's profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload My Avatar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/me/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "me", "avatar"]
+            },
+            "description": "Upload or update current user's profile avatar image"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profile Management",
+      "item": [
+        {
+          "name": "Get Profile by User ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "user", "{{userId}}"]
+            },
+            "description": "Retrieve applicant profile information by user ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}"]
+            },
+            "description": "Retrieve applicant profile information by applicant ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"country\": \"VIETNAM\",\n  \"phoneNumber\": \"+84123456789\",\n  \"address\": \"123 Main Street\",\n  \"city\": \"Ho Chi Minh City\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}"]
+            },
+            "description": "Update applicant profile information"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Profile",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}"]
+            },
+            "description": "Delete applicant profile. Use with caution - this cannot be undone."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Education Management",
+      "item": [
+        {
+          "name": "Add Education",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution\": \"RMIT University Vietnam\",\n  \"degree\": \"Bachelor of Science\",\n  \"fieldOfStudy\": \"Information Technology\",\n  \"startDate\": \"2020-09-01\",\n  \"endDate\": \"2024-06-30\",\n  \"description\": \"Major in Software Engineering with focus on web development\",\n  \"current\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/education",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "education"]
+            },
+            "description": "Add a new education entry to applicant profile. Maximum 20 entries allowed."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Education (Current Student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution\": \"FPT University\",\n  \"degree\": \"Master of Science\",\n  \"fieldOfStudy\": \"Data Science\",\n  \"startDate\": \"2024-01-15\",\n  \"description\": \"Currently pursuing Master's degree in Data Science\",\n  \"current\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/education",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "education"]
+            },
+            "description": "Add education entry for current student (no end date)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Education",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution\": \"RMIT University Vietnam\",\n  \"degree\": \"Bachelor of Science (Honours)\",\n  \"fieldOfStudy\": \"Information Technology\",\n  \"startDate\": \"2020-09-01\",\n  \"endDate\": \"2024-06-30\",\n  \"description\": \"Graduated with First Class Honours. Major in Software Engineering.\",\n  \"current\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/education/{{educationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "education", "{{educationId}}"]
+            },
+            "description": "Update an existing education entry"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Education",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/education/{{educationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "education", "{{educationId}}"]
+            },
+            "description": "Remove an education entry from profile"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Work Experience Management",
+      "item": [
+        {
+          "name": "Add Work Experience",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company\": \"FPT Software\",\n  \"position\": \"Junior Software Engineer\",\n  \"description\": \"Developed web applications using Spring Boot and React. Participated in Agile ceremonies.\",\n  \"startDate\": \"2023-06-01\",\n  \"endDate\": \"2024-05-31\",\n  \"current\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/work-experience",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "work-experience"]
+            },
+            "description": "Add a new work experience entry to applicant profile. Maximum 20 entries allowed."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Work Experience (Current Job)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company\": \"VNG Corporation\",\n  \"position\": \"Software Engineer\",\n  \"description\": \"Building scalable microservices for ZaloPay. Working with Kubernetes and AWS.\",\n  \"startDate\": \"2024-06-01\",\n  \"current\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/work-experience",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "work-experience"]
+            },
+            "description": "Add work experience for current position (no end date)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Work Experience",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company\": \"FPT Software\",\n  \"position\": \"Software Engineer\",\n  \"description\": \"Promoted to Software Engineer. Led a team of 3 developers. Delivered 5 major features.\",\n  \"startDate\": \"2023-06-01\",\n  \"endDate\": \"2024-05-31\",\n  \"current\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/work-experience/{{workExperienceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "work-experience", "{{workExperienceId}}"]
+            },
+            "description": "Update an existing work experience entry"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Work Experience",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/work-experience/{{workExperienceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "work-experience", "{{workExperienceId}}"]
+            },
+            "description": "Remove a work experience entry from profile"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Skills Management",
+      "item": [
+        {
+          "name": "Add Single Skill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skill\": \"Java\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/skills",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "skills"]
+            },
+            "description": "Add a single skill to applicant profile. Maximum 50 skills allowed. Case-insensitive duplicate check."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Multiple Skills (Batch)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skills\": [\n    \"Spring Boot\",\n    \"React\",\n    \"MongoDB\",\n    \"Docker\",\n    \"Kubernetes\",\n    \"AWS\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/skills/batch",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "skills", "batch"]
+            },
+            "description": "Add multiple skills to applicant profile at once. Maximum 50 skills total. Duplicates are silently ignored."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Skill",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/skills/Java",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "skills", "Java"]
+            },
+            "description": "Remove a skill from profile. Case-insensitive matching."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Avatar Management",
+      "item": [
+        {
+          "name": "Upload Avatar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/applicants/{{applicantId}}/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applicants", "{{applicantId}}", "avatar"]
+            },
+            "description": "Upload or update profile avatar image. Max size 5MB. Supported formats: JPG, PNG, WEBP"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
