@@ -1,11 +1,21 @@
 package com.DEVision.JobApplicant.common.service;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+/**
+ * Email Service - Handles sending beautiful HTML emails
+ * 
+ * Features:
+ * - HTML email templates with responsive design
+ * - Consistent branding with DEVision Job Applicant
+ * - Activation and password reset emails
+ */
 @Service
 public class EmailService {
 
@@ -18,71 +28,318 @@ public class EmailService {
     @Value("${app.frontend.base-url:http://localhost:3000}")
     private String frontendBaseUrl;
     
+    // Brand colors matching frontend
+    private static final String PRIMARY_COLOR = "#2563EB";
+    private static final String PRIMARY_DARK = "#1D4ED8";
+    private static final String ACCENT_COLOR = "#14B8A6";
+    private static final String DARK_BG = "#0F172A";
+    private static final String SURFACE_COLOR = "#1E293B";
+    private static final String TEXT_COLOR = "#F1F5F9";
+    private static final String TEXT_MUTED = "#94A3B8";
+    
     /**
-     * Send activation email to new user
+     * Send activation email to new user with beautiful HTML template
      * @param toEmail Recipient email address
      * @param activationToken Activation token
      */
     public void sendActivationEmail(String toEmail, String activationToken) {
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(toEmail);
-            message.setSubject("Activate Your Job Applicant Account");
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("🎉 Activate Your DEVision Account");
             
             String activationLink = frontendBaseUrl + "/activate?token=" + activationToken;
+            String htmlContent = buildActivationEmailTemplate(toEmail, activationLink);
             
-            String emailBody = "Welcome to Job Applicant System!\n\n" +
-                    "Thank you for registering. To activate your account, please click the link below:\n\n" +
-                    activationLink + "\n\n" +
-                    "This activation link will expire in 24 hours.\n\n" +
-                    "If you did not create an account, please ignore this email.\n\n" +
-                    "Best regards,\n" +
-                    "Job Applicant Team";
-            
-            message.setText(emailBody);
+            helper.setText(htmlContent, true); // true = HTML
             
             mailSender.send(message);
-        
             
             System.out.println("Activation email sent to: " + toEmail);
-        } catch (Exception e) {
+        } catch (MessagingException e) {
             System.err.println("Failed to send activation email: " + e.getMessage());
             throw new RuntimeException("Failed to send activation email", e);
         }
     }
     
     /**
-     * Send password reset email
+     * Send password reset email with beautiful HTML template
      * @param toEmail Recipient email address
      * @param resetToken Password reset token
      */
     public void sendPasswordResetEmail(String toEmail, String resetToken) {
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(toEmail);
-            message.setSubject("Reset Your Password");
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("🔐 Reset Your Password - DEVision");
             
             String resetLink = frontendBaseUrl + "/reset-password?token=" + resetToken;
+            String htmlContent = buildPasswordResetEmailTemplate(toEmail, resetLink);
             
-            String emailBody = "Password Reset Request\n\n" +
-                    "We received a request to reset your password. Click the link below to reset it:\n\n" +
-                    resetLink + "\n\n" +
-                    "This link will expire in 1 hour.\n\n" +
-                    "If you did not request a password reset, please ignore this email.\n\n" +
-                    "Best regards,\n" +
-                    "Job Applicant Team";
-            
-            message.setText(emailBody);
+            helper.setText(htmlContent, true); // true = HTML
             
             mailSender.send(message);
             
             System.out.println("Password reset email sent to: " + toEmail);
-        } catch (Exception e) {
+        } catch (MessagingException e) {
             System.err.println("Failed to send password reset email: " + e.getMessage());
             throw new RuntimeException("Failed to send password reset email", e);
         }
     }
+    
+    /**
+     * Build beautiful HTML template for activation email
+     */
+    private String buildActivationEmailTemplate(String email, String activationLink) {
+        return """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Activate Your Account</title>
+            </head>
+            <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0F172A;">
+                <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background-color: #0F172A; padding: 40px 20px;">
+                    <tr>
+                        <td align="center">
+                            <!-- Main Container -->
+                            <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="max-width: 600px; background: linear-gradient(180deg, #1E293B 0%%, #0F172A 100%%); border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+                                
+                                <!-- Header with Logo -->
+                                <tr>
+                                    <td style="padding: 40px 40px 30px; text-align: center; background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%%, rgba(20, 184, 166, 0.1) 100%%);">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                                            <tr>
+                                                <td style="background: linear-gradient(135deg, #2563EB 0%%, #1D4ED8 100%%); width: 56px; height: 56px; border-radius: 12px; text-align: center; vertical-align: middle; box-shadow: 0 0 30px rgba(37, 99, 235, 0.4);">
+                                                    <span style="font-size: 28px;">💼</span>
+                                                </td>
+                                                <td style="padding-left: 16px;">
+                                                    <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #F1F5F9;">DEVision</h1>
+                                                    <p style="margin: 4px 0 0; font-size: 12px; color: #94A3B8; letter-spacing: 1px;">JOB APPLICANT PLATFORM</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Welcome Message -->
+                                <tr>
+                                    <td style="padding: 30px 40px 20px; text-align: center;">
+                                        <div style="width: 80px; height: 80px; margin: 0 auto 20px; background: linear-gradient(135deg, rgba(20, 184, 166, 0.2) 0%%, rgba(34, 197, 94, 0.2) 100%%); border-radius: 50%%; display: flex; align-items: center; justify-content: center;">
+                                            <span style="font-size: 40px; line-height: 80px;">🎉</span>
+                                        </div>
+                                        <h2 style="margin: 0 0 16px; font-size: 28px; font-weight: 700; color: #F1F5F9;">Welcome to DEVision!</h2>
+                                        <p style="margin: 0; font-size: 16px; color: #94A3B8; line-height: 1.6;">
+                                            Thank you for joining our platform. You're just one step away from unlocking amazing career opportunities!
+                                        </p>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Activation Button -->
+                                <tr>
+                                    <td style="padding: 20px 40px 30px; text-align: center;">
+                                        <a href="%s" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #2563EB 0%%, #1D4ED8 100%%); color: #FFFFFF; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 12px; box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4); transition: all 0.3s;">
+                                            ✨ Activate My Account
+                                        </a>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Info Box -->
+                                <tr>
+                                    <td style="padding: 0 40px 30px;">
+                                        <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background: rgba(37, 99, 235, 0.1); border: 1px solid rgba(37, 99, 235, 0.2); border-radius: 12px;">
+                                            <tr>
+                                                <td style="padding: 20px;">
+                                                    <table role="presentation" cellspacing="0" cellpadding="0">
+                                                        <tr>
+                                                            <td style="vertical-align: top; padding-right: 12px;">
+                                                                <span style="font-size: 20px;">⏰</span>
+                                                            </td>
+                                                            <td>
+                                                                <p style="margin: 0; font-size: 14px; color: #94A3B8;">
+                                                                    <strong style="color: #F1F5F9;">Link expires in 24 hours</strong><br>
+                                                                    For security reasons, this activation link will expire. Click the button above to activate now!
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Alternative Link -->
+                                <tr>
+                                    <td style="padding: 0 40px 30px;">
+                                        <p style="margin: 0 0 10px; font-size: 13px; color: #64748B; text-align: center;">
+                                            If the button doesn't work, copy and paste this link:
+                                        </p>
+                                        <p style="margin: 0; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; font-size: 12px; color: #2563EB; word-break: break-all; text-align: center;">
+                                            %s
+                                        </p>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Divider -->
+                                <tr>
+                                    <td style="padding: 0 40px;">
+                                        <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);"></div>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="padding: 30px 40px; text-align: center;">
+                                        <p style="margin: 0 0 16px; font-size: 13px; color: #64748B;">
+                                            Didn't create an account? Just ignore this email.
+                                        </p>
+                                        <p style="margin: 0; font-size: 12px; color: #475569;">
+                                            © 2025 DEVision Job Applicant. All rights reserved.<br>
+                                            <a href="#" style="color: #2563EB; text-decoration: none;">Privacy Policy</a> • 
+                                            <a href="#" style="color: #2563EB; text-decoration: none;">Terms of Service</a>
+                                        </p>
+                                    </td>
+                                </tr>
+                                
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """.formatted(activationLink, activationLink);
+    }
+    
+    /**
+     * Build beautiful HTML template for password reset email
+     */
+    private String buildPasswordResetEmailTemplate(String email, String resetLink) {
+        return """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Reset Your Password</title>
+            </head>
+            <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0F172A;">
+                <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background-color: #0F172A; padding: 40px 20px;">
+                    <tr>
+                        <td align="center">
+                            <!-- Main Container -->
+                            <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="max-width: 600px; background: linear-gradient(180deg, #1E293B 0%%, #0F172A 100%%); border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+                                
+                                <!-- Header with Logo -->
+                                <tr>
+                                    <td style="padding: 40px 40px 30px; text-align: center; background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%%, rgba(20, 184, 166, 0.1) 100%%);">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                                            <tr>
+                                                <td style="background: linear-gradient(135deg, #2563EB 0%%, #1D4ED8 100%%); width: 56px; height: 56px; border-radius: 12px; text-align: center; vertical-align: middle; box-shadow: 0 0 30px rgba(37, 99, 235, 0.4);">
+                                                    <span style="font-size: 28px;">💼</span>
+                                                </td>
+                                                <td style="padding-left: 16px;">
+                                                    <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #F1F5F9;">DEVision</h1>
+                                                    <p style="margin: 4px 0 0; font-size: 12px; color: #94A3B8; letter-spacing: 1px;">JOB APPLICANT PLATFORM</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Reset Password Message -->
+                                <tr>
+                                    <td style="padding: 30px 40px 20px; text-align: center;">
+                                        <div style="width: 80px; height: 80px; margin: 0 auto 20px; background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%%, rgba(245, 158, 11, 0.2) 100%%); border-radius: 50%%; display: flex; align-items: center; justify-content: center;">
+                                            <span style="font-size: 40px; line-height: 80px;">🔐</span>
+                                        </div>
+                                        <h2 style="margin: 0 0 16px; font-size: 28px; font-weight: 700; color: #F1F5F9;">Password Reset Request</h2>
+                                        <p style="margin: 0; font-size: 16px; color: #94A3B8; line-height: 1.6;">
+                                            We received a request to reset your password. Click the button below to create a new password.
+                                        </p>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Reset Button -->
+                                <tr>
+                                    <td style="padding: 20px 40px 30px; text-align: center;">
+                                        <a href="%s" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #F59E0B 0%%, #D97706 100%%); color: #FFFFFF; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 12px; box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4); transition: all 0.3s;">
+                                            🔑 Reset My Password
+                                        </a>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Warning Box -->
+                                <tr>
+                                    <td style="padding: 0 40px 30px;">
+                                        <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 12px;">
+                                            <tr>
+                                                <td style="padding: 20px;">
+                                                    <table role="presentation" cellspacing="0" cellpadding="0">
+                                                        <tr>
+                                                            <td style="vertical-align: top; padding-right: 12px;">
+                                                                <span style="font-size: 20px;">⚠️</span>
+                                                            </td>
+                                                            <td>
+                                                                <p style="margin: 0; font-size: 14px; color: #94A3B8;">
+                                                                    <strong style="color: #F1F5F9;">Link expires in 1 hour</strong><br>
+                                                                    For your security, this password reset link will expire soon. If you didn't request this, please ignore this email.
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Alternative Link -->
+                                <tr>
+                                    <td style="padding: 0 40px 30px;">
+                                        <p style="margin: 0 0 10px; font-size: 13px; color: #64748B; text-align: center;">
+                                            If the button doesn't work, copy and paste this link:
+                                        </p>
+                                        <p style="margin: 0; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; font-size: 12px; color: #F59E0B; word-break: break-all; text-align: center;">
+                                            %s
+                                        </p>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Divider -->
+                                <tr>
+                                    <td style="padding: 0 40px;">
+                                        <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);"></div>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="padding: 30px 40px; text-align: center;">
+                                        <p style="margin: 0 0 16px; font-size: 13px; color: #64748B;">
+                                            Didn't request a password reset? Just ignore this email.
+                                        </p>
+                                        <p style="margin: 0; font-size: 12px; color: #475569;">
+                                            © 2025 DEVision Job Applicant. All rights reserved.<br>
+                                            <a href="#" style="color: #2563EB; text-decoration: none;">Privacy Policy</a> • 
+                                            <a href="#" style="color: #2563EB; text-decoration: none;">Terms of Service</a>
+                                        </p>
+                                    </td>
+                                </tr>
+                                
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """.formatted(resetLink, resetLink);
+    }
 }
-
