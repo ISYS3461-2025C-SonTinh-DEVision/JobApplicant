@@ -16,7 +16,6 @@ export const API_ENDPOINTS = {
     REFRESH: '/api/auth/refresh',
     CHECK_SESSION: '/api/auth/check-session',
     ACTIVATE: '/api/auth/activate',
-    RESEND_ACTIVATION: '/api/auth/resend-activation',
     FORGOT_PASSWORD: '/api/auth/forgot-password',
     RESET_PASSWORD: '/api/auth/reset-password',
     // SSO

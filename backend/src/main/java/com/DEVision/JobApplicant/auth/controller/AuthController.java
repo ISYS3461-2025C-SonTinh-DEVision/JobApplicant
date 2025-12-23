@@ -106,48 +106,6 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
     }
 
     /**
-     * Resend activation email with rate limiting
-     */
-    @Operation(summary = "Resend activation email", description = "Send a new activation email to the specified address. Rate limited to 1 request per 60 seconds.")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Activation email sent or already activated"),
-        @ApiResponse(responseCode = "429", description = "Rate limited - too many requests"),
-        @ApiResponse(responseCode = "400", description = "Invalid request")
-    })
-    @PostMapping("/resend-activation")
-    public ResponseEntity<?> resendActivationEmail(@RequestBody Map<String, String> request) {
-        try {
-            String email = request.get("email");
-            
-            if (email == null || email.isEmpty()) {
-                return new ResponseEntity<>(
-                    Map.of("message", "Email is required", "success", false),
-                    HttpStatus.BAD_REQUEST
-                );
-            }
-
-            Map<String, Object> response = authInternalService.resendActivationEmail(email);
-            boolean success = (boolean) response.get("success");
-            
-            // Check if rate limited
-            if (response.containsKey("rateLimited") && (boolean) response.get("rateLimited")) {
-                return new ResponseEntity<>(response, HttpStatus.TOO_MANY_REQUESTS);
-            }
-            
-            if (success) {
-                return new ResponseEntity<>(response, HttpStatus.OK);
-            } else {
-                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-            }
-        } catch (Exception e) {
-            return new ResponseEntity<>(
-                Map.of("message", "Failed to resend activation email: " + e.getMessage(), "success", false),
-                HttpStatus.INTERNAL_SERVER_ERROR
-            );
-        }
-    }
-
-    /**
      * Login endpoint (old implementation - to be updated)
      */
     @Operation(summary = "User login", description = "Authenticate user and return JWT tokens in HttpOnly cookies")

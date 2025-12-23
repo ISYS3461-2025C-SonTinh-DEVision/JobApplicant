@@ -97,16 +97,6 @@ class AuthService {
   }
 
   /**
-   * Resend activation email
-   * @param {string} email - User email
-   * @returns {Promise<Object>} Result with cooldown info if rate limited
-   */
-  async resendActivationEmail(email) {
-    const response = await httpUtil.post(API_ENDPOINTS.AUTH.RESEND_ACTIVATION, { email });
-    return response;
-  }
-
-  /**
    * Request password reset email
    * @param {string} email - User email
    * @returns {Promise<Object>} Request result
