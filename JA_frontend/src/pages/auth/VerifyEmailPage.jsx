@@ -4,18 +4,70 @@
  * Handles account activation via token from email
  * 
  * Architecture:
- * - A.3.a (Ultimo): Uses refined state management for activation flow
+ * - A.3.a (Ultimo): Smart caching with localStorage to handle duplicate activations
  * - Handles edge cases: already activated, expired token, network errors
  * - Premium UI with smooth animations and clear feedback
+ * - 5-minute cache for activation status to improve UX on link re-clicks
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   CheckCircle2, XCircle, Loader2, Mail, Briefcase, ArrowRight,
-  RefreshCw, PartyPopper, Sparkles, AlertTriangle
+  RefreshCw, PartyPopper, Sparkles, AlertTriangle, LogIn
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+
+// ============================================
+// CONSTANTS & UTILITIES
+// ============================================
+
+const STORAGE_KEY_PREFIX = 'activation_status_';
+const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Save activation status to localStorage with expiry
+ */
+const saveActivationStatus = (token, status) => {
+  try {
+    const data = {
+      status,
+      timestamp: Date.now(),
+      expiresAt: Date.now() + CACHE_DURATION_MS
+    };
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}${token}`, JSON.stringify(data));
+  } catch (e) {
+    console.warn('Failed to save activation status to localStorage:', e);
+  }
+};
+
+/**
+ * Get cached activation status from localStorage
+ * Returns null if not found or expired
+ */
+const getCachedActivationStatus = (token) => {
+  try {
+    const cached = localStorage.getItem(`${STORAGE_KEY_PREFIX}${token}`);
+    if (!cached) return null;
+
+    const data = JSON.parse(cached);
+
+    // Check if cache has expired
+    if (Date.now() > data.expiresAt) {
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}${token}`);
+      return null;
+    }
+
+    return data.status;
+  } catch (e) {
+    console.warn('Failed to read activation status from localStorage:', e);
+    return null;
+  }
+};
+
+// ============================================
+// COMPONENTS
+// ============================================
 
 // Background component with animated shapes
 function BackgroundShapes() {
@@ -64,6 +116,30 @@ function ConfettiEffect() {
   );
 }
 
+// Countdown timer component
+function CountdownTimer({ seconds, onComplete }) {
+  const [remaining, setRemaining] = useState(seconds);
+
+  useEffect(() => {
+    if (remaining <= 0) {
+      onComplete?.();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setRemaining(r => r - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [remaining, onComplete]);
+
+  return (
+    <span className="text-dark-400 text-sm">
+      (Redirecting in {remaining}s)
+    </span>
+  );
+}
+
 // Status states
 const STATUS = {
   LOADING: 'loading',
@@ -73,6 +149,10 @@ const STATUS = {
   EXPIRED: 'expired',
   NO_TOKEN: 'no_token',
 };
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
 
 export default function VerifyEmailPage() {
   const navigate = useNavigate();
@@ -89,6 +169,16 @@ export default function VerifyEmailPage() {
   const hasAttemptedActivation = useRef(false);
   const activationInProgress = useRef(false);
 
+  // Handle redirect to login
+  const handleRedirectToLogin = useCallback(() => {
+    navigate('/login', {
+      state: {
+        message: 'Account activated! Please login to continue.',
+        type: 'success'
+      }
+    });
+  }, [navigate]);
+
   // Memoized activation function
   const performActivation = useCallback(async () => {
     // Prevent multiple simultaneous calls
@@ -96,7 +186,7 @@ export default function VerifyEmailPage() {
       return;
     }
 
-    // Prevent duplicate activation attempts
+    // Prevent duplicate activation attempts in same session
     if (hasAttemptedActivation.current) {
       return;
     }
@@ -107,10 +197,24 @@ export default function VerifyEmailPage() {
       return;
     }
 
+    // ========================================
+    // STEP 1: Check localStorage cache first
+    // ========================================
+    const cachedStatus = getCachedActivationStatus(token);
+    if (cachedStatus === 'activated') {
+      setStatus(STATUS.ALREADY_ACTIVATED);
+      setMessage('This activation link has already been used. Your account is active!');
+      hasAttemptedActivation.current = true;
+      return;
+    }
+
     activationInProgress.current = true;
     hasAttemptedActivation.current = true;
 
     try {
+      // ========================================
+      // STEP 2: Call API if not cached
+      // ========================================
       const result = await activateAccount(token);
 
       if (result.success) {
@@ -118,32 +222,26 @@ export default function VerifyEmailPage() {
         const isAlreadyActivated = result.message?.toLowerCase().includes('already activated');
 
         if (isAlreadyActivated) {
+          // Save to cache
+          saveActivationStatus(token, 'activated');
           setStatus(STATUS.ALREADY_ACTIVATED);
           setMessage('Your account is already activated. You can login now!');
         } else {
+          // New activation - save to cache and show success
+          saveActivationStatus(token, 'activated');
           setStatus(STATUS.SUCCESS);
           setMessage(result.message || 'Your account has been activated successfully!');
           setShowConfetti(true);
-
-          // Auto-redirect to login after 30 seconds (user requested longer display)
-          setTimeout(() => {
-            navigate('/login', {
-              state: {
-                message: 'Account activated! Please login to continue.',
-                type: 'success'
-              }
-            });
-          }, 30000);
         }
       } else {
-        // Handle different error cases
+        // Handle different error cases from result
         const errorMessage = result.message?.toLowerCase() || '';
 
         if (errorMessage.includes('expired')) {
           setStatus(STATUS.EXPIRED);
           setMessage('Your activation link has expired. Please register again to get a new link.');
         } else if (errorMessage.includes('already activated')) {
-          // Backend might return success: false for already activated in some cases
+          saveActivationStatus(token, 'activated');
           setStatus(STATUS.ALREADY_ACTIVATED);
           setMessage('Your account is already activated. You can login now!');
         } else {
@@ -152,21 +250,28 @@ export default function VerifyEmailPage() {
         }
       }
     } catch (err) {
-      // Handle HTTP errors from httpUtil
+      // ========================================
+      // STEP 3: Handle HTTP errors
+      // ========================================
+      console.log('Activation error:', err); // Debug log
+
       const errorMessage = err.message?.toLowerCase() || '';
       const errorDataMessage = err.data?.message?.toLowerCase() || '';
+      const httpStatus = err.status;
 
-      // For activation endpoint, 400 status almost always means:
+      // For activation endpoint, 400 status usually means:
       // 1. Token already used (account activated successfully on first attempt)
-      // 2. Token invalid/expired
-      // Since we can't distinguish, treat 400 as "already activated" for better UX
-      if (err.status === 400) {
+      // 2. Token invalid or expired
+      // We treat 400 as "already activated" for better UX
+      if (httpStatus === 400) {
         // Check if it's an expiry issue
         if (errorMessage.includes('expired') || errorDataMessage.includes('expired')) {
           setStatus(STATUS.EXPIRED);
           setMessage('Your activation link has expired. Please register again to get a new link.');
         } else {
-          // Default to "already activated" for 400 - most common case
+          // Assume "already activated" for all other 400 errors
+          // Save to cache so future clicks show "Already Verified" immediately
+          saveActivationStatus(token, 'activated');
           setStatus(STATUS.ALREADY_ACTIVATED);
           setMessage('Your account has been activated! You can now login.');
         }
@@ -180,12 +285,16 @@ export default function VerifyEmailPage() {
     } finally {
       activationInProgress.current = false;
     }
-  }, [token, activateAccount, navigate]);
+  }, [token, activateAccount]);
 
   // Perform activation on mount
   useEffect(() => {
     performActivation();
   }, [performActivation]);
+
+  // ============================================
+  // RENDER FUNCTIONS
+  // ============================================
 
   // Render loading state
   const renderLoading = () => (
@@ -227,10 +336,12 @@ export default function VerifyEmailPage() {
         🎉 Welcome Aboard!
       </h2>
       <p className="text-dark-300 mb-2 text-lg">{message}</p>
-      <p className="text-dark-500 text-sm mb-8">Redirecting to login in a few seconds...</p>
+      <div className="mb-8">
+        <CountdownTimer seconds={30} onComplete={handleRedirectToLogin} />
+      </div>
 
       <button
-        onClick={() => navigate('/login')}
+        onClick={handleRedirectToLogin}
         className="btn-primary inline-flex items-center gap-2 text-lg px-8 py-3 shadow-glow hover:shadow-glow-lg transition-all"
       >
         <span>Continue to Login</span>
@@ -246,13 +357,21 @@ export default function VerifyEmailPage() {
         <CheckCircle2 className="w-12 h-12 text-green-400" />
       </div>
 
-      <h2 className="text-2xl font-bold text-white mb-3">Already Verified!</h2>
-      <p className="text-dark-300 mb-8">{message}</p>
+      <h2 className="text-2xl font-bold text-white mb-3">Already Verified! ✨</h2>
+      <p className="text-dark-300 mb-6">{message}</p>
+
+      <div className="bg-dark-700/50 rounded-xl p-4 mb-6">
+        <p className="text-sm text-dark-400">
+          <strong className="text-accent-400">Good news!</strong> Your account is already active.
+          Click below to login and start exploring.
+        </p>
+      </div>
 
       <button
-        onClick={() => navigate('/login')}
+        onClick={handleRedirectToLogin}
         className="btn-primary inline-flex items-center gap-2 w-full justify-center"
       >
+        <LogIn className="w-4 h-4" />
         <span>Go to Login</span>
         <ArrowRight className="w-4 h-4" />
       </button>
