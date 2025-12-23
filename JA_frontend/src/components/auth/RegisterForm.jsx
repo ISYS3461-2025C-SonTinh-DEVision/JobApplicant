@@ -13,7 +13,7 @@ import PasswordStrengthMeter from './PasswordStrengthMeter';
 import { FormInput, FormSelect } from '../reusable/FormInput';
 import { validateEmail, validatePassword, validatePhone, validateRegister } from '../../utils/validators/authValidators';
 import { useAuth } from '../../context/AuthContext';
-import authService from '../../services/authService';
+import authService from '../../services/AuthService';
 
 /**
  * Registration Form
