@@ -67,25 +67,25 @@ spring:
           writetimeout: 5000
 
 # Uncomment and configure when enabling Google OAuth2 SSO
-Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env file
- security:
-   oauth2:
-     client:
-       registration:
-         google:
-           client-id: ${GOOGLE_CLIENT_ID}
-           client-secret: ${GOOGLE_CLIENT_SECRET}
-           scope:
-             - email
-             - profile
-           redirect-uri: "{baseUrl}/api/auth/oauth2/callback/{registrationId}"
-           authorization-grant-type: authorization_code
-       provider:
-         google:
-           authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
-           token-uri: https://oauth2.googleapis.com/token
-           user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
-           user-name-attribute: sub
+# Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env file
+#  security:
+#    oauth2:
+#      client:
+#        registration:
+#          google:
+#            client-id: ${GOOGLE_CLIENT_ID}
+#            client-secret: ${GOOGLE_CLIENT_SECRET}
+#            scope:
+#              - email
+#              - profile
+#            redirect-uri: "{baseUrl}/api/auth/oauth2/callback/{registrationId}"
+#            authorization-grant-type: authorization_code
+#        provider:
+#          google:
+#            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+#            token-uri: https://oauth2.googleapis.com/token
+#            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+#            user-name-attribute: sub
 
 # firebase:
 #     bucket-name: ${FIREBASE_BUCKET_NAME}
