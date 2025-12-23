@@ -18,7 +18,7 @@ import {
   RefreshCw, PartyPopper, Sparkles, AlertTriangle, LogIn, Clock, Send
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import AuthService from '../../services/authService';
+import AuthService from '../../services/AuthService';
 
 // ============================================
 // CONSTANTS & UTILITIES
@@ -251,8 +251,8 @@ function ResendButton({ email, onSuccess, onError }) {
         onClick={handleResend}
         disabled={isLoading || cooldown > 0 || !email}
         className={`w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${cooldown > 0 || isLoading
-            ? 'bg-dark-600 text-dark-400 cursor-not-allowed'
-            : 'bg-gradient-to-r from-primary-600 to-primary-500 text-white hover:from-primary-500 hover:to-primary-400 hover:shadow-glow'
+          ? 'bg-dark-600 text-dark-400 cursor-not-allowed'
+          : 'bg-gradient-to-r from-primary-600 to-primary-500 text-white hover:from-primary-500 hover:to-primary-400 hover:shadow-glow'
           }`}
       >
         {isLoading ? (
@@ -375,8 +375,8 @@ function EmailInputResend({ onSuccess, onError }) {
         type="submit"
         disabled={isLoading || cooldown > 0 || !email}
         className={`w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${cooldown > 0 || isLoading
-            ? 'bg-dark-600 text-dark-400 cursor-not-allowed'
-            : 'bg-gradient-to-r from-primary-600 to-primary-500 text-white hover:from-primary-500 hover:to-primary-400 hover:shadow-glow'
+          ? 'bg-dark-600 text-dark-400 cursor-not-allowed'
+          : 'bg-gradient-to-r from-primary-600 to-primary-500 text-white hover:from-primary-500 hover:to-primary-400 hover:shadow-glow'
           }`}
       >
         {isLoading ? (
