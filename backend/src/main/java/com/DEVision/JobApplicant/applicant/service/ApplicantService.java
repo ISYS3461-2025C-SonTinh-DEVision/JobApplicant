@@ -69,7 +69,10 @@ public class ApplicantService {
             if (updatedApplicant.getCity() != null) {
                 applicant.setCity(updatedApplicant.getCity());
             }
-            
+            if (updatedApplicant.getObjectiveSummary() != null) {
+                applicant.setObjectiveSummary(updatedApplicant.getObjectiveSummary());
+            }
+
             applicant.setUpdatedAt(LocalDateTime.now());
             
             return applicantRepository.save(applicant);

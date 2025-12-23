@@ -20,6 +20,9 @@ import com.DEVision.JobApplicant.applicant.internal.dto.UpdateProfileRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.UpdateWorkExperienceRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.WorkExperienceResponse;
 import com.DEVision.JobApplicant.applicant.service.ApplicantService;
+import com.DEVision.JobApplicant.auth.entity.User;
+import com.DEVision.JobApplicant.auth.repository.AuthRepository;
+import com.DEVision.JobApplicant.common.model.PlanType;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -33,6 +36,9 @@ public class ApplicantInternalService {
 
     @Autowired
     private ApplicantService applicantService;
+
+    @Autowired
+    private AuthRepository authRepository;
 
     /**
      * Get user profile by user ID
@@ -61,6 +67,7 @@ public class ApplicantInternalService {
         updatedApplicant.setPhoneNumber(request.getPhoneNumber());
         updatedApplicant.setAddress(request.getAddress());
         updatedApplicant.setCity(request.getCity());
+        updatedApplicant.setObjectiveSummary(request.getObjectiveSummary());
 
         Applicant updated = applicantService.updateApplicant(id, updatedApplicant);
         return updated != null ? toProfileResponse(updated) : null;
@@ -208,21 +215,198 @@ public class ApplicantInternalService {
         return updated != null ? toProfileResponse(updated) : null;
     }
     
-    // Validation helper
-    private void validateOwnership(String applicantId) {
+    // /api/me operations - use authenticated user from JWT token
+    public ProfileResponse getMyProfile() {
+        Applicant applicant = getMyApplicant();
+        return toProfileResponse(applicant);
+    }
+
+    public ProfileResponse updateMyProfile(UpdateProfileRequest request) {
+        Applicant applicant = getMyApplicant();
+        Applicant updatedApplicant = new Applicant();
+        updatedApplicant.setFirstName(request.getFirstName());
+        updatedApplicant.setLastName(request.getLastName());
+        updatedApplicant.setCountry(request.getCountry());
+        updatedApplicant.setPhoneNumber(request.getPhoneNumber());
+        updatedApplicant.setAddress(request.getAddress());
+        updatedApplicant.setCity(request.getCity());
+        updatedApplicant.setObjectiveSummary(request.getObjectiveSummary());
+
+        Applicant updated = applicantService.updateApplicant(applicant.getId(), updatedApplicant);
+        return updated != null ? toProfileResponse(updated) : null;
+    }
+
+    public EducationResponse addMyEducation(AddEducationRequest request) {
+        Applicant applicant = getMyApplicant();
+
+        Education education = new Education();
+        education.setInstitution(request.getInstitution());
+        education.setDegree(request.getDegree());
+        education.setFieldOfStudy(request.getFieldOfStudy());
+        education.setStartDate(request.getStartDate());
+        education.setEndDate(request.getEndDate());
+        education.setDescription(request.getDescription());
+        education.setCurrent(request.isCurrent());
+
+        Applicant updated = applicantService.addEducation(applicant.getId(), education);
+
+        if (updated == null) {
+            return null;
+        }
+
+        Education added = updated.getEducation().get(updated.getEducation().size() - 1);
+        return toEducationResponse(added);
+    }
+
+    public EducationResponse updateMyEducation(String educationId, UpdateEducationRequest request) {
+        Applicant applicant = getMyApplicant();
+
+        Education education = new Education();
+        education.setInstitution(request.getInstitution());
+        education.setDegree(request.getDegree());
+        education.setFieldOfStudy(request.getFieldOfStudy());
+        education.setStartDate(request.getStartDate());
+        education.setEndDate(request.getEndDate());
+        education.setDescription(request.getDescription());
+        education.setCurrent(request.isCurrent());
+
+        Applicant updated = applicantService.updateEducation(applicant.getId(), educationId, education);
+
+        if (updated == null) {
+            return null;
+        }
+
+        return updated.getEducation().stream()
+                .filter(edu -> edu.getId().toString().equals(educationId))
+                .map(this::toEducationResponse)
+                .findFirst()
+                .orElse(null);
+    }
+
+    public boolean deleteMyEducation(String educationId) {
+        Applicant applicant = getMyApplicant();
+        return applicantService.deleteEducation(applicant.getId(), educationId) != null;
+    }
+
+    public WorkExperienceResponse addMyWorkExperience(AddWorkExperienceRequest request) {
+        Applicant applicant = getMyApplicant();
+
+        WorkExperience workExperience = new WorkExperience();
+        workExperience.setCompany(request.getCompany());
+        workExperience.setPosition(request.getPosition());
+        workExperience.setDescription(request.getDescription());
+        workExperience.setStartDate(request.getStartDate());
+        workExperience.setEndDate(request.getEndDate());
+        workExperience.setCurrent(request.isCurrent());
+
+        Applicant updated = applicantService.addWorkExperience(applicant.getId(), workExperience);
+
+        if (updated == null) {
+            return null;
+        }
+
+        WorkExperience added = updated.getWorkExperience().get(updated.getWorkExperience().size() - 1);
+        return toWorkExperienceResponse(added);
+    }
+
+    public WorkExperienceResponse updateMyWorkExperience(String workExperienceId, UpdateWorkExperienceRequest request) {
+        Applicant applicant = getMyApplicant();
+
+        WorkExperience workExperience = new WorkExperience();
+        workExperience.setCompany(request.getCompany());
+        workExperience.setPosition(request.getPosition());
+        workExperience.setDescription(request.getDescription());
+        workExperience.setStartDate(request.getStartDate());
+        workExperience.setEndDate(request.getEndDate());
+        workExperience.setCurrent(request.isCurrent());
+
+        Applicant updated = applicantService.updateWorkExperience(applicant.getId(), workExperienceId, workExperience);
+
+        if (updated == null) {
+            return null;
+        }
+
+        return updated.getWorkExperience().stream()
+                .filter(exp -> exp.getId().toString().equals(workExperienceId))
+                .map(this::toWorkExperienceResponse)
+                .findFirst()
+                .orElse(null);
+    }
+
+    public boolean deleteMyWorkExperience(String workExperienceId) {
+        Applicant applicant = getMyApplicant();
+        return applicantService.deleteWorkExperience(applicant.getId(), workExperienceId) != null;
+    }
+
+    public ProfileResponse addMySkill(AddSkillRequest request) {
+        Applicant applicant = getMyApplicant();
+        Applicant updated = applicantService.addSkill(applicant.getId(), request.getSkill());
+        return updated != null ? toProfileResponse(updated) : null;
+    }
+
+    public ProfileResponse addMySkills(AddSkillsRequest request) {
+        Applicant applicant = getMyApplicant();
+        Applicant updated = applicantService.addSkills(applicant.getId(), request.getSkills());
+        return updated != null ? toProfileResponse(updated) : null;
+    }
+
+    public ProfileResponse deleteMySkill(String skill) {
+        Applicant applicant = getMyApplicant();
+        Applicant updated = applicantService.deleteSkill(applicant.getId(), skill);
+        return updated != null ? toProfileResponse(updated) : null;
+    }
+
+    public ProfileResponse uploadMyAvatar(MultipartFile file) {
+        Applicant applicant = getMyApplicant();
+        Applicant updated = applicantService.uploadAvatar(applicant.getId(), file);
+        return updated != null ? toProfileResponse(updated) : null;
+    }
+
+    // Helper methods
+    private String getCurrentUserEmail() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        
+
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new SecurityException("User is not authenticated");
         }
-        
+
+        return authentication.getName();
+    }
+
+    private Applicant getMyApplicant() {
+        String email = getCurrentUserEmail();
+
+        // Get User entity to retrieve the User ID
+        User user = authRepository.findByEmail(email);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found");
+        }
+
+        // Find applicant by User ID (not email)
+        Applicant applicant = applicantService.getApplicantByUserId(user.getId());
+
+        if (applicant == null) {
+            throw new IllegalArgumentException("Applicant profile not found");
+        }
+
+        return applicant;
+    }
+
+    // Validation helper
+    private void validateOwnership(String applicantId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new SecurityException("User is not authenticated");
+        }
+
         String authenticatedUserId = authentication.getName();
         Applicant applicant = applicantService.getApplicantById(applicantId);
-        
+
         if (applicant == null) {
             throw new IllegalArgumentException("Applicant not found");
         }
-        
+
         if (!applicant.getUserId().equals(authenticatedUserId)) {
             throw new SecurityException("You can only modify your own profile");
         }
@@ -230,22 +414,28 @@ public class ApplicantInternalService {
     
     // Convert entity to profile response DTO
     private ProfileResponse toProfileResponse(Applicant applicant) {
-        List<EducationResponse> educationResponses = applicant.getEducation() != null 
+        List<EducationResponse> educationResponses = applicant.getEducation() != null
             ? applicant.getEducation().stream()
                 .map(this::toEducationResponse)
                 .collect(Collectors.toList())
             : List.of();
-        
+
         List<WorkExperienceResponse> workExperienceResponses = applicant.getWorkExperience() != null
             ? applicant.getWorkExperience().stream()
                 .map(this::toWorkExperienceResponse)
                 .collect(Collectors.toList())
             : List.of();
-        
-        List<String> skills = applicant.getSkills() != null 
-            ? applicant.getSkills() 
+
+        List<String> skills = applicant.getSkills() != null
+            ? applicant.getSkills()
             : List.of();
-        
+
+        // Fetch user to get planType
+        User user = authRepository.findByEmail(applicant.getUserId());
+        PlanType planType = user != null && user.getPlanType() != null
+            ? user.getPlanType()
+            : PlanType.FREEMIUM;
+
         return new ProfileResponse(
             applicant.getId(),
             applicant.getUserId(),
@@ -258,6 +448,8 @@ public class ApplicantInternalService {
             educationResponses,
             workExperienceResponses,
             skills,
+            applicant.getObjectiveSummary(),
+            planType,
             applicant.getAvatarUrl(),
             applicant.getCreatedAt(),
             applicant.getUpdatedAt()
