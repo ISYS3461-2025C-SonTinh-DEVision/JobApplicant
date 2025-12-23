@@ -25,6 +25,7 @@ import jakarta.validation.Valid;
 import com.DEVision.JobApplicant.auth.internal.dto.AuthResponse;
 import com.DEVision.JobApplicant.auth.internal.dto.ForgotPasswordRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.LoginRequest;
+import com.DEVision.JobApplicant.auth.internal.dto.OAuth2LoginRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.RegisterRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.RegistrationResponse;
 import com.DEVision.JobApplicant.auth.internal.dto.ResetPasswordRequest;
@@ -140,6 +141,45 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
         } catch (Exception e) {
             return new ResponseEntity<>(
                 Map.of("message", e.getMessage()),
+                HttpStatus.UNAUTHORIZED
+            );
+        }
+    }
+
+    /**
+     * OAuth2 login endpoint (Google SSO)
+     */
+    @Operation(summary = "OAuth2 login (Google SSO)", description = "Authenticate user with Google ID token and return JWT tokens")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Login successful"),
+        @ApiResponse(responseCode = "401", description = "Invalid ID token or OAuth2 authentication failed")
+    })
+    @PostMapping("/oauth2/login")
+    public ResponseEntity<?> oauth2Login(
+            @Valid @RequestBody OAuth2LoginRequest oauth2LoginRequest,
+            HttpServletResponse response) {
+        try {
+            AuthResponse authResponse = authInternalService.oauth2Login(oauth2LoginRequest);
+
+            // Set HTTP-only cookie for access token (5 hours)
+            Cookie accessTokenCookie = HttpOnlyCookieConfig.createCookie(AuthConfig.AUTH_COOKIE_NAME, authResponse.getAccessToken());
+            response.addCookie(accessTokenCookie);
+
+            // Set HTTP-only cookie for refresh token (7 days)
+            Cookie refreshTokenCookie = HttpOnlyCookieConfig.createCookie(AuthConfig.REFRESH_COOKIE_NAME, authResponse.getRefreshToken());
+            refreshTokenCookie.setMaxAge(86400 * 7); // 7 days
+            response.addCookie(refreshTokenCookie);
+
+            // Return response with access token
+            Map<String, Object> responseBody = new HashMap<>();
+            responseBody.put("accessToken", authResponse.getAccessToken());
+            responseBody.put("message", "OAuth2 login successful");
+
+            return new ResponseEntity<>(responseBody, HttpStatus.OK);
+
+        } catch (Exception e) {
+            return new ResponseEntity<>(
+                Map.of("message", "OAuth2 login failed: " + e.getMessage()),
                 HttpStatus.UNAUTHORIZED
             );
         }
