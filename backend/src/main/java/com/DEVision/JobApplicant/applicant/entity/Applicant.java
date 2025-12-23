@@ -41,6 +41,9 @@ public class Applicant {
     @Size(max = 50, message = "Maximum 50 skills allowed")
     private List<String> skills;
 
+    @Size(max = 500, message = "Objective summary cannot exceed 500 characters")
+    private String objectiveSummary;
+
     private String avatarUrl;
 
     private LocalDateTime createdAt;
@@ -151,6 +154,14 @@ public class Applicant {
 
     public void setSkills(List<String> skills) {
         this.skills = skills;
+    }
+
+    public String getObjectiveSummary() {
+        return objectiveSummary;
+    }
+
+    public void setObjectiveSummary(String objectiveSummary) {
+        this.objectiveSummary = objectiveSummary;
     }
 
     public String getAvatarUrl() {
