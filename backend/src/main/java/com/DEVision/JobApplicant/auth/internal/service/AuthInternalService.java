@@ -162,6 +162,11 @@ public class AuthInternalService {
             throw new RuntimeException("Invalid email or password");
         }
 
+        // SRS Requirement 1.3.2: SSO users cannot use password for direct login
+        if ("google".equals(user.getAuthProvider())) {
+            throw new RuntimeException("This account is registered with Google SSO. Please sign in with Google.");
+        }
+
         if (!user.isActivated()) {
             throw new RuntimeException("Account not activated. Please check your email for activation link.");
         }
@@ -214,6 +219,7 @@ public class AuthInternalService {
                 newUser.setRole(RoleConfig.APPLICANT.getRoleName());
                 newUser.setEnabled(true); // OAuth2 users are auto-enabled
                 newUser.setActivated(true); // OAuth2 users are auto-activated (email verified by provider)
+                newUser.setAuthProvider("google"); // SRS 1.3.2: Mark as Google SSO user
                 newUser.setActivationToken(null);
                 newUser.setActivationTokenExpiry(null);
 
@@ -295,6 +301,7 @@ public class AuthInternalService {
                 newUser.setRole(RoleConfig.APPLICANT.getRoleName());
                 newUser.setEnabled(true); // OAuth2 users are auto-enabled
                 newUser.setActivated(true); // OAuth2 users are auto-activated (email verified by provider)
+                newUser.setAuthProvider("google"); // SRS 1.3.2: Mark as Google SSO user
                 newUser.setActivationToken(null);
                 newUser.setActivationTokenExpiry(null);
 
@@ -354,6 +361,14 @@ public class AuthInternalService {
             );
         }
 
+        // SRS Requirement 1.3.2: SSO users cannot reset password (they don't use passwords)
+        if ("google".equals(user.getAuthProvider())) {
+            return Map.of(
+                "message", "This account uses Google SSO. You cannot reset the password. Please sign in with Google.",
+                "success", false
+            );
+        }
+
         // Generate reset token
         String resetToken = UUID.randomUUID().toString();
         user.setPasswordResetToken(resetToken);
@@ -385,6 +400,14 @@ public class AuthInternalService {
 
         if (user.getPasswordResetTokenExpiry().isBefore(LocalDateTime.now())) {
             return Map.of("message", "Password reset token has expired. Please request a new reset link.", "success", false);
+        }
+
+        // SRS Requirement 1.3.2: SSO users cannot reset password (they don't use passwords)
+        if ("google".equals(user.getAuthProvider())) {
+            return Map.of(
+                "message", "This account uses Google SSO. Password reset is not allowed. Please sign in with Google.",
+                "success", false
+            );
         }
 
         // Update password
