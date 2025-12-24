@@ -21,10 +21,14 @@ public class EmailService {
 
     @Autowired
     private JavaMailSender mailSender;
-    
+
     @Value("${app.mail.from:noreply@rentmate.space}")
     private String fromEmail;
-    
+
+    // New: sender display name shown in inbox (e.g., "DEVision Job Applicant")
+    @Value("${app.mail.from-name:DEVision}")
+    private String fromName;
+
     @Value("${app.frontend.base-url:http://localhost:3000}")
     private String frontendBaseUrl;
     
@@ -47,7 +51,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, fromName);
             helper.setTo(toEmail);
             helper.setSubject("🎉 Activate Your DEVision Account");
             
@@ -59,12 +63,12 @@ public class EmailService {
             mailSender.send(message);
             
             System.out.println("Activation email sent to: " + toEmail);
-        } catch (MessagingException e) {
+        } catch (Exception e) {
             System.err.println("Failed to send activation email: " + e.getMessage());
             throw new RuntimeException("Failed to send activation email", e);
         }
     }
-    
+
     /**
      * Send password reset email with beautiful HTML template
      * @param toEmail Recipient email address
@@ -75,7 +79,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             
-            helper.setFrom(fromEmail);
+            helper.setFrom(fromEmail, fromName);
             helper.setTo(toEmail);
             helper.setSubject("🔐 Reset Your Password - DEVision");
             
@@ -85,9 +89,8 @@ public class EmailService {
             helper.setText(htmlContent, true); // true = HTML
             
             mailSender.send(message);
-            
             System.out.println("Password reset email sent to: " + toEmail);
-        } catch (MessagingException e) {
+        } catch (Exception e) {
             System.err.println("Failed to send password reset email: " + e.getMessage());
             throw new RuntimeException("Failed to send password reset email", e);
         }
