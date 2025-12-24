@@ -18,6 +18,10 @@ app:
     base-url: ${FRONTEND_BASE_URL}
   mail:
     from: ${MAIL_FROM:onboarding@resend.dev}
+    from-name: ${MAIL_FROM_NAME:DEVision}
+    resend:
+      # Resend API Key for HTTP-based email sending (avoids SMTP port blocking)
+      api-key: ${MAIL_PASSWORD:re_LiDzSkL7_HtCBpf7dvcrRbi3kSDLyMH8P}
 
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME}
@@ -50,21 +54,13 @@ spring:
           min-idle: 0
           max-wait: -1
 
-  mail:
-    host: smtp.resend.com
-    port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-          connectiontimeout: 15000
-          timeout: 15000
-          writetimeout: 15000
+  # SMTP configuration removed - using Resend HTTP API instead
+  # This avoids SMTP port blocking issues on Railway and other cloud platforms
+  # mail:
+  #   host: smtp.resend.com
+  #   port: 587
+  #   username: ${MAIL_USERNAME}
+  #   password: ${MAIL_PASSWORD}
 
 # Uncomment and configure when enabling Google OAuth2 SSO
 # Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env file
