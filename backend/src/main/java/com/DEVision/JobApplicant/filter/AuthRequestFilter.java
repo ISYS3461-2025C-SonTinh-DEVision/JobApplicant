@@ -49,6 +49,7 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		    requestPath.equals("/api/auth/forgot-password") ||
 		    requestPath.equals("/api/auth/reset-password") ||
 		    requestPath.equals("/api/countries") ||
+		    requestPath.equals("/api/system/verify-token") ||
 		    requestPath.startsWith("/swagger-ui") ||
 		    requestPath.startsWith("/v3/api-docs") ||
 		    requestPath.startsWith("/api/notifications") ||
@@ -90,6 +91,12 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 				// Redis unavailable - log warning and proceed without blacklist check
 				System.out.println("Warning: Redis unavailable, skipping token blacklist check: " + redisException.getMessage());
 			}
+		}
+
+		// Skip if system authentication is already set (from SystemAuthFilter)
+		if (SecurityContextHolder.getContext().getAuthentication() != null) {
+			filterChain.doFilter(request, response);
+			return;
 		}
 
 		if (token != null && isValidToken
