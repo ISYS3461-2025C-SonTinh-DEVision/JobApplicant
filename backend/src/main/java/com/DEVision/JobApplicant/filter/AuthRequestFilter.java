@@ -53,7 +53,9 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		    requestPath.startsWith("/swagger-ui") ||
 		    requestPath.startsWith("/v3/api-docs") ||
 		    requestPath.startsWith("/api/notifications") ||
-		    requestPath.startsWith("/ws/")) {
+		    requestPath.startsWith("/ws/") ||
+		    requestPath.startsWith("/api/system/verify-token") ||
+		    requestPath.startsWith("/api/applications/job/")) {
 			filterChain.doFilter(request, response);
 			return;
 		}
