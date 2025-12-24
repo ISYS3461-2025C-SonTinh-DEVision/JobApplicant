@@ -38,6 +38,15 @@ public class EmailService {
     @Value("${app.mail.resend.api-key:}")
     private String resendApiKey;
 
+        // Brand colors matching frontend
+        private static final String PRIMARY_COLOR = "#2563EB";
+        private static final String PRIMARY_DARK = "#1D4ED8";
+        private static final String ACCENT_COLOR = "#14B8A6";
+        private static final String DARK_BG = "#0F172A";
+        private static final String SURFACE_COLOR = "#1E293B";
+        private static final String TEXT_COLOR = "#F1F5F9";
+        private static final String TEXT_MUTED = "#94A3B8";
+
     private static final String RESEND_API_URL = "https://api.resend.com/emails";
 
     private RestTemplate getRestTemplate() {
@@ -48,7 +57,7 @@ public class EmailService {
     }
 
     /**
-     * Send activation email to new user using Resend HTTP API
+     * Send activation email to new user using Resend HTTP API with beautiful HTML template
      * @param toEmail Recipient email address
      * @param activationToken Activation token
      */
@@ -59,21 +68,14 @@ public class EmailService {
             }
 
             String activationLink = frontendBaseUrl + "/activate?token=" + activationToken;
-
-            String emailBody = "Welcome to Job Applicant System!\n\n" +
-                    "Thank you for registering. To activate your account, please click the link below:\n\n" +
-                    activationLink + "\n\n" +
-                    "This activation link will expire in 15 minutes.\n\n" +
-                    "If you did not create an account, please ignore this email.\n\n" +
-                    "Best regards,\n" +
-                    "Job Applicant Team";
+            String htmlContent = buildActivationEmailTemplate(toEmail, activationLink);
 
             // Prepare request body
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("from", fromName + " <" + fromEmail + ">");
             requestBody.put("to", toEmail);
-            requestBody.put("subject", "Activate Your Job Applicant Account");
-            requestBody.put("text", emailBody);
+            requestBody.put("subject", "🎉 Activate Your DEVision Account");
+            requestBody.put("html", htmlContent);
 
             // Prepare headers
             HttpHeaders headers = new HttpHeaders();
@@ -104,7 +106,7 @@ public class EmailService {
     }
 
     /**
-     * Send password reset email using Resend HTTP API
+     * Send password reset email using Resend HTTP API with beautiful HTML template
      * @param toEmail Recipient email address
      * @param resetToken Password reset token
      */
@@ -115,21 +117,14 @@ public class EmailService {
             }
 
             String resetLink = frontendBaseUrl + "/reset-password?token=" + resetToken;
-
-            String emailBody = "Password Reset Request\n\n" +
-                    "We received a request to reset your password. Click the link below to reset it:\n\n" +
-                    resetLink + "\n\n" +
-                    "This link will expire in 1 hour.\n\n" +
-                    "If you did not request a password reset, please ignore this email.\n\n" +
-                    "Best regards,\n" +
-                    "Job Applicant Team";
+            String htmlContent = buildPasswordResetEmailTemplate(toEmail, resetLink);
 
             // Prepare request body
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("from", fromName + " <" + fromEmail + ">");
             requestBody.put("to", toEmail);
-            requestBody.put("subject", "Reset Your Password");
-            requestBody.put("text", emailBody);
+            requestBody.put("subject", "🔐 Reset Your Password - DEVision");
+            requestBody.put("html", htmlContent);
 
             // Prepare headers
             HttpHeaders headers = new HttpHeaders();
