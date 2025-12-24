@@ -99,3 +99,10 @@ spring:
 
 # server:
 #     port: ${SERVER_PORT}
+
+# System-to-System Authentication Configuration
+# Configure these for Job Manager System authorization
+system:
+  auth:
+    job-manager:
+      verify-token-url: ${JOB_MANAGER_VERIFY_TOKEN_URL:}
