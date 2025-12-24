@@ -25,3 +25,7 @@ export { Pagination } from "./Pagination";
 
 // Feedback Components
 export { Toast, ToastContainer } from "./Toast";
+export { default as ConfirmDialog } from "./ConfirmDialog";
+
+// Skill Components
+export { default as SkillIcon } from "./SkillIcon";

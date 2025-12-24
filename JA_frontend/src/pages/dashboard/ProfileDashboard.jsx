@@ -22,7 +22,7 @@ import {
   Mail, Phone, MapPin, Calendar, Edit, Loader2,
   Briefcase, GraduationCap, Code, Award, FileText, TrendingUp,
   CheckCircle, Clock, XCircle, AlertCircle, Plus, Trash2, ExternalLink,
-  Database, Server, Target, Save
+  Database, Server, Target, Save, Upload, Camera
 } from 'lucide-react';
 import ProfileService from '../../services/ProfileService';
 import { useAuth } from '../../hooks/useAuth';
@@ -35,7 +35,10 @@ import {
 } from '../../components/headless';
 
 // Import Reusable Components
-import { Card, FormInput } from '../../components/reusable';
+import { Card, FormInput, ConfirmDialog, SkillIcon } from '../../components/reusable';
+
+// Import Skills Data for smart skill selection
+import { getSkillInfo, getSkillCategory, POPULAR_SKILLS, SKILL_CATEGORIES, searchSkills, getQuickAddSkills } from '../../data/skillsData';
 
 /**
  * Data Source Indicator Component
@@ -64,7 +67,7 @@ function DataSourceIndicator({ isRealData, className = '' }) {
 /**
  * Profile Header Section with Avatar and Basic Info
  */
-function ProfileHeader({ profile, onEdit, isRealData }) {
+function ProfileHeader({ profile, onEdit, isRealData, onAvatarUpload, uploadingAvatar, avatarInputRef }) {
   const { isDark } = useTheme();
   const fullName = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'No name set';
   const initial = (fullName[0] || 'U').toUpperCase();
@@ -87,8 +90,8 @@ function ProfileHeader({ profile, onEdit, isRealData }) {
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-          {/* Avatar */}
-          <div className="relative">
+          {/* Avatar with Upload Button */}
+          <div className="relative group">
             {profile?.avatarUrl ? (
               <img
                 src={profile.avatarUrl}
@@ -100,9 +103,35 @@ function ProfileHeader({ profile, onEdit, isRealData }) {
                 {initial}
               </div>
             )}
-            <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-accent-500 border-4 border-dark-800 flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-white" />
-            </div>
+
+            {/* Avatar Upload Button Overlay */}
+            <input
+              type="file"
+              ref={avatarInputRef}
+              onChange={onAvatarUpload}
+              accept="image/*"
+              className="hidden"
+            />
+            <button
+              onClick={() => avatarInputRef?.current?.click()}
+              disabled={uploadingAvatar}
+              className={`
+                absolute bottom-1 right-1 w-10 h-10 rounded-full border-4 flex items-center justify-center
+                transition-all duration-200 group-hover:scale-110
+                ${isDark ? 'border-dark-800' : 'border-white'}
+                ${uploadingAvatar
+                  ? 'bg-dark-600 cursor-not-allowed'
+                  : 'bg-accent-500 hover:bg-accent-600 cursor-pointer'
+                }
+              `}
+              title="Upload avatar"
+            >
+              {uploadingAvatar ? (
+                <Loader2 className="w-4 h-4 text-white animate-spin" />
+              ) : (
+                <Camera className="w-5 h-5 text-white" />
+              )}
+            </button>
           </div>
 
           {/* Info */}
@@ -249,38 +278,84 @@ function EmptyState({ icon: Icon, message, action }) {
 }
 
 /**
- * Education Item Component
+ * Education Item Component - Enhanced UI with animations
  */
 function EducationItem({ item, onEdit, onDelete }) {
   const { isDark } = useTheme();
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div className={`
-      p-4 rounded-lg border transition-colors
-      ${isDark
-        ? 'bg-dark-700/50 border-dark-600 hover:border-primary-500/30'
-        : 'bg-gray-50 border-gray-200 hover:border-primary-300'
-      }
-    `}>
-      <div className="flex items-start justify-between">
+    <div
+      className={`
+        relative p-5 rounded-xl border-l-4 transition-all duration-300 ease-out
+        ${isDark
+          ? 'bg-gradient-to-r from-dark-700/80 to-dark-700/40 border-primary-500/50 hover:border-primary-400 hover:shadow-lg hover:shadow-primary-500/10'
+          : 'bg-gradient-to-r from-white to-gray-50/50 border-primary-500 hover:border-primary-400 shadow-sm hover:shadow-md'
+        }
+        ${isHovered ? 'transform scale-[1.01]' : ''}
+      `}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Decorative Icon */}
+      <div className={`
+        absolute -left-3 top-4 w-6 h-6 rounded-full flex items-center justify-center text-sm
+        bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg
+        transition-transform duration-300 ${isHovered ? 'scale-110' : ''}
+      `}>
+        🎓
+      </div>
+
+      <div className="flex items-start justify-between ml-2">
         <div className="flex-1">
-          <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.degree}</h3>
-          <p className="text-primary-400 text-sm">{item.institution}</p>
-          <p className={`text-xs mt-1 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
-            {item.startYear} - {item.endYear || 'Present'}
-            {item.gpa && <span className="ml-2">• GPA: {item.gpa}</span>}
-          </p>
+          <h3 className={`font-bold text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {item.degree}
+          </h3>
+          <p className="text-primary-400 font-medium text-sm mt-0.5">{item.institution}</p>
+          <div className={`flex items-center gap-3 mt-2 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+            <span className="flex items-center gap-1.5 text-xs">
+              <Calendar className="w-3.5 h-3.5" />
+              {item.startYear} - {item.endYear || 'Present'}
+            </span>
+            {item.gpa && (
+              <span className={`
+                px-2 py-0.5 rounded-full text-xs font-medium
+                ${isDark ? 'bg-accent-500/20 text-accent-400' : 'bg-accent-100 text-accent-700'}
+              `}>
+                GPA: {item.gpa}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Action Buttons - Appear on hover */}
+        <div className={`
+          flex items-center gap-1 transition-all duration-300
+          ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'}
+        `}>
           <button
             onClick={() => onEdit(item)}
-            className={`p-2 transition-colors ${isDark ? 'text-dark-400 hover:text-primary-400' : 'text-gray-400 hover:text-primary-600'}`}
+            className={`
+              p-2 rounded-lg transition-all duration-200
+              ${isDark
+                ? 'text-dark-400 hover:text-primary-400 hover:bg-primary-500/10'
+                : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'
+              }
+            `}
+            title="Edit"
           >
             <Edit className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(item.id)}
-            className={`p-2 transition-colors ${isDark ? 'text-dark-400 hover:text-red-400' : 'text-gray-400 hover:text-red-600'}`}
+            className={`
+              p-2 rounded-lg transition-all duration-200
+              ${isDark
+                ? 'text-dark-400 hover:text-red-400 hover:bg-red-500/10'
+                : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+              }
+            `}
+            title="Delete"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -291,40 +366,115 @@ function EducationItem({ item, onEdit, onDelete }) {
 }
 
 /**
- * Experience Item Component
+ * Experience Item Component - Enhanced UI with timeline
  */
 function ExperienceItem({ item, onEdit, onDelete }) {
   const { isDark } = useTheme();
+  const [isHovered, setIsHovered] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Format date for better display
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'Present';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  };
 
   return (
-    <div className={`
-      p-4 rounded-lg border transition-colors
-      ${isDark
-        ? 'bg-dark-700/50 border-dark-600 hover:border-primary-500/30'
-        : 'bg-gray-50 border-gray-200 hover:border-primary-300'
-      }
-    `}>
-      <div className="flex items-start justify-between">
+    <div
+      className={`
+        relative p-5 rounded-xl border transition-all duration-300 ease-out group
+        ${isDark
+          ? 'bg-gradient-to-br from-dark-700/80 via-dark-700/60 to-dark-800/40 border-dark-600 hover:border-accent-500/50 hover:shadow-lg hover:shadow-accent-500/5'
+          : 'bg-gradient-to-br from-white via-gray-50/50 to-gray-100/30 border-gray-200 hover:border-accent-400 shadow-sm hover:shadow-md'
+        }
+        ${isHovered ? 'transform scale-[1.01]' : ''}
+      `}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Timeline connector */}
+      <div className={`
+        absolute left-0 top-0 bottom-0 w-1 rounded-l-xl
+        bg-gradient-to-b from-accent-500 via-accent-400 to-accent-600
+        transition-all duration-300 ${isHovered ? 'w-1.5' : ''}
+      `} />
+
+      {/* Company Icon */}
+      <div className={`
+        absolute -left-3 top-5 w-6 h-6 rounded-full flex items-center justify-center text-sm
+        bg-gradient-to-br from-accent-500 to-accent-600 shadow-lg
+        transition-transform duration-300 ${isHovered ? 'scale-110' : ''}
+      `}>
+        💼
+      </div>
+
+      <div className="flex items-start justify-between ml-3">
         <div className="flex-1">
-          <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.title}</h3>
-          <p className="text-primary-400 text-sm">{item.company}</p>
-          <p className={`text-xs mt-1 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
-            {item.startDate} - {item.endDate || 'Present'}
-          </p>
+          <h3 className={`font-bold text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {item.title}
+          </h3>
+          <p className="text-accent-400 font-medium text-sm mt-0.5">{item.company}</p>
+
+          <div className={`flex items-center gap-2 mt-2 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+            <span className={`
+              inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium
+              ${isDark ? 'bg-dark-600/50' : 'bg-gray-100'}
+            `}>
+              <Calendar className="w-3.5 h-3.5" />
+              {formatDate(item.startDate)} — {formatDate(item.endDate)}
+            </span>
+          </div>
+
           {item.description && (
-            <p className={`text-sm mt-2 ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>{item.description}</p>
+            <div className="mt-3">
+              <p className={`
+                text-sm leading-relaxed
+                ${isDark ? 'text-dark-300' : 'text-gray-600'}
+                ${!isExpanded && item.description.length > 150 ? 'line-clamp-2' : ''}
+              `}>
+                {item.description}
+              </p>
+              {item.description.length > 150 && (
+                <button
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="text-xs text-primary-400 hover:text-primary-300 mt-1 font-medium"
+                >
+                  {isExpanded ? 'Show less' : 'Read more'}
+                </button>
+              )}
+            </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Action Buttons - Appear on hover */}
+        <div className={`
+          flex items-center gap-1 transition-all duration-300
+          ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'}
+        `}>
           <button
             onClick={() => onEdit(item)}
-            className={`p-2 transition-colors ${isDark ? 'text-dark-400 hover:text-primary-400' : 'text-gray-400 hover:text-primary-600'}`}
+            className={`
+              p-2 rounded-lg transition-all duration-200
+              ${isDark
+                ? 'text-dark-400 hover:text-primary-400 hover:bg-primary-500/10'
+                : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'
+              }
+            `}
+            title="Edit"
           >
             <Edit className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(item.id)}
-            className={`p-2 transition-colors ${isDark ? 'text-dark-400 hover:text-red-400' : 'text-gray-400 hover:text-red-600'}`}
+            className={`
+              p-2 rounded-lg transition-all duration-200
+              ${isDark
+                ? 'text-dark-400 hover:text-red-400 hover:bg-red-500/10'
+                : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+              }
+            `}
+            title="Delete"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -335,26 +485,38 @@ function ExperienceItem({ item, onEdit, onDelete }) {
 }
 
 /**
- * Skill Tag Component
+ * Skill Tag Component - Enhanced with icons and category colors
  */
-function SkillTag({ skill, onRemove }) {
+function SkillTag({ skill, onRemove, showIcon = true }) {
   const { isDark } = useTheme();
+  const category = getSkillCategory(skill);
 
   return (
     <span className={`
-      inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-colors group
+      inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm border 
+      transition-all duration-200 group hover:scale-105
       ${isDark
-        ? 'bg-primary-500/20 text-primary-300 border-primary-500/30 hover:border-primary-400'
-        : 'bg-primary-50 text-primary-700 border-primary-200 hover:border-primary-400'
+        ? `bg-gradient-to-r ${category.bgColor} ${category.borderColor} text-white/90 hover:shadow-lg`
+        : `bg-gradient-to-r from-white to-gray-50 ${category.borderColor} text-gray-800 hover:shadow-md`
       }
     `}>
-      {skill}
+      {showIcon && (
+        <SkillIcon skill={skill} size="w-4 h-4" />
+      )}
+      <span className="font-medium">{skill}</span>
       {onRemove && (
         <button
           onClick={() => onRemove(skill)}
-          className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-primary-500/30 transition-colors"
+          className={`
+            w-5 h-5 rounded-full flex items-center justify-center 
+            transition-all duration-200 opacity-60 group-hover:opacity-100
+            ${isDark
+              ? 'hover:bg-red-500/30 hover:text-red-300'
+              : 'hover:bg-red-100 hover:text-red-600'
+            }
+          `}
         >
-          <XCircle className="w-3 h-3" />
+          <XCircle className="w-3.5 h-3.5" />
         </button>
       )}
     </span>
@@ -381,7 +543,8 @@ function Modal({ isOpen, onClose, title, children }) {
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
         <div
           className={`
-            rounded-2xl shadow-2xl w-full max-w-md animate-scale-in border
+            rounded-2xl shadow-2xl w-full max-w-lg animate-scale-in border
+            max-h-[90vh] flex flex-col overflow-hidden
             ${isDark
               ? 'bg-dark-800 border-dark-700'
               : 'bg-white border-gray-200'
@@ -390,7 +553,7 @@ function Modal({ isOpen, onClose, title, children }) {
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className={`flex items-center justify-between p-6 border-b ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
+          <div className={`flex items-center justify-between p-5 border-b flex-shrink-0 ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
             <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
             <button
               onClick={onClose}
@@ -400,8 +563,8 @@ function Modal({ isOpen, onClose, title, children }) {
             </button>
           </div>
 
-          {/* Content */}
-          <div className="p-6">
+          {/* Content - Scrollable */}
+          <div className="p-5 overflow-y-auto flex-1">
             {children}
           </div>
         </div>
@@ -449,11 +612,32 @@ export default function ProfileDashboard() {
   // Skills state
   const [skills, setSkills] = useState([]);
   const [newSkill, setNewSkill] = useState('');
+  const [skillSaving, setSkillSaving] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('all'); // For category filter
 
   // Objective Summary state (Requirement 3.1.2)
   const [objectiveSummary, setObjectiveSummary] = useState('');
   const [isEditingObjective, setIsEditingObjective] = useState(false);
   const [tempObjective, setTempObjective] = useState('');
+  const [savingObjective, setSavingObjective] = useState(false);
+
+  // Avatar upload state (Requirement 3.2.1)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
+
+  // Edit mode tracking for forms
+  const [editingEducationId, setEditingEducationId] = useState(null);
+  const [editingExperienceId, setEditingExperienceId] = useState(null);
+
+  // Delete confirmation dialog state
+  const [deleteDialog, setDeleteDialog] = useState({
+    isOpen: false,
+    type: null, // 'education' | 'experience'
+    id: null,
+    title: '',
+    message: '',
+    loading: false
+  });
 
   // Application stats (mock data - API not available)
   const [applications] = useState({ total: 12, pending: 5, accepted: 3, rejected: 4 });
@@ -475,13 +659,38 @@ export default function ProfileDashboard() {
       return errors;
     },
     onSubmit: async (values) => {
-      const newEducation = {
-        id: Date.now().toString(),
-        ...values
-      };
-      educationList.addItem(newEducation);
-      educationModal.close();
-      educationForm.resetForm();
+      try {
+        // Map form values to API format
+        const apiData = {
+          degree: values.degree,
+          institution: values.institution,
+          fieldOfStudy: values.degree, // Use degree as field of study
+          startDate: `${values.startYear}-01-01`,
+          endDate: values.endYear ? `${values.endYear}-12-31` : null,
+          current: !values.endYear,
+          description: values.gpa ? `GPA: ${values.gpa}` : ''
+        };
+
+        if (editingEducationId) {
+          // Update existing
+          await ProfileService.updateEducation(editingEducationId, apiData);
+          educationList.updateItem(editingEducationId, { ...values, id: editingEducationId });
+          setEditingEducationId(null);
+        } else {
+          // Add new
+          const response = await ProfileService.addEducation(apiData);
+          const newEducation = {
+            id: response?.id || Date.now().toString(),
+            ...values
+          };
+          educationList.addItem(newEducation);
+        }
+        educationModal.close();
+        educationForm.resetForm();
+      } catch (error) {
+        console.error('[ProfileDashboard] Error saving education:', error);
+        alert('Failed to save education. Please try again.');
+      }
     }
   });
 
@@ -502,13 +711,37 @@ export default function ProfileDashboard() {
       return errors;
     },
     onSubmit: async (values) => {
-      const newExperience = {
-        id: Date.now().toString(),
-        ...values
-      };
-      experienceList.addItem(newExperience);
-      experienceModal.close();
-      experienceForm.resetForm();
+      try {
+        // Map form values to API format
+        const apiData = {
+          position: values.title,
+          company: values.company,
+          startDate: values.startDate ? `${values.startDate}-01` : null,
+          endDate: values.endDate ? `${values.endDate}-01` : null,
+          current: !values.endDate,
+          description: values.description || ''
+        };
+
+        if (editingExperienceId) {
+          // Update existing
+          await ProfileService.updateWorkExperience(editingExperienceId, apiData);
+          experienceList.updateItem(editingExperienceId, { ...values, id: editingExperienceId });
+          setEditingExperienceId(null);
+        } else {
+          // Add new
+          const response = await ProfileService.addWorkExperience(apiData);
+          const newExperience = {
+            id: response?.id || Date.now().toString(),
+            ...values
+          };
+          experienceList.addItem(newExperience);
+        }
+        experienceModal.close();
+        experienceForm.resetForm();
+      } catch (error) {
+        console.error('[ProfileDashboard] Error saving experience:', error);
+        alert('Failed to save experience. Please try again.');
+      }
     }
   });
 
@@ -606,21 +839,25 @@ export default function ProfileDashboard() {
         });
         setIsProfileFromApi(true);
 
-        // Load education from API response
+        // Load education from API response - use setItems to replace entire list
         if (data.education && data.education.length > 0) {
-          data.education.forEach(item => educationList.addItem({
+          const mappedEducation = data.education.map(item => ({
             id: item.id,
             degree: item.degree,
             institution: item.institution,
             startYear: item.startDate ? new Date(item.startDate).getFullYear().toString() : '',
             endYear: item.current ? 'Current' : (item.endDate ? new Date(item.endDate).getFullYear().toString() : ''),
-            gpa: item.gpa || ''
+            // Parse GPA from gpa field, or extract from description (format: "GPA: X.XX")
+            gpa: item.gpa || (item.description?.match(/GPA:\s*([\d.]+)/i)?.[1]) || ''
           }));
+          educationList.setItems(mappedEducation);
+        } else {
+          educationList.setItems([]);
         }
 
-        // Load work experience from API response
+        // Load work experience from API response - use setItems to replace entire list
         if (data.workExperience && data.workExperience.length > 0) {
-          data.workExperience.forEach(item => experienceList.addItem({
+          const mappedExperience = data.workExperience.map(item => ({
             id: item.id,
             title: item.position,
             company: item.company,
@@ -628,6 +865,9 @@ export default function ProfileDashboard() {
             endDate: item.current ? '' : item.endDate,
             description: item.description
           }));
+          experienceList.setItems(mappedExperience);
+        } else {
+          experienceList.setItems([]);
         }
 
         // Load skills from API response
@@ -702,17 +942,114 @@ export default function ProfileDashboard() {
     fetchProfile();
   }, [currentUser?.userId, fetchProfile]);
 
-  // Add skill handler
-  const handleAddSkill = () => {
-    if (newSkill.trim() && !skills.includes(newSkill.trim())) {
-      setSkills([...skills, newSkill.trim()]);
-      setNewSkill('');
+  // Add skill handler - calls API (accepts optional skillName for quick-add)
+  const handleAddSkill = async (skillName = null) => {
+    const trimmedSkill = skillName ? skillName.trim() : newSkill.trim();
+    if (trimmedSkill && !skills.includes(trimmedSkill)) {
+      setSkillSaving(true);
+      try {
+        await ProfileService.addSkill(trimmedSkill);
+        setSkills([...skills, trimmedSkill]);
+        if (!skillName) setNewSkill(''); // Only clear input if using manual input
+      } catch (error) {
+        console.error('[ProfileDashboard] Error adding skill:', error);
+        alert('Failed to add skill. Please try again.');
+      } finally {
+        setSkillSaving(false);
+      }
     }
   };
 
-  // Remove skill handler
-  const handleRemoveSkill = (skillToRemove) => {
-    setSkills(skills.filter(s => s !== skillToRemove));
+  // Remove skill handler - calls API
+  const handleRemoveSkill = async (skillToRemove) => {
+    try {
+      await ProfileService.deleteSkill(skillToRemove);
+      setSkills(skills.filter(s => s !== skillToRemove));
+    } catch (error) {
+      console.error('[ProfileDashboard] Error removing skill:', error);
+      alert('Failed to remove skill. Please try again.');
+    }
+  };
+
+  // Delete education handler - opens custom dialog
+  const handleDeleteEducation = (id) => {
+    const item = educationList.items.find(e => e.id === id);
+    setDeleteDialog({
+      isOpen: true,
+      type: 'education',
+      id,
+      title: 'Delete Education',
+      message: `Are you sure you want to delete "${item?.degree || 'this education'}" from ${item?.institution || 'your profile'}? This action cannot be undone.`,
+      loading: false
+    });
+  };
+
+  // Delete experience handler - opens custom dialog
+  const handleDeleteExperience = (id) => {
+    const item = experienceList.items.find(e => e.id === id);
+    setDeleteDialog({
+      isOpen: true,
+      type: 'experience',
+      id,
+      title: 'Delete Work Experience',
+      message: `Are you sure you want to delete "${item?.title || 'this position'}" at ${item?.company || 'this company'}? This action cannot be undone.`,
+      loading: false
+    });
+  };
+
+  // Confirm delete action
+  const handleConfirmDelete = async () => {
+    setDeleteDialog(prev => ({ ...prev, loading: true }));
+    try {
+      if (deleteDialog.type === 'education') {
+        await ProfileService.deleteEducation(deleteDialog.id);
+        educationList.removeItem(deleteDialog.id);
+      } else if (deleteDialog.type === 'experience') {
+        await ProfileService.deleteWorkExperience(deleteDialog.id);
+        experienceList.removeItem(deleteDialog.id);
+      }
+      setDeleteDialog({ isOpen: false, type: null, id: null, title: '', message: '', loading: false });
+    } catch (error) {
+      console.error(`[ProfileDashboard] Error deleting ${deleteDialog.type}:`, error);
+      setDeleteDialog(prev => ({ ...prev, loading: false }));
+      alert(`Failed to delete ${deleteDialog.type}. Please try again.`);
+    }
+  };
+
+  // Close delete dialog
+  const handleCloseDeleteDialog = () => {
+    if (!deleteDialog.loading) {
+      setDeleteDialog({ isOpen: false, type: null, id: null, title: '', message: '', loading: false });
+    }
+  };
+
+  // Avatar upload handler (Requirement 3.2.1)
+  const handleAvatarUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type and size
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size must be less than 5MB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const response = await ProfileService.uploadMyAvatar(file);
+      // Update profile with new avatar URL
+      setProfile(prev => ({ ...prev, avatarUrl: response?.avatarUrl || response }));
+      alert('Avatar uploaded successfully!');
+    } catch (error) {
+      console.error('[ProfileDashboard] Error uploading avatar:', error);
+      alert('Failed to upload avatar. Please try again.');
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   // Loading state
@@ -754,9 +1091,18 @@ export default function ProfileDashboard() {
     setIsEditingObjective(true);
   };
 
-  const handleSaveObjective = () => {
-    setObjectiveSummary(tempObjective);
-    setIsEditingObjective(false);
+  const handleSaveObjective = async () => {
+    setSavingObjective(true);
+    try {
+      await ProfileService.updateMyProfile({ objectiveSummary: tempObjective });
+      setObjectiveSummary(tempObjective);
+      setIsEditingObjective(false);
+    } catch (error) {
+      console.error('[ProfileDashboard] Error saving objective:', error);
+      alert('Failed to save objective summary. Please try again.');
+    } finally {
+      setSavingObjective(false);
+    }
   };
 
   const handleCancelObjective = () => {
@@ -771,6 +1117,9 @@ export default function ProfileDashboard() {
         profile={profile}
         onEdit={() => navigate('/dashboard/profile/edit')}
         isRealData={isProfileFromApi}
+        onAvatarUpload={handleAvatarUpload}
+        uploadingAvatar={uploadingAvatar}
+        avatarInputRef={avatarInputRef}
       />
 
       {/* Objective Summary Section (Requirement 3.1.2) */}
@@ -884,7 +1233,7 @@ export default function ProfileDashboard() {
           <SectionCard
             icon={GraduationCap}
             title="Education"
-            isRealData={false}
+            isRealData={isProfileFromApi}
             action={
               <button
                 onClick={educationModal.open}
@@ -915,10 +1264,11 @@ export default function ProfileDashboard() {
                     key={item.id}
                     item={item}
                     onEdit={(item) => {
+                      setEditingEducationId(item.id);
                       educationForm.setValues(item);
                       educationModal.open();
                     }}
-                    onDelete={educationList.removeItem}
+                    onDelete={handleDeleteEducation}
                   />
                 ))}
               </div>
@@ -929,7 +1279,7 @@ export default function ProfileDashboard() {
           <SectionCard
             icon={Briefcase}
             title="Work Experience"
-            isRealData={false}
+            isRealData={isProfileFromApi}
             action={
               <button
                 onClick={experienceModal.open}
@@ -960,10 +1310,11 @@ export default function ProfileDashboard() {
                     key={item.id}
                     item={item}
                     onEdit={(item) => {
+                      setEditingExperienceId(item.id);
                       experienceForm.setValues(item);
                       experienceModal.open();
                     }}
-                    onDelete={experienceList.removeItem}
+                    onDelete={handleDeleteExperience}
                   />
                 ))}
               </div>
@@ -977,7 +1328,7 @@ export default function ProfileDashboard() {
           <SectionCard
             icon={Code}
             title="Skills"
-            isRealData={false}
+            isRealData={isProfileFromApi}
             action={
               <button
                 onClick={skillsModal.open}
@@ -1252,41 +1603,198 @@ export default function ProfileDashboard() {
         </form>
       </Modal>
 
-      {/* Skills Modal */}
+      {/* Skills Modal - Enhanced with categories and smart suggestions */}
       <Modal
         isOpen={skillsModal.isOpen}
         onClose={skillsModal.close}
-        title="Add Skills"
+        title="Manage Skills"
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
+          {/* Custom Skill Input */}
           <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Enter a skill (e.g., React, Python...)"
-              value={newSkill}
-              onChange={(e) => setNewSkill(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
-              className={`
-                flex-1 px-4 py-3 border rounded-lg transition-colors
-                focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-                ${isDark
-                  ? 'bg-dark-700 border-dark-600 text-white placeholder-dark-400'
-                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-                }
-              `}
-            />
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Type to search or add custom skill..."
+                value={newSkill}
+                onChange={(e) => setNewSkill(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
+                className={`
+                  w-full px-4 py-3 border rounded-xl transition-all duration-200
+                  focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                  ${isDark
+                    ? 'bg-dark-700 border-dark-600 text-white placeholder-dark-400'
+                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+                  }
+                `}
+              />
+              {/* Search suggestions dropdown */}
+              {newSkill.trim() && searchSkills(newSkill).length > 0 && (
+                <div className={`
+                  absolute top-full left-0 right-0 mt-1 rounded-xl border shadow-xl z-50 overflow-hidden
+                  ${isDark ? 'bg-dark-700 border-dark-600' : 'bg-white border-gray-200'}
+                `}>
+                  {searchSkills(newSkill).filter(s => !skills.includes(s.name)).slice(0, 5).map(suggestion => (
+                    <button
+                      key={suggestion.name}
+                      onClick={() => {
+                        if (!skills.includes(suggestion.name)) {
+                          handleAddSkill(suggestion.name);
+                          setNewSkill('');
+                        }
+                      }}
+                      className={`
+                        w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors
+                        ${isDark
+                          ? 'hover:bg-dark-600 text-white'
+                          : 'hover:bg-gray-50 text-gray-900'
+                        }
+                      `}
+                    >
+                      <span className="text-lg">{suggestion.icon}</span>
+                      <span className="font-medium">{suggestion.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               type="button"
-              onClick={handleAddSkill}
-              className="btn-primary px-4"
+              onClick={() => handleAddSkill()}
+              disabled={skillSaving || !newSkill.trim()}
+              className={`
+                px-5 py-3 rounded-xl font-medium transition-all duration-200
+                ${skillSaving || !newSkill.trim()
+                  ? 'bg-dark-600 text-dark-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:shadow-lg hover:scale-105'
+                }
+              `}
             >
-              Add
+              {skillSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
             </button>
           </div>
 
+          {/* Quick Add Popular Skills */}
+          <div>
+            <p className={`text-sm font-medium mb-3 ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
+              🔥 Quick Add Popular Skills
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {getQuickAddSkills().filter(s => !skills.includes(s.name)).slice(0, 8).map(skill => (
+                <button
+                  key={skill.name}
+                  onClick={() => handleAddSkill(skill.name)}
+                  className={`
+                    inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium
+                    transition-all duration-200 hover:scale-105 hover:shadow-md
+                    ${isDark
+                      ? 'bg-dark-700/50 border-dark-600 text-dark-200 hover:border-primary-500/50 hover:bg-primary-500/10'
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300 hover:bg-primary-50'
+                    }
+                  `}
+                >
+                  <SkillIcon skill={skill.name} size="w-4 h-4" />
+                  <span>{skill.name}</span>
+                  <Plus className="w-3.5 h-3.5 text-primary-400" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category Tabs with Skills - Redesigned */}
+          <div>
+            <p className={`text-sm font-medium mb-3 ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
+              📂 Browse by Category
+            </p>
+            <div className={`
+              rounded-2xl border overflow-hidden shadow-sm
+              ${isDark ? 'bg-dark-700/30 border-dark-600' : 'bg-gradient-to-br from-gray-50 to-white border-gray-200'}
+            `}>
+              {/* Category pills - Clickable filters */}
+              <div className={`flex flex-wrap gap-2 p-4 border-b ${isDark ? 'border-dark-600' : 'border-gray-100'}`}>
+                {/* All category button */}
+                <button
+                  onClick={() => setSelectedCategory('all')}
+                  className={`
+                    inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold
+                    transition-all duration-200 hover:scale-105
+                    ${selectedCategory === 'all'
+                      ? (isDark
+                        ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/30'
+                        : 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/30')
+                      : (isDark
+                        ? 'bg-dark-600/50 text-dark-300 hover:bg-dark-500/50'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300')
+                    }
+                  `}
+                >
+                  ✨ All
+                </button>
+                {Object.entries(SKILL_CATEGORIES).map(([key, cat]) => (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedCategory(key)}
+                    className={`
+                      inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold
+                      transition-all duration-200 hover:scale-105
+                      ${selectedCategory === key
+                        ? (isDark
+                          ? `bg-gradient-to-r ${cat.bgColor} text-white shadow-lg`
+                          : `bg-gradient-to-r ${cat.bgColor} text-white shadow-lg`)
+                        : (isDark
+                          ? 'bg-dark-600/50 text-dark-300 hover:bg-dark-500/50'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300')
+                      }
+                    `}
+                  >
+                    {cat.icon} {cat.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Skills grid - Filtered by category */}
+              <div className="p-4 max-h-48 overflow-y-auto">
+                <div className="flex flex-wrap gap-2">
+                  {(selectedCategory === 'all'
+                    ? Object.values(POPULAR_SKILLS).flat()
+                    : POPULAR_SKILLS[selectedCategory] || []
+                  ).filter(s => !skills.includes(s.name)).slice(0, 20).map(skill => (
+                    <button
+                      key={skill.name}
+                      onClick={() => handleAddSkill(skill.name)}
+                      className={`
+                        inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium
+                        transition-all duration-200 hover:scale-105 hover:shadow-md
+                        ${isDark
+                          ? 'bg-dark-600/50 text-dark-200 hover:bg-primary-500/20 hover:text-primary-300 border border-dark-500/50'
+                          : 'bg-white text-gray-700 hover:bg-primary-50 hover:text-primary-700 border border-gray-200 hover:border-primary-300'
+                        }
+                      `}
+                    >
+                      <SkillIcon skill={skill.name} size="w-4 h-4" />
+                      <span>{skill.name}</span>
+                      <Plus className="w-3 h-3 opacity-50" />
+                    </button>
+                  ))}
+                  {(selectedCategory === 'all'
+                    ? Object.values(POPULAR_SKILLS).flat()
+                    : POPULAR_SKILLS[selectedCategory] || []
+                  ).filter(s => !skills.includes(s.name)).length === 0 && (
+                      <p className={`text-sm italic ${isDark ? 'text-dark-400' : 'text-gray-400'}`}>
+                        All skills from this category have been added! 🎉
+                      </p>
+                    )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Current Skills */}
           {skills.length > 0 && (
-            <div className={`pt-4 border-t ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
-              <p className={`text-sm mb-3 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Current Skills:</p>
+            <div className={`pt-4 border-t ${isDark ? 'border-dark-600' : 'border-gray-200'}`}>
+              <p className={`text-sm font-medium mb-3 ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
+                ✨ Your Skills ({skills.length})
+              </p>
               <div className="flex flex-wrap gap-2">
                 {skills.map((skill) => (
                   <SkillTag
@@ -1299,23 +1807,35 @@ export default function ProfileDashboard() {
             </div>
           )}
 
-          <div className="pt-4">
-            <p className={`text-xs ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>
-              Popular skills: React, Node.js, Python, Java, TypeScript, Docker, AWS, MongoDB
-            </p>
-          </div>
-
-          <div className="flex justify-end pt-4">
+          {/* Footer */}
+          <div className="flex justify-end pt-2">
             <button
               type="button"
               onClick={skillsModal.close}
-              className="btn-primary"
+              className={`
+                px-6 py-2.5 rounded-xl font-medium transition-all duration-200
+                bg-gradient-to-r from-primary-500 to-primary-600 text-white
+                hover:shadow-lg hover:scale-105
+              `}
             >
               Done
             </button>
           </div>
         </div>
       </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={handleCloseDeleteDialog}
+        onConfirm={handleConfirmDelete}
+        title={deleteDialog.title}
+        message={deleteDialog.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleteDialog.loading}
+      />
     </div>
   );
 }
