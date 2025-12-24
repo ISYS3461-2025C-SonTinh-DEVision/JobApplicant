@@ -521,7 +521,7 @@ export default function ProfileDashboard() {
     }
 
     // If no user, show mock profile data (for demo/testing)
-    if (!currentUser?.userId) {
+    if (!currentUser) {
       hasInitialized.current = true;
       setProfile({
         firstName: 'Demo',
@@ -577,21 +577,67 @@ export default function ProfileDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const data = await ProfileService.getProfileByUserId(currentUser.userId);
+
+      // Use /api/applicants/me endpoint for authenticated user
+      let data;
+      try {
+        data = await ProfileService.getMyProfile();
+        console.log('[ProfileDashboard] Loaded profile from /me:', data);
+      } catch (meError) {
+        console.warn('[ProfileDashboard] /me failed, trying legacy endpoint:', meError);
+        // Fallback to legacy endpoint
+        if (currentUser.userId) {
+          data = await ProfileService.getProfileByUserId(currentUser.userId);
+        } else {
+          throw meError;
+        }
+      }
 
       if (data && data.id) {
-        setProfile({ ...data, email: currentUser.email });
+        // Use normalized country fields
+        const countryDisplay = data.countryName ||
+          (typeof data.country === 'object' ? data.country?.displayName : data.country) ||
+          'Not set';
+
+        setProfile({
+          ...data,
+          email: currentUser.email,
+          country: countryDisplay
+        });
         setIsProfileFromApi(true);
 
-        // Load education, experience, skills from profile if available
+        // Load education from API response
         if (data.education && data.education.length > 0) {
-          data.education.forEach(item => educationList.addItem(item));
+          data.education.forEach(item => educationList.addItem({
+            id: item.id,
+            degree: item.degree,
+            institution: item.institution,
+            startYear: item.startDate ? new Date(item.startDate).getFullYear().toString() : '',
+            endYear: item.current ? 'Current' : (item.endDate ? new Date(item.endDate).getFullYear().toString() : ''),
+            gpa: item.gpa || ''
+          }));
         }
-        if (data.experience && data.experience.length > 0) {
-          data.experience.forEach(item => experienceList.addItem(item));
+
+        // Load work experience from API response
+        if (data.workExperience && data.workExperience.length > 0) {
+          data.workExperience.forEach(item => experienceList.addItem({
+            id: item.id,
+            title: item.position,
+            company: item.company,
+            startDate: item.startDate,
+            endDate: item.current ? '' : item.endDate,
+            description: item.description
+          }));
         }
+
+        // Load skills from API response
         if (data.skills && data.skills.length > 0) {
           setSkills(data.skills);
+        }
+
+        // Load objective summary
+        if (data.objectiveSummary) {
+          setObjectiveSummary(data.objectiveSummary);
         }
       } else {
         // Fallback to mock profile data
@@ -624,7 +670,7 @@ export default function ProfileDashboard() {
         setSkills(['React', 'JavaScript', 'TypeScript', 'Tailwind CSS', 'Node.js']);
       }
     } catch (err) {
-      console.error('Error fetching profile:', err);
+      console.error('[ProfileDashboard] Error fetching profile:', err);
       // Fallback to mock data on error
       setProfile({
         firstName: currentUser?.firstName || 'Demo',

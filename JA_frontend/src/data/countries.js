@@ -313,4 +313,136 @@ export function searchCountries(query) {
     );
 }
 
+/**
+ * Backend enum name to ISO code mapping
+ * Backend uses enum names like "VIETNAM", "SINGAPORE"
+ * Frontend uses ISO codes like "VN", "SG"
+ */
+const ENUM_TO_ISO = {
+    'VIETNAM': 'VN',
+    'SINGAPORE': 'SG',
+    'THAILAND': 'TH',
+    'MALAYSIA': 'MY',
+    'INDONESIA': 'ID',
+    'PHILIPPINES': 'PH',
+    'CAMBODIA': 'KH',
+    'LAOS': 'LA',
+    'MYANMAR': 'MM',
+    'BRUNEI': 'BN',
+    'TIMOR_LESTE': 'TL',
+    'JAPAN': 'JP',
+    'SOUTH_KOREA': 'KR',
+    'NORTH_KOREA': 'KP',
+    'CHINA': 'CN',
+    'TAIWAN': 'TW',
+    'HONG_KONG': 'HK',
+    'MACAU': 'MO',
+    'MONGOLIA': 'MN',
+    'INDIA': 'IN',
+    'PAKISTAN': 'PK',
+    'BANGLADESH': 'BD',
+    'SRI_LANKA': 'LK',
+    'NEPAL': 'NP',
+    'BHUTAN': 'BT',
+    'MALDIVES': 'MV',
+    'AFGHANISTAN': 'AF',
+    'UNITED_STATES': 'US',
+    'CANADA': 'CA',
+    'MEXICO': 'MX',
+    'UNITED_KINGDOM': 'GB',
+    'GERMANY': 'DE',
+    'FRANCE': 'FR',
+    'ITALY': 'IT',
+    'NETHERLANDS': 'NL',
+    'BELGIUM': 'BE',
+    'SWITZERLAND': 'CH',
+    'AUSTRIA': 'AT',
+    'SPAIN': 'ES',
+    'PORTUGAL': 'PT',
+    'AUSTRALIA': 'AU',
+    'NEW_ZEALAND': 'NZ',
+    'BRAZIL': 'BR',
+    'ARGENTINA': 'AR',
+    'CHILE': 'CL',
+    'COLOMBIA': 'CO',
+    'PERU': 'PE',
+    'SOUTH_AFRICA': 'ZA',
+    'NIGERIA': 'NG',
+    'KENYA': 'KE',
+    'EGYPT': 'EG',
+    'MOROCCO': 'MA',
+    'RUSSIA': 'RU',
+    'UKRAINE': 'UA',
+    'POLAND': 'PL',
+    'ROMANIA': 'RO',
+    'CZECH_REPUBLIC': 'CZ',
+    'HUNGARY': 'HU',
+    'SWEDEN': 'SE',
+    'NORWAY': 'NO',
+    'FINLAND': 'FI',
+    'DENMARK': 'DK',
+    'IRELAND': 'IE',
+    'ISRAEL': 'IL',
+    'SAUDI_ARABIA': 'SA',
+    'UNITED_ARAB_EMIRATES': 'AE',
+    'QATAR': 'QA',
+    'KUWAIT': 'KW',
+    'BAHRAIN': 'BH',
+    'OMAN': 'OM',
+    'TURKEY': 'TR',
+    'GREECE': 'GR',
+};
+
+/**
+ * Convert backend enum name (e.g., "VIETNAM") to ISO code (e.g., "VN")
+ */
+export function enumToIsoCode(enumName) {
+    if (!enumName) return null;
+
+    // Already an ISO code (2 letters)
+    if (enumName.length === 2 && /^[A-Z]{2}$/i.test(enumName)) {
+        return enumName.toUpperCase();
+    }
+
+    // Try direct mapping
+    const upper = enumName.toUpperCase();
+    if (ENUM_TO_ISO[upper]) {
+        return ENUM_TO_ISO[upper];
+    }
+
+    // Try finding by label match
+    const country = COUNTRIES.find(c =>
+        c.label.toUpperCase().replace(/[^A-Z]/g, '_') === upper ||
+        c.label.toUpperCase() === upper.replace(/_/g, ' ')
+    );
+    if (country) {
+        return country.value;
+    }
+
+    console.warn(`[countries] Unknown enum name: ${enumName}`);
+    return null;
+}
+
+/**
+ * Convert ISO code to backend enum name
+ */
+export function isoCodeToEnum(isoCode) {
+    if (!isoCode) return null;
+
+    // Find reverse mapping
+    const entry = Object.entries(ENUM_TO_ISO).find(([_, code]) => code === isoCode.toUpperCase());
+    if (entry) {
+        return entry[0];
+    }
+
+    // Fallback: find country and convert label
+    const country = getCountryByCode(isoCode);
+    if (country) {
+        return country.label.toUpperCase().replace(/[^A-Z]/g, '_');
+    }
+
+    return null;
+}
+
 export default COUNTRIES;
+
