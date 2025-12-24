@@ -72,11 +72,11 @@ class HttpUtil {
   buildHeaders(customHeaders = {}) {
     const headers = { ...this.defaultHeaders, ...customHeaders };
     const token = this.getAuthToken();
-    
+
     if (token) {
       headers['Authorization'] = `${AUTH_CONFIG.TOKEN_TYPE} ${token}`;
     }
-    
+
     return headers;
   }
 
@@ -87,11 +87,11 @@ class HttpUtil {
    */
   async applyRequestInterceptors(config) {
     let modifiedConfig = { ...config };
-    
+
     for (const interceptor of this.requestInterceptors) {
       modifiedConfig = await interceptor(modifiedConfig);
     }
-    
+
     return modifiedConfig;
   }
 
@@ -103,7 +103,7 @@ class HttpUtil {
    */
   async applyResponseInterceptors(response, data) {
     let result = { response, data };
-    
+
     for (const { onSuccess, onError } of this.responseInterceptors) {
       if (response.ok && onSuccess) {
         result = await onSuccess(result);
@@ -111,7 +111,7 @@ class HttpUtil {
         result = await onError(result);
       }
     }
-    
+
     return result;
   }
 
@@ -132,15 +132,15 @@ class HttpUtil {
    */
   async parseResponse(response) {
     const contentType = response.headers.get('content-type');
-    
+
     if (contentType?.includes('application/json')) {
       return response.json();
     }
-    
+
     if (contentType?.includes('text/')) {
       return response.text();
     }
-    
+
     return response.blob();
   }
 
@@ -156,7 +156,7 @@ class HttpUtil {
     error.statusText = response.statusText;
     error.data = data;
     error.isHttpError = true;
-    
+
     // Handle specific error codes
     switch (response.status) {
       case 401:
@@ -188,7 +188,7 @@ class HttpUtil {
       default:
         break;
     }
-    
+
     throw error;
   }
 
@@ -257,11 +257,11 @@ class HttpUtil {
         timeoutError.isTimeout = true;
         throw timeoutError;
       }
-      
+
       if (error.isHttpError) {
         throw error;
       }
-      
+
       // Network error
       const networkError = new Error('Network error - Please check your connection');
       networkError.isNetworkError = true;
@@ -334,7 +334,7 @@ class HttpUtil {
    */
   upload(endpoint, files, additionalData = {}, options = {}) {
     const formData = new FormData();
-    
+
     if (Array.isArray(files)) {
       files.forEach((file, index) => {
         formData.append(`files`, file);
@@ -342,11 +342,11 @@ class HttpUtil {
     } else {
       formData.append('file', files);
     }
-    
+
     Object.entries(additionalData).forEach(([key, value]) => {
       formData.append(key, value);
     });
-    
+
     return this.post(endpoint, formData, options);
   }
 }

@@ -19,7 +19,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 
 // Navigation items configuration
-const navItems = [
+  const navItems = [
   { label: 'Dashboard', icon: Home, path: '/' },
   { label: 'Jobs', icon: Search, path: '/jobs' },
   { label: 'Applications', icon: FileText, path: '/applications' },
@@ -93,14 +93,14 @@ function LogoutButton({ collapsed, onClick }) {
         flex items-center h-11 px-3 gap-3 mx-2 rounded-lg w-[calc(100%-16px)]
         text-dark-400 hover:text-red-400 hover:bg-red-500/10
         transition-all duration-200
-      "
-    >
+  "
+>
       <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
         <LogOut className="w-5 h-5" />
-      </div>
-      <span
+  </div>
+  <span
         className={`
-          text-sm font-medium whitespace-nowrap
+      text-sm font-medium whitespace-nowrap
           transition-all duration-300
           ${collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}
         `}
@@ -118,8 +118,8 @@ function UserInfo({ collapsed, user }) {
       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-accent-400 flex items-center justify-center flex-shrink-0">
         <span className="text-white font-semibold text-sm">
           {user?.username?.[0]?.toUpperCase() || 'U'}
-        </span>
-      </div>
+  </span>
+</div>
       <div
         className={`
           transition-all duration-300 overflow-hidden
