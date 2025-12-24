@@ -35,7 +35,7 @@ import {
 } from '../../components/headless';
 
 // Import Reusable Components
-import { Card, FormInput, ConfirmDialog, SkillIcon } from '../../components/reusable';
+import { Card, FormInput, ConfirmDialog, SkillIcon, SKILL_ICONS } from '../../components/reusable';
 
 // Import Skills Data for smart skill selection
 import { getSkillInfo, getSkillCategory, POPULAR_SKILLS, SKILL_CATEGORIES, searchSkills, getQuickAddSkills } from '../../data/skillsData';
@@ -614,6 +614,16 @@ export default function ProfileDashboard() {
   const [newSkill, setNewSkill] = useState('');
   const [skillSaving, setSkillSaving] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all'); // For category filter
+  const [customSkillIcons, setCustomSkillIcons] = useState(() => {
+    // Load custom icons from localStorage
+    const saved = localStorage.getItem('customSkillIcons');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [iconPicker, setIconPicker] = useState({
+    isOpen: false,
+    skillName: '',
+    pendingAdd: false
+  });
 
   // Objective Summary state (Requirement 3.1.2)
   const [objectiveSummary, setObjectiveSummary] = useState('');
@@ -943,19 +953,50 @@ export default function ProfileDashboard() {
   }, [currentUser?.userId, fetchProfile]);
 
   // Add skill handler - calls API (accepts optional skillName for quick-add)
-  const handleAddSkill = async (skillName = null) => {
-    const trimmedSkill = skillName ? skillName.trim() : newSkill.trim();
-    if (trimmedSkill && !skills.includes(trimmedSkill)) {
+  // Check if skill is a known skill from our database
+  const isKnownSkill = (name) => {
+    const allSkills = Object.values(POPULAR_SKILLS).flat();
+    return allSkills.some(s => s.name.toLowerCase() === name.toLowerCase());
+  };
+
+  // Actually add the skill (after icon is selected for custom skills)
+  const confirmAddSkill = async (skillName, selectedIconKey = null) => {
+    if (skillName && !skills.includes(skillName)) {
       setSkillSaving(true);
       try {
-        await ProfileService.addSkill(trimmedSkill);
-        setSkills([...skills, trimmedSkill]);
-        if (!skillName) setNewSkill(''); // Only clear input if using manual input
+        // If custom icon was selected, save it
+        if (selectedIconKey) {
+          const updatedIcons = { ...customSkillIcons, [skillName.toLowerCase()]: selectedIconKey };
+          setCustomSkillIcons(updatedIcons);
+          localStorage.setItem('customSkillIcons', JSON.stringify(updatedIcons));
+        }
+        await ProfileService.addSkill(skillName);
+        setSkills([...skills, skillName]);
+        setNewSkill('');
+        setIconPicker({ isOpen: false, skillName: '', pendingAdd: false });
       } catch (error) {
         console.error('[ProfileDashboard] Error adding skill:', error);
         alert('Failed to add skill. Please try again.');
       } finally {
         setSkillSaving(false);
+      }
+    }
+  };
+
+  const handleAddSkill = async (skillName = null) => {
+    const trimmedSkill = skillName ? skillName.trim() : newSkill.trim();
+    if (trimmedSkill && !skills.includes(trimmedSkill)) {
+      // Check if it's a known skill
+      if (isKnownSkill(trimmedSkill)) {
+        // Known skill - add directly
+        await confirmAddSkill(trimmedSkill);
+      } else {
+        // Custom skill - show icon picker
+        setIconPicker({
+          isOpen: true,
+          skillName: trimmedSkill,
+          pendingAdd: true
+        });
       }
     }
   };
@@ -1651,7 +1692,7 @@ export default function ProfileDashboard() {
                         }
                       `}
                     >
-                      <span className="text-lg">{suggestion.icon}</span>
+                      <SkillIcon skill={suggestion.name} size="w-5 h-5" />
                       <span className="font-medium">{suggestion.name}</span>
                     </button>
                   ))}
@@ -1753,12 +1794,12 @@ export default function ProfileDashboard() {
               </div>
 
               {/* Skills grid - Filtered by category */}
-              <div className="p-4 max-h-48 overflow-y-auto">
+              <div className="p-4 max-h-64 overflow-y-auto">
                 <div className="flex flex-wrap gap-2">
                   {(selectedCategory === 'all'
                     ? Object.values(POPULAR_SKILLS).flat()
                     : POPULAR_SKILLS[selectedCategory] || []
-                  ).filter(s => !skills.includes(s.name)).slice(0, 20).map(skill => (
+                  ).filter(s => !skills.includes(s.name)).map(skill => (
                     <button
                       key={skill.name}
                       onClick={() => handleAddSkill(skill.name)}
@@ -1823,6 +1864,98 @@ export default function ProfileDashboard() {
           </div>
         </div>
       </Modal>
+
+      {/* Icon Picker Modal for Custom Skills */}
+      {iconPicker.isOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] animate-fade-in"
+            onClick={() => setIconPicker({ isOpen: false, skillName: '', pendingAdd: false })}
+          />
+          {/* Modal */}
+          <div className="fixed inset-0 flex items-center justify-center z-[60] p-4">
+            <div
+              className={`
+                rounded-2xl shadow-2xl w-full max-w-md animate-scale-in border
+                max-h-[80vh] flex flex-col overflow-hidden
+                ${isDark
+                  ? 'bg-dark-800 border-dark-700'
+                  : 'bg-white border-gray-200'
+                }
+              `}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className={`flex items-center justify-between p-5 border-b flex-shrink-0 ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
+                <div>
+                  <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Choose Icon for "{iconPicker.skillName}"
+                  </h3>
+                  <p className={`text-sm mt-1 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                    Select an icon that represents this skill
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIconPicker({ isOpen: false, skillName: '', pendingAdd: false })}
+                  className={`p-2 rounded-xl transition-colors ${isDark ? 'text-dark-400 hover:text-white hover:bg-dark-600' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'}`}
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Icon Grid */}
+              <div className="p-5 overflow-y-auto flex-1">
+                <div className="grid grid-cols-6 gap-3">
+                  {Object.entries(SKILL_ICONS).filter(([key]) => key !== 'default').map(([key, icon]) => (
+                    <button
+                      key={key}
+                      onClick={() => confirmAddSkill(iconPicker.skillName, key)}
+                      disabled={skillSaving}
+                      className={`
+                        p-3 rounded-xl border-2 transition-all duration-200
+                        hover:scale-110 hover:shadow-lg
+                        ${isDark
+                          ? 'bg-dark-700 border-dark-600 hover:border-primary-500 hover:bg-primary-500/20'
+                          : 'bg-gray-50 border-gray-200 hover:border-primary-500 hover:bg-primary-50'
+                        }
+                        ${skillSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                      `}
+                      title={key}
+                    >
+                      <span className="w-6 h-6 block">{icon}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className={`flex items-center justify-between p-4 border-t flex-shrink-0 ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
+                <button
+                  onClick={() => confirmAddSkill(iconPicker.skillName, 'default')}
+                  disabled={skillSaving}
+                  className={`
+                    px-4 py-2 rounded-xl text-sm font-medium transition-all
+                    ${isDark ? 'text-dark-300 hover:text-white hover:bg-dark-600' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}
+                    ${skillSaving ? 'opacity-50' : ''}
+                  `}
+                >
+                  {skillSaving ? 'Adding...' : 'Use Default Icon'}
+                </button>
+                <button
+                  onClick={() => setIconPicker({ isOpen: false, skillName: '', pendingAdd: false })}
+                  className={`
+                    px-4 py-2 rounded-xl text-sm font-medium
+                    ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}
+                  `}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog

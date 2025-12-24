@@ -271,8 +271,19 @@ const SKILL_ALIASES = {
  */
 export default function SkillIcon({ skill, size = 'w-5 h-5', className = '' }) {
     const normalizedSkill = skill.toLowerCase().trim();
-    const aliasedSkill = SKILL_ALIASES[normalizedSkill] || normalizedSkill;
-    const icon = SKILL_ICONS[aliasedSkill] || SKILL_ICONS.default;
+
+    // Check for custom icon mapping from localStorage first
+    let customIconKey = null;
+    try {
+        const customIcons = JSON.parse(localStorage.getItem('customSkillIcons') || '{}');
+        customIconKey = customIcons[normalizedSkill];
+    } catch (e) {
+        // Ignore localStorage errors
+    }
+
+    // Use custom icon if found, otherwise fall back to alias/default
+    const iconKey = customIconKey || SKILL_ALIASES[normalizedSkill] || normalizedSkill;
+    const icon = SKILL_ICONS[iconKey] || SKILL_ICONS.default;
 
     return (
         <span className={`inline-flex items-center justify-center ${size} ${className}`}>
