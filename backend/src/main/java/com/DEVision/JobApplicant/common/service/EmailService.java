@@ -1,41 +1,54 @@
 package com.DEVision.JobApplicant.common.service;
 
-import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class EmailService {
 
-    @Autowired
-    private JavaMailSender mailSender;
+    @Autowired(required = false)
+    private RestTemplate restTemplate;
 
     @Value("${app.mail.from:noreply@rentmate.space}")
     private String fromEmail;
 
-    // New: sender display name shown in inbox (e.g., "DEVision Job Applicant")
     @Value("${app.mail.from-name:DEVision}")
     private String fromName;
 
     @Value("${app.frontend.base-url:http://localhost:3000}")
     private String frontendBaseUrl;
 
+    @Value("${app.mail.resend.api-key:}")
+    private String resendApiKey;
+
+    private static final String RESEND_API_URL = "https://api.resend.com/emails";
+
+    private RestTemplate getRestTemplate() {
+        if (restTemplate == null) {
+            restTemplate = new RestTemplate();
+        }
+        return restTemplate;
+    }
+
     /**
-     * Send activation email to new user
+     * Send activation email to new user using Resend HTTP API
      * @param toEmail Recipient email address
      * @param activationToken Activation token
      */
     public void sendActivationEmail(String toEmail, String activationToken) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
-
-            helper.setFrom(fromEmail, fromName);
-            helper.setTo(toEmail);
-            helper.setSubject("Activate Your Job Applicant Account");
+            if (resendApiKey == null || resendApiKey.isEmpty()) {
+                throw new RuntimeException("Resend API key not configured. Set app.mail.resend.api-key in application.yml");
+            }
 
             String activationLink = frontendBaseUrl + "/activate?token=" + activationToken;
 
@@ -47,30 +60,51 @@ public class EmailService {
                     "Best regards,\n" +
                     "Job Applicant Team";
 
-            helper.setText(emailBody, false);
+            // Prepare request body
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("from", fromName + " <" + fromEmail + ">");
+            requestBody.put("to", toEmail);
+            requestBody.put("subject", "Activate Your Job Applicant Account");
+            requestBody.put("text", emailBody);
 
-            mailSender.send(message);
-            System.out.println("Activation email sent to: " + toEmail);
+            // Prepare headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            if (resendApiKey != null) {
+                headers.setBearerAuth(resendApiKey);
+            }
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+
+            // Send HTTP POST request to Resend API
+            ResponseEntity<?> response = getRestTemplate().postForEntity(
+                    RESEND_API_URL,
+                    request,
+                    Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                System.out.println("Activation email sent to: " + toEmail);
+            } else {
+                throw new RuntimeException("Failed to send email. Resend API returned: " + response.getStatusCode());
+            }
 
         } catch (Exception e) {
             System.err.println("Failed to send activation email: " + e.getMessage());
-            throw new RuntimeException("Failed to send activation email", e);
+            throw new RuntimeException("Failed to send activation email: " + e.getMessage(), e);
         }
     }
 
     /**
-     * Send password reset email
+     * Send password reset email using Resend HTTP API
      * @param toEmail Recipient email address
      * @param resetToken Password reset token
      */
     public void sendPasswordResetEmail(String toEmail, String resetToken) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
-
-            helper.setFrom(fromEmail, fromName);
-            helper.setTo(toEmail);
-            helper.setSubject("Reset Your Password");
+            if (resendApiKey == null || resendApiKey.isEmpty()) {
+                throw new RuntimeException("Resend API key not configured. Set app.mail.resend.api-key in application.yml");
+            }
 
             String resetLink = frontendBaseUrl + "/reset-password?token=" + resetToken;
 
@@ -82,14 +116,38 @@ public class EmailService {
                     "Best regards,\n" +
                     "Job Applicant Team";
 
-            helper.setText(emailBody, false);
+            // Prepare request body
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("from", fromName + " <" + fromEmail + ">");
+            requestBody.put("to", toEmail);
+            requestBody.put("subject", "Reset Your Password");
+            requestBody.put("text", emailBody);
 
-            mailSender.send(message);
-            System.out.println("Password reset email sent to: " + toEmail);
+            // Prepare headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            if (resendApiKey != null) {
+                headers.setBearerAuth(resendApiKey);
+            }
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+
+            // Send HTTP POST request to Resend API
+            ResponseEntity<?> response = getRestTemplate().postForEntity(
+                    RESEND_API_URL,
+                    request,
+                    Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                System.out.println("Password reset email sent to: " + toEmail);
+            } else {
+                throw new RuntimeException("Failed to send email. Resend API returned: " + response.getStatusCode());
+            }
 
         } catch (Exception e) {
             System.err.println("Failed to send password reset email: " + e.getMessage());
-            throw new RuntimeException("Failed to send password reset email", e);
+            throw new RuntimeException("Failed to send password reset email: " + e.getMessage(), e);
         }
     }
 }

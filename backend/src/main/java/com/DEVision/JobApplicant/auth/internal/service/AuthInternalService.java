@@ -73,7 +73,7 @@ public class AuthInternalService {
             );
         }
 
-		// Generate activation token (valid for 15 minutes)
+        // Generate activation token (valid for 15 minutes)
 		String activationToken = UUID.randomUUID().toString();
 
         // Create user
@@ -100,12 +100,9 @@ public class AuthInternalService {
 
         ApplicantDto savedApplicant = applicantExternalService.createApplicant(applicantRequest);
 
-        // Send activation email
-        try {
-            emailService.sendActivationEmail(savedUser.getEmail(), activationToken);
-        } catch (Exception emailException) {
-            throw new RuntimeException("Failed to send activation email", emailException);
-        }
+        // Send activation email - if this fails, exception will propagate and @Transactional will rollback
+        // This ensures user and applicant are not created if email fails
+        emailService.sendActivationEmail(savedUser.getEmail(), activationToken);
 
         return new RegistrationResponse(
             savedUser.getId(),
@@ -174,14 +171,17 @@ public class AuthInternalService {
 					|| user.getActivationToken() == null) {
 
 				String newActivationToken = UUID.randomUUID().toString();
-				user.setActivationToken(newActivationToken);
-				// New activation link also valid for 15 minutes
-				user.setActivationTokenExpiry(LocalDateTime.now().plusMinutes(15));
-				userRepository.save(user);
-
+				
+				// Try to send email first - only save token if email succeeds
 				try {
 					emailService.sendActivationEmail(user.getEmail(), newActivationToken);
+					// Email sent successfully - now save the token
+					user.setActivationToken(newActivationToken);
+					// New activation link also valid for 15 minutes
+					user.setActivationTokenExpiry(LocalDateTime.now().plusMinutes(15));
+					userRepository.save(user);
 				} catch (Exception emailException) {
+					// Email failed - don't save token, throw error
 					throw new RuntimeException("Account not activated and failed to resend activation email. Please try again later.");
 				}
 
