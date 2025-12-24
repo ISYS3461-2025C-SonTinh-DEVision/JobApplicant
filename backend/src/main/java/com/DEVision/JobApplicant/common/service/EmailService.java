@@ -35,7 +35,7 @@ public class EmailService {
             String emailBody = "Welcome to Job Applicant System!\n\n" +
                     "Thank you for registering. To activate your account, please click the link below:\n\n" +
                     activationLink + "\n\n" +
-                    "This activation link will expire in 24 hours.\n\n" +
+                    "This activation link will expire in 15 minutes.\n\n" +
                     "If you did not create an account, please ignore this email.\n\n" +
                     "Best regards,\n" +
                     "Job Applicant Team";

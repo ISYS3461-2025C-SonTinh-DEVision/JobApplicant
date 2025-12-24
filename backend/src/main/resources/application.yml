@@ -105,7 +105,4 @@ spring:
 system:
   auth:
     job-manager:
-      # Job Manager's token verification API URL
-      # Job Applicant will call this API to verify Job Manager tokens
-      # e.g., http://job-manager-api.com/api/system/verify-token
       verify-token-url: ${JOB_MANAGER_VERIFY_TOKEN_URL:}
