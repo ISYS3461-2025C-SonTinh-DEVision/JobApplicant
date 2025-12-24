@@ -4,6 +4,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import com.DEVision.JobApplicant.common.model.PlanType;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -36,6 +38,9 @@ public class User {
     @NotBlank(message = "Role cannot be blank, either registered users or non-registered users")
     private String role;
 
+    @NotNull(message = "Plan type is required")
+    private PlanType planType;
+
     // Account activation fields
     private boolean isActivated;
     private String activationToken;
@@ -50,10 +55,12 @@ public class User {
         this.password = password;
         this.enabled = enabled;
         this.role = role;
+        this.planType = PlanType.FREEMIUM;
         this.isActivated = false;
     }
 
     public User() {
+        this.planType = PlanType.FREEMIUM;
         this.isActivated = false;
     }
 
@@ -91,6 +98,14 @@ public class User {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public PlanType getPlanType() {
+        return planType;
+    }
+
+    public void setPlanType(PlanType planType) {
+        this.planType = planType;
     }
 
     public boolean isActivated() {
