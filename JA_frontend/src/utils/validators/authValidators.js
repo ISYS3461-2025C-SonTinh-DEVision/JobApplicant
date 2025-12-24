@@ -129,10 +129,10 @@ export function validatePhone(phone) {
     });
   }
 
-  if (digits.length >= 13) {
+  if (digits.length > 13) {
     errors.push({
       field: "phone",
-      message: "Phone number is too long.",
+      message: "Phone number is too long (max 13 digits after dial code).",
     });
   }
 

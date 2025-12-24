@@ -53,6 +53,7 @@ public class SecurityConfig {
 								"/api/auth/refresh",
 								"/api/auth/logout",
 								"/api/auth/activate",
+								"/api/auth/resend-activation",
 								"/api/auth/forgot-password",
 								"/api/auth/reset-password",
 								"/api/auth/oauth2/login",

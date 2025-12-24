@@ -113,7 +113,7 @@ export default function useHeadlessForm({
   // Handle form submission
   const handleSubmit = useCallback(async (e) => {
     if (e) {
-      e.preventDefault();
+    e.preventDefault();
     }
 
     setSubmitCount((c) => c + 1);
