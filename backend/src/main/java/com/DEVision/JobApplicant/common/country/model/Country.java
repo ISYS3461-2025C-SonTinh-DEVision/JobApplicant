@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.common.model;
+package com.DEVision.JobApplicant.common.country.model;
 
 /**
  * Country enum for Job Applicant subsystem

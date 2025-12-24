@@ -1,6 +1,6 @@
 package com.DEVision.JobApplicant.common.config;
 
-import com.DEVision.JobApplicant.common.model.Country;
+import com.DEVision.JobApplicant.common.country.model.Country;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;

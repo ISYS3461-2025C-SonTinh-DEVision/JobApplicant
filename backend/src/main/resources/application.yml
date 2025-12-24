@@ -15,7 +15,9 @@
 
 app:
   frontend:
-    base-url: ${FRONTEND_BASE_URL}
+    base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
+  job-manager:
+    base-url: ${JOB_MANAGER_BASE_URL:http://localhost:5173}
   mail:
     from: ${MAIL_FROM:onboarding@resend.dev}
     from-name: ${MAIL_FROM_NAME:DEVision}

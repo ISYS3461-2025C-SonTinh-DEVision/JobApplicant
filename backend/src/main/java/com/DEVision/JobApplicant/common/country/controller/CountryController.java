@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.common.controller;
+package com.DEVision.JobApplicant.common.country.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.DEVision.JobApplicant.common.model.Country;
+import com.DEVision.JobApplicant.common.country.model.Country;
 
 import java.util.ArrayList;
 import java.util.HashMap;

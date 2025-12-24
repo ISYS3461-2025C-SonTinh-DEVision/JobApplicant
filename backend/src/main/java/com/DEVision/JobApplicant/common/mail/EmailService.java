@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.common.service;
+package com.DEVision.JobApplicant.common.mail;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;

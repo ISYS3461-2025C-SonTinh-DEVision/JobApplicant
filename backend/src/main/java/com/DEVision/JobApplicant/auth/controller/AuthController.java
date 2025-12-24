@@ -34,8 +34,8 @@ import com.DEVision.JobApplicant.auth.internal.dto.ResetPasswordRequest;
 import com.DEVision.JobApplicant.auth.internal.service.AuthInternalService;
 import com.DEVision.JobApplicant.auth.config.AuthConfig;
 import com.DEVision.JobApplicant.common.config.HttpOnlyCookieConfig;
-import com.DEVision.JobApplicant.common.service.RedisService;
-import com.DEVision.JobApplicant.jwt.JwtUtil;
+import com.DEVision.JobApplicant.common.redis.RedisService;
+import com.DEVision.JobApplicant.jwt.JweUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -54,7 +54,7 @@ class AuthController {
     private AuthInternalService authInternalService;
 
     @Autowired
-    private JwtUtil jwtUtil;
+    private JweUtil jweUtil;
 
     @Autowired
     private RedisService redisService;
@@ -394,7 +394,7 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
                 }
 
                 // Optionally refresh the access token and update cookie
-                String newToken = jwtUtil.generateToken(userDetails);
+                String newToken = jweUtil.generateToken(userDetails);
                 Cookie newCookie = HttpOnlyCookieConfig.createCookie(
                     AuthConfig.AUTH_COOKIE_NAME, 
                     newToken
