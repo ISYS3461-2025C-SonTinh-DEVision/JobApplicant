@@ -29,6 +29,7 @@ import com.DEVision.JobApplicant.auth.internal.dto.OAuth2CallbackRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.OAuth2LoginRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.RegisterRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.RegistrationResponse;
+import com.DEVision.JobApplicant.auth.internal.dto.ResendActivationRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.ResetPasswordRequest;
 import com.DEVision.JobApplicant.auth.internal.service.AuthInternalService;
 import com.DEVision.JobApplicant.auth.config.AuthConfig;
@@ -38,6 +39,11 @@ import com.DEVision.JobApplicant.jwt.JwtUtil;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import com.DEVision.JobApplicant.auth.entity.User;
+import com.DEVision.JobApplicant.auth.repository.AuthRepository;
+import com.DEVision.JobApplicant.applicant.entity.Applicant;
+import com.DEVision.JobApplicant.applicant.service.ApplicantService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -52,6 +58,12 @@ class AuthController {
 
     @Autowired
     private RedisService redisService;
+
+    @Autowired
+    private AuthRepository userRepository;
+
+    @Autowired
+    private ApplicantService applicantService;
 
 @Operation(summary = "Register new user", description = "Create a new applicant account with email activation")
 @ApiResponses(value = {
@@ -106,6 +118,53 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
             );
         }
     }
+
+    /**
+     * Resend activation email with rate limiting
+     */
+    @Operation(summary = "Resend activation email", description = "Resend account activation email with 60s rate limit")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Activation email sent"),
+        @ApiResponse(responseCode = "429", description = "Rate limit exceeded - wait before retrying"),
+        @ApiResponse(responseCode = "400", description = "Invalid request")
+    })
+    @PostMapping("/resend-activation")
+    public ResponseEntity<?> resendActivation(@Valid @RequestBody ResendActivationRequest request) {
+        try {
+            String email = request.getEmail().trim().toLowerCase();
+            
+            // Check rate limit using Redis
+            if (!redisService.allowResendActivation(email)) {
+                long remainingCooldown = redisService.getRemainingResendCooldown(email);
+                return new ResponseEntity<>(
+                    Map.of(
+                        "message", "Please wait before requesting another activation email.",
+                        "success", false,
+                        "rateLimited", true,
+                        "retryAfter", remainingCooldown
+                    ),
+                    HttpStatus.TOO_MANY_REQUESTS
+                );
+            }
+            
+            // Process resend request
+            Map<String, Object> response = authInternalService.resendActivationEmail(email);
+            
+            boolean success = (boolean) response.get("success");
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            System.err.println("Error resending activation: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to resend activation email. Please try again later.", "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
 
     /**
      * Login endpoint (old implementation - to be updated)
@@ -314,10 +373,25 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
         // (AuthRequestFilter already validated the token from cookie or Bearer header)
         if (userDetails != null) {
             try {
+                // Get user and applicant details for complete user info
+                User user = userRepository.findByEmail(userDetails.getUsername());
+                Applicant applicant = user != null ? applicantService.getApplicantByUserId(user.getId()) : null;
+
                 Map<String, Object> result = new HashMap<>();
                 result.put("authenticated", true);
                 result.put("username", userDetails.getUsername());
                 result.put("roles", userDetails.getAuthorities());
+                
+                // Add user and applicant IDs for profile lookup
+                if (user != null) {
+                    result.put("userId", user.getId());
+                    result.put("email", user.getEmail());
+                }
+                if (applicant != null) {
+                    result.put("applicantId", applicant.getId());
+                    result.put("firstName", applicant.getFirstName());
+                    result.put("lastName", applicant.getLastName());
+                }
 
                 // Optionally refresh the access token and update cookie
                 String newToken = jwtUtil.generateToken(userDetails);

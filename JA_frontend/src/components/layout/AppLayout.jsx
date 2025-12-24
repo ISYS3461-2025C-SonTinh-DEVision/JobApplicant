@@ -10,7 +10,7 @@ export default function AppLayout({ children }) {
   return (
     <div className="flex min-h-screen bg-dark-950">
       {/* Sidebar */}
-      <Sidebar />
+        <Sidebar />
 
       {/* Main content */}
       <main className="flex-1 overflow-x-hidden">
@@ -21,7 +21,7 @@ export default function AppLayout({ children }) {
 
         {/* Content */}
         <div className="relative z-10 min-h-screen">
-          {children}
+        {children}
         </div>
       </main>
     </div>

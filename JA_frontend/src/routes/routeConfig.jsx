@@ -1,10 +1,19 @@
 /**
  * Route Configuration
  * Central routing configuration for the application
+ * 
+ * Architecture: React Router with nested routes
+ * - Public routes (login, register)
+ * - Protected routes (dashboard)
+ * - Admin routes
  */
 
 import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import {
+  FileText, Clock, CheckCircle, Search, MapPin, Briefcase,
+  Crown, TrendingUp, Bell, Shield, User
+} from 'lucide-react';
 
 // Auth Pages
 import LoginPage from '../pages/auth/LoginPage';
@@ -14,22 +23,25 @@ import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
 import SSOCallbackPage from '../pages/auth/SSOCallbackPage';
 
-// Main Pages
-import TestPage from '../pages/TestPage';
+// Dashboard Pages
+import DashboardLayout from '../components/layout/DashboardLayout';
+import DashboardHome from '../pages/dashboard/DashboardHome';
+import ProfileDashboard from '../pages/dashboard/ProfileDashboard';
+import EditProfile from '../pages/dashboard/EditProfile';
+
+// Placeholder Pages
+import ComingSoon from '../pages/placeholder/ComingSoon';
 
 // Error Pages
 import NotFound from '../pages/error/NotFound';
 
 // Protected Route Components
-import { ProtectedRoute, PublicOnlyRoute, AdminRoute } from './ProtectedRoute';
-
-// Layout Components
-import AppLayout from '../components/layout/AppLayout';
+import { ProtectedRoute, PublicOnlyRoute } from './ProtectedRoute';
 
 /**
- * Route definitions
+ * Router configuration
  */
-export const routes = [
+const router = createBrowserRouter([
   // =====================================
   // Public Auth Routes (redirect if logged in)
   // =====================================
@@ -73,142 +85,126 @@ export const routes = [
     path: '/auth/activate',
     element: <VerifyEmailPage />,
   },
+  {
+    path: '/activate',
+    element: <VerifyEmailPage />,
+  },
 
   // =====================================
-  // Protected Routes (requires authentication)
+  // Protected Dashboard Routes
   // =====================================
-  {
-    path: '/',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <TestPage />
-        </AppLayout>
-      </ProtectedRoute>
-    ),
-  },
   {
     path: '/dashboard',
     element: (
       <ProtectedRoute>
-        <AppLayout>
-          <TestPage />
-        </AppLayout>
+        <DashboardLayout />
       </ProtectedRoute>
     ),
-  },
-  // Job routes (placeholder for future implementation)
-  {
-    path: '/jobs',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">Job Search</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/jobs/:id',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">Job Details</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </ProtectedRoute>
-    ),
-  },
-  // Profile routes
-  {
-    path: '/profile',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">My Profile</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </ProtectedRoute>
-    ),
-  },
-  // Applications routes
-  {
-    path: '/applications',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">My Applications</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </ProtectedRoute>
-    ),
-  },
-  // Subscription routes
-  {
-    path: '/subscription',
-    element: (
-      <ProtectedRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">Subscription</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </ProtectedRoute>
-    ),
+    children: [
+      {
+        index: true,
+        element: <DashboardHome />,
+      },
+      {
+        path: 'profile',
+        element: <ProfileDashboard />,
+      },
+      {
+        path: 'profile/edit',
+        element: <EditProfile />,
+      },
+      {
+        path: 'applications',
+        element: (
+          <ComingSoon
+            featureName="My Applications"
+            description="Track all your job applications in one place. See status updates and manage your applications."
+            features={[
+              { icon: FileText, title: 'Application Tracking', description: 'View status of all your submitted applications' },
+              { icon: Clock, title: 'Timeline View', description: 'See your application history chronologically' },
+              { icon: CheckCircle, title: 'Smart Filters', description: 'Filter by status, date, or company' }
+            ]}
+          />
+        ),
+      },
+      {
+        path: 'jobs',
+        element: (
+          <ComingSoon
+            featureName="Job Search"
+            description="Find your dream job with our powerful search. Filter by skills, location, salary and more."
+            features={[
+              { icon: Search, title: 'Smart Search', description: 'Full-text search across all job listings' },
+              { icon: MapPin, title: 'Location Filter', description: 'Find jobs in your preferred location' },
+              { icon: Briefcase, title: 'Quick Apply', description: 'Apply with one click using your profile' }
+            ]}
+          />
+        ),
+      },
+      {
+        path: 'subscription',
+        element: (
+          <ComingSoon
+            featureName="Premium Subscription"
+            description="Unlock powerful features with DEVision Premium. Get real-time job alerts and more."
+            features={[
+              { icon: Crown, title: 'Real-time Alerts', description: 'Get notified instantly when matching jobs appear' },
+              { icon: TrendingUp, title: 'Priority Listing', description: 'Stand out to employers with priority status' },
+              { icon: FileText, title: 'Unlimited Apply', description: 'Apply to unlimited jobs without restrictions' }
+            ]}
+          />
+        ),
+      },
+      {
+        path: 'analytics',
+        element: (
+          <ComingSoon
+            featureName="Analytics"
+            description="Get insights into your job search performance. Track profile views and application success."
+            features={[
+              { icon: TrendingUp, title: 'Profile Views', description: 'See how many employers viewed your profile' },
+              { icon: FileText, title: 'Application Stats', description: 'Track your application success rate' },
+              { icon: Search, title: 'Search Trends', description: 'Discover trending skills and job titles' }
+            ]}
+          />
+        ),
+      },
+      {
+        path: 'settings',
+        element: (
+          <ComingSoon
+            featureName="Settings"
+            description="Customize your DEVision experience. Manage notifications, privacy, and account settings."
+            features={[
+              { icon: Bell, title: 'Notifications', description: 'Control email and push notification preferences' },
+              { icon: Shield, title: 'Privacy', description: 'Manage who can see your profile' },
+              { icon: User, title: 'Account', description: 'Update password and security settings' }
+            ]}
+          />
+        ),
+      },
+    ],
   },
 
   // =====================================
-  // Admin Routes
+  // Root Redirects
   // =====================================
   {
-    path: '/admin/login',
-    element: (
-      <PublicOnlyRoute redirectTo="/admin">
-        <LoginPage />
-      </PublicOnlyRoute>
-    ),
+    path: '/',
+    element: <Navigate to="/dashboard" replace />,
   },
   {
-    path: '/admin',
-    element: (
-      <AdminRoute>
-        <AppLayout>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-            <p className="text-dark-400 mt-2">Coming soon...</p>
-          </div>
-        </AppLayout>
-      </AdminRoute>
-    ),
+    path: '/home',
+    element: <Navigate to="/dashboard" replace />,
   },
 
   // =====================================
-  // Error Routes
+  // 404 Not Found
   // =====================================
-  {
-    path: '/404',
-    element: <NotFound />,
-  },
   {
     path: '*',
-    element: <Navigate to="/404" replace />,
+    element: <NotFound />,
   },
-];
-
-/**
- * Create router instance
- */
-export const router = createBrowserRouter(routes);
+]);
 
 export default router;
-

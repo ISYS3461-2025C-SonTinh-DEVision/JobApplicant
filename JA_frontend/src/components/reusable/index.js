@@ -16,6 +16,8 @@ export { default as Tag } from "./Tag";
 
 // Form Components
 export { FormInput, FormSelect, FormTextarea } from "./FormInput";
+export { default as PhoneInput } from "./PhoneInput";
+export { default as CountrySelect } from "./CountrySelect";
 
 // Data Display Components
 export { Table, DataTable } from "./Table";

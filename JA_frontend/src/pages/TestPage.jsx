@@ -180,13 +180,13 @@ export default function TestPage() {
           {/* Buttons Demo */}
           <div className="glass-card p-6">
             <h3 className="font-semibold text-white mb-4">Buttons</h3>
-            <div className="flex flex-wrap gap-3">
-              <Button label="Primary" />
-              <Button variant="secondary" label="Secondary" />
-              <Button variant="warning" label="Warning" />
+        <div className="flex flex-wrap gap-3">
+          <Button label="Primary" />
+          <Button variant="secondary" label="Secondary" />
+          <Button variant="warning" label="Warning" />
               <Button variant="destructive" label="Danger" />
-              <Button disabled label="Disabled" />
-            </div>
+          <Button disabled label="Disabled" />
+        </div>
           </div>
 
           {/* Tags Demo */}
@@ -205,43 +205,43 @@ export default function TestPage() {
           <div className="glass-card p-6">
             <h3 className="font-semibold text-white mb-4">Inputs</h3>
             <div className="space-y-4">
-              <Input
-                label="Normal Input"
+          <Input
+            label="Normal Input"
                 placeholder="Type something..."
                 className="bg-white/5 border-white/10 text-white placeholder:text-dark-400"
-              />
-              <Input
+          />
+          <Input
                 label="With Error"
                 error="This field is required"
                 className="bg-white/5 border-white/10 text-white"
-              />
-            </div>
-          </div>
+          />
+        </div>
+        </div>
 
           {/* Modal Demo */}
           <div className="glass-card p-6">
             <h3 className="font-semibold text-white mb-4">Modal</h3>
-            <Button label="Open Modal" onClick={() => setModalOpen(true)} />
-            {modalOpen && (
-              <Modal
+        <Button label="Open Modal" onClick={() => setModalOpen(true)} />
+        {modalOpen && (
+          <Modal
                 title="Sample Modal"
-                onClose={() => setModalOpen(false)}
-                footer={
-                  <>
-                    <Button
-                      variant="secondary"
-                      label="Cancel"
-                      onClick={() => setModalOpen(false)}
-                    />
+            onClose={() => setModalOpen(false)}
+            footer={
+              <>
+                <Button
+                  variant="secondary"
+                  label="Cancel"
+                  onClick={() => setModalOpen(false)}
+                />
                     <Button label="Confirm" onClick={() => setModalOpen(false)} />
-                  </>
-                }
-              >
+              </>
+            }
+          >
                 <p className="text-dark-300">
                   This is a sample modal dialog. You can put any content here.
                 </p>
-              </Modal>
-            )}
+          </Modal>
+        )}
           </div>
         </div>
       </div>
