@@ -103,4 +103,16 @@ spring:
 system:
   auth:
     job-manager:
+      # API-based verification (REQUIRED for JWE tokens from external systems)
+      # JM generates tokens with their own keys - we verify by calling their API
       verify-token-url: ${JOB_MANAGER_VERIFY_TOKEN_URL:}
+      # Direct JWE token verification (only works if JM encrypted with YOUR public key)
+      # This is NOT the normal case - normally JM uses their own keys
+      # Set to false to use API verification only (recommended)
+      verify-locally: ${JOB_MANAGER_VERIFY_LOCALLY:false}
+      # Expected issuer claim in JM tokens (e.g., "JOB_MANAGER_SYSTEM")
+      # Only used for local verification
+      expected-issuer: ${JOB_MANAGER_EXPECTED_ISSUER:JOB_MANAGER_SYSTEM}
+      # Expected system ID claim in JM tokens
+      # Only used for local verification
+      expected-system-id: ${JOB_MANAGER_EXPECTED_SYSTEM_ID:JOB_MANAGER_SYSTEM}
