@@ -50,6 +50,10 @@ public class User {
     private String passwordResetToken;
     private LocalDateTime passwordResetTokenExpiry;
 
+    // Authentication provider: "local" for email/password, "google" for Google SSO
+    // SRS Requirement 1.3.2: SSO users cannot use password for direct login
+    private String authProvider;
+
     public User(String username, String password, String role, boolean enabled) {
         this.email = username;
         this.password = password;
@@ -57,11 +61,13 @@ public class User {
         this.role = role;
         this.planType = PlanType.FREEMIUM;
         this.isActivated = false;
+        this.authProvider = "local"; // Default to local authentication
     }
 
     public User() {
         this.planType = PlanType.FREEMIUM;
         this.isActivated = false;
+        this.authProvider = "local"; // Default to local authentication
     }
 
     public String getId() {
@@ -146,5 +152,13 @@ public class User {
 
     public void setPasswordResetTokenExpiry(LocalDateTime passwordResetTokenExpiry) {
         this.passwordResetTokenExpiry = passwordResetTokenExpiry;
+    }
+
+    public String getAuthProvider() {
+        return authProvider;
+    }
+
+    public void setAuthProvider(String authProvider) {
+        this.authProvider = authProvider;
     }
 }
