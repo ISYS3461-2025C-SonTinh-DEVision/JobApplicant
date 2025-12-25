@@ -1983,24 +1983,26 @@ export default function ProfileDashboard() {
             <DatePicker
               label="Start Date"
               name="startDate"
-              placeholder="DD/MM/YYYY"
+              placeholder="MM/YYYY"
               value={experienceForm.values.startDate}
               onChange={experienceForm.handleChange}
               error={experienceForm.touched.startDate && experienceForm.errors.startDate}
               required
-              max={new Date().toISOString().slice(0, 10)}
+              showDayPicker={false}
+              max={new Date().toISOString().slice(0, 7)}
               variant={isDark ? 'dark' : 'light'}
             />
             <DatePicker
               label="End Date"
               name="endDate"
-              placeholder="DD/MM/YYYY"
+              placeholder="MM/YYYY"
               value={experienceForm.values.isCurrentlyWorking ? '' : experienceForm.values.endDate}
               onChange={experienceForm.handleChange}
               error={experienceForm.touched.endDate && experienceForm.errors.endDate}
               disabled={experienceForm.values.isCurrentlyWorking}
+              showDayPicker={false}
               min={experienceForm.values.startDate || undefined}
-              max={new Date().toISOString().slice(0, 10)}
+              max={new Date().toISOString().slice(0, 7)}
               variant={isDark ? 'dark' : 'light'}
               className={experienceForm.values.isCurrentlyWorking ? 'opacity-50' : ''}
             />

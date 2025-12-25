@@ -60,6 +60,18 @@ const formatDate = (date) => {
 };
 
 /**
+ * Format date to MM/YYYY (for month-only picker)
+ */
+const formatMonthYear = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${month}/${year}`;
+};
+
+/**
  * Parse date from various formats
  */
 const parseDate = (dateString) => {
@@ -434,8 +446,10 @@ const DatePicker = ({
         });
     };
 
-    // Display value
-    const displayValue = value ? formatDate(parseDate(value)) : '';
+    // Display value - use MM/YYYY format when showDayPicker is false
+    const displayValue = value
+        ? (showDayPicker ? formatDate(parseDate(value)) : formatMonthYear(parseDate(value)))
+        : '';
 
     return (
         <div className={`relative ${className}`} ref={containerRef}>
