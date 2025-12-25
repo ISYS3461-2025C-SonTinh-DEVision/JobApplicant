@@ -22,7 +22,8 @@ import {
   Mail, Phone, MapPin, Calendar, Edit, Loader2,
   Briefcase, GraduationCap, Code, Award, FileText, TrendingUp,
   CheckCircle, Clock, XCircle, AlertCircle, Plus, Trash2, ExternalLink,
-  Database, Server, Target, Save, Upload, Camera
+  Database, Server, Target, Save, Upload, Camera, Eye, ChevronRight, Search, Sparkles,
+  BookOpen
 } from 'lucide-react';
 import ProfileService from '../../services/ProfileService';
 import { useAuth } from '../../hooks/useAuth';
@@ -36,6 +37,7 @@ import {
 
 // Import Reusable Components
 import { Card, FormInput, ConfirmDialog, SkillIcon, SKILL_ICONS } from '../../components/reusable';
+import DatePicker from '../../components/ui/DatePicker';
 
 // Import Skills Data for smart skill selection
 import { getSkillInfo, getSkillCategory, POPULAR_SKILLS, SKILL_CATEGORIES, searchSkills, getQuickAddSkills } from '../../data/skillsData';
@@ -279,52 +281,134 @@ function EmptyState({ icon: Icon, message, action }) {
 
 /**
  * Education Item Component - Enhanced UI with animations
+ * Architecture: A.1.c Reusable UI Component
+ * Detects currently studying status based on endYear
  */
 function EducationItem({ item, onEdit, onDelete }) {
   const { isDark } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
+
+  // Determine if currently studying based on endYear
+  const currentYear = new Date().getFullYear();
+  const isCurrentlyStudying = (() => {
+    if (!item.endYear) return true; // No end year means still studying
+    const endYearStr = String(item.endYear).toLowerCase().trim();
+    if (endYearStr === 'present' || endYearStr === 'current' || endYearStr === '') return true;
+    const endYearNum = parseInt(endYearStr, 10);
+    if (isNaN(endYearNum)) return false;
+    return endYearNum >= currentYear;
+  })();
+
+  // Dynamic styling based on study status
+  const statusStyles = isCurrentlyStudying
+    ? {
+      borderColor: isDark ? 'border-accent-500/50 hover:border-accent-400' : 'border-accent-500 hover:border-accent-400',
+      iconBg: 'bg-gradient-to-br from-accent-500 to-accent-600',
+      shadowColor: isDark ? 'hover:shadow-accent-500/10' : '',
+    }
+    : {
+      borderColor: isDark ? 'border-primary-500/50 hover:border-primary-400' : 'border-primary-500 hover:border-primary-400',
+      iconBg: 'bg-gradient-to-br from-primary-500 to-primary-600',
+      shadowColor: isDark ? 'hover:shadow-primary-500/10' : '',
+    };
 
   return (
     <div
       className={`
         relative p-5 rounded-xl border-l-4 transition-all duration-300 ease-out
         ${isDark
-          ? 'bg-gradient-to-r from-dark-700/80 to-dark-700/40 border-primary-500/50 hover:border-primary-400 hover:shadow-lg hover:shadow-primary-500/10'
-          : 'bg-gradient-to-r from-white to-gray-50/50 border-primary-500 hover:border-primary-400 shadow-sm hover:shadow-md'
+          ? `bg-gradient-to-r from-dark-700/80 to-dark-700/40 ${statusStyles.borderColor} hover:shadow-lg ${statusStyles.shadowColor}`
+          : `bg-gradient-to-r from-white to-gray-50/50 ${statusStyles.borderColor} shadow-sm hover:shadow-md`
         }
         ${isHovered ? 'transform scale-[1.01]' : ''}
       `}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Decorative Icon */}
+      {/* Decorative Icon - BookOpen for studying, GraduationCap for graduated */}
       <div className={`
-        absolute -left-3 top-4 w-6 h-6 rounded-full flex items-center justify-center text-sm
-        bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg
+        absolute -left-3 top-4 w-6 h-6 rounded-full flex items-center justify-center
+        ${statusStyles.iconBg} shadow-lg
         transition-transform duration-300 ${isHovered ? 'scale-110' : ''}
       `}>
-        🎓
+        {isCurrentlyStudying ? (
+          <BookOpen className="w-3.5 h-3.5 text-white" />
+        ) : (
+          <GraduationCap className="w-3.5 h-3.5 text-white" />
+        )}
       </div>
 
       <div className="flex items-start justify-between ml-2">
         <div className="flex-1">
-          <h3 className={`font-bold text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {item.degree}
-          </h3>
-          <p className="text-primary-400 font-medium text-sm mt-0.5">{item.institution}</p>
+          {/* Degree with status badge */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className={`font-bold text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {item.degree}
+            </h3>
+            {isCurrentlyStudying && (
+              <span className={`
+                inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold
+                animate-pulse-subtle
+                ${isDark
+                  ? 'bg-accent-500/20 text-accent-400 border border-accent-500/30'
+                  : 'bg-accent-100 text-accent-700 border border-accent-200'
+                }
+              `}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                Currently Studying
+              </span>
+            )}
+          </div>
+          <p className={`font-medium text-sm mt-0.5 ${isCurrentlyStudying ? 'text-accent-400' : 'text-primary-400'}`}>
+            {item.institution}
+          </p>
           <div className={`flex items-center gap-3 mt-2 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
             <span className="flex items-center gap-1.5 text-xs">
               <Calendar className="w-3.5 h-3.5" />
               {item.startYear} - {item.endYear || 'Present'}
             </span>
-            {item.gpa && (
-              <span className={`
-                px-2 py-0.5 rounded-full text-xs font-medium
-                ${isDark ? 'bg-accent-500/20 text-accent-400' : 'bg-accent-100 text-accent-700'}
-              `}>
-                GPA: {item.gpa}
-              </span>
-            )}
+            {item.gpa && (() => {
+              // GPA color coding (0-100 scale)
+              const gpaValue = parseFloat(item.gpa);
+              let gpaStyle = '';
+              let gpaLabel = '';
+              if (isNaN(gpaValue)) {
+                gpaStyle = isDark ? 'bg-dark-600/50 text-dark-300' : 'bg-gray-100 text-gray-600';
+                gpaLabel = '';
+              } else if (gpaValue >= 85) {
+                // Excellent GPA - Gold/Green with glow
+                gpaStyle = isDark
+                  ? 'bg-gradient-to-r from-emerald-500/30 to-green-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20'
+                  : 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-700 border border-emerald-300';
+                gpaLabel = ' ⭐';
+              } else if (gpaValue >= 70) {
+                // Good GPA - Blue
+                gpaStyle = isDark
+                  ? 'bg-primary-500/20 text-primary-300 border border-primary-500/30'
+                  : 'bg-primary-100 text-primary-700 border border-primary-200';
+                gpaLabel = '';
+              } else if (gpaValue >= 50) {
+                // Average GPA - Yellow/Amber
+                gpaStyle = isDark
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  : 'bg-amber-100 text-amber-700 border border-amber-200';
+                gpaLabel = '';
+              } else {
+                // Low GPA - Red/Orange
+                gpaStyle = isDark
+                  ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                  : 'bg-red-100 text-red-700 border border-red-200';
+                gpaLabel = '';
+              }
+              return (
+                <span className={`
+                  px-2.5 py-0.5 rounded-full text-xs font-semibold transition-all duration-300
+                  ${gpaStyle}
+                `}>
+                  GPA: {item.gpa}{gpaLabel}
+                </span>
+              );
+            })()}
           </div>
         </div>
 
@@ -367,6 +451,8 @@ function EducationItem({ item, onEdit, onDelete }) {
 
 /**
  * Experience Item Component - Enhanced UI with timeline
+ * Architecture: A.1.c Reusable UI Component
+ * Detects currently working status based on endDate
  */
 function ExperienceItem({ item, onEdit, onDelete }) {
   const { isDark } = useTheme();
@@ -380,13 +466,38 @@ function ExperienceItem({ item, onEdit, onDelete }) {
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
+  // Determine if currently working based on endDate
+  const isCurrentlyWorking = (() => {
+    if (!item.endDate) return true; // No end date means still working
+    const endDateStr = String(item.endDate).toLowerCase().trim();
+    if (endDateStr === 'present' || endDateStr === 'current' || endDateStr === '') return true;
+    const endDate = new Date(item.endDate);
+    if (isNaN(endDate.getTime())) return false;
+    return endDate >= new Date();
+  })();
+
+  // Dynamic styling based on work status
+  const statusStyles = isCurrentlyWorking
+    ? {
+      borderColor: isDark ? 'border-accent-500/50 hover:border-accent-400' : 'border-accent-500 hover:border-accent-400',
+      iconBg: 'bg-gradient-to-br from-accent-500 to-accent-600',
+      timelineColor: 'bg-gradient-to-b from-accent-500 via-accent-400 to-accent-600',
+      shadowColor: isDark ? 'hover:shadow-accent-500/10' : '',
+    }
+    : {
+      borderColor: isDark ? 'border-dark-600 hover:border-dark-500' : 'border-gray-300 hover:border-gray-400',
+      iconBg: 'bg-gradient-to-br from-gray-500 to-gray-600',
+      timelineColor: 'bg-gradient-to-b from-gray-400 via-gray-500 to-gray-600',
+      shadowColor: isDark ? 'hover:shadow-dark-500/10' : '',
+    };
+
   return (
     <div
       className={`
         relative p-5 rounded-xl border transition-all duration-300 ease-out group
         ${isDark
-          ? 'bg-gradient-to-br from-dark-700/80 via-dark-700/60 to-dark-800/40 border-dark-600 hover:border-accent-500/50 hover:shadow-lg hover:shadow-accent-500/5'
-          : 'bg-gradient-to-br from-white via-gray-50/50 to-gray-100/30 border-gray-200 hover:border-accent-400 shadow-sm hover:shadow-md'
+          ? `bg-gradient-to-br from-dark-700/80 via-dark-700/60 to-dark-800/40 ${statusStyles.borderColor} hover:shadow-lg ${statusStyles.shadowColor}`
+          : `bg-gradient-to-br from-white via-gray-50/50 to-gray-100/30 ${statusStyles.borderColor} shadow-sm hover:shadow-md`
         }
         ${isHovered ? 'transform scale-[1.01]' : ''}
       `}
@@ -396,25 +507,56 @@ function ExperienceItem({ item, onEdit, onDelete }) {
       {/* Timeline connector */}
       <div className={`
         absolute left-0 top-0 bottom-0 w-1 rounded-l-xl
-        bg-gradient-to-b from-accent-500 via-accent-400 to-accent-600
+        ${statusStyles.timelineColor}
         transition-all duration-300 ${isHovered ? 'w-1.5' : ''}
       `} />
 
-      {/* Company Icon */}
+      {/* Company Icon - Briefcase for working, Clock/History for past */}
       <div className={`
-        absolute -left-3 top-5 w-6 h-6 rounded-full flex items-center justify-center text-sm
-        bg-gradient-to-br from-accent-500 to-accent-600 shadow-lg
+        absolute -left-3 top-5 w-6 h-6 rounded-full flex items-center justify-center
+        ${statusStyles.iconBg} shadow-lg
         transition-transform duration-300 ${isHovered ? 'scale-110' : ''}
       `}>
-        💼
+        {isCurrentlyWorking ? (
+          <Briefcase className="w-3.5 h-3.5 text-white" />
+        ) : (
+          <Clock className="w-3.5 h-3.5 text-white" />
+        )}
       </div>
 
       <div className="flex items-start justify-between ml-3">
         <div className="flex-1">
-          <h3 className={`font-bold text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {item.title}
-          </h3>
-          <p className="text-accent-400 font-medium text-sm mt-0.5">{item.company}</p>
+          {/* Job Title with status badge */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className={`font-bold text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {item.title}
+            </h3>
+            {isCurrentlyWorking ? (
+              <span className={`
+                inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold
+                ${isDark
+                  ? 'bg-accent-500/20 text-accent-400 border border-accent-500/30'
+                  : 'bg-accent-100 text-accent-700 border border-accent-200'
+                }
+              `}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                Currently Working
+              </span>
+            ) : (
+              <span className={`
+                inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
+                ${isDark
+                  ? 'bg-dark-600/50 text-dark-400 border border-dark-500/50'
+                  : 'bg-gray-100 text-gray-500 border border-gray-200'
+                }
+              `}>
+                Previous Role
+              </span>
+            )}
+          </div>
+          <p className={`font-medium text-sm mt-0.5 ${isCurrentlyWorking ? 'text-accent-400' : (isDark ? 'text-dark-400' : 'text-gray-500')}`}>
+            {item.company}
+          </p>
 
           <div className={`flex items-center gap-2 mt-2 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
             <span className={`
@@ -624,6 +766,7 @@ export default function ProfileDashboard() {
     skillName: '',
     pendingAdd: false
   });
+  const [viewAllSkillsOpen, setViewAllSkillsOpen] = useState(false);
 
   // Objective Summary state (Requirement 3.1.2)
   const [objectiveSummary, setObjectiveSummary] = useState('');
@@ -705,12 +848,14 @@ export default function ProfileDashboard() {
   });
 
   // Experience Form using useHeadlessForm
+  // Architecture: A.2.a Form Management with Smart Validation
   const experienceForm = useHeadlessForm({
     initialValues: {
       title: '',
       company: '',
       startDate: '',
       endDate: '',
+      isCurrentlyWorking: false,
       description: ''
     },
     validate: (values) => {
@@ -718,6 +863,21 @@ export default function ProfileDashboard() {
       if (!values.title) errors.title = 'Job title is required';
       if (!values.company) errors.company = 'Company is required';
       if (!values.startDate) errors.startDate = 'Start date is required';
+
+      // Validate End Date > Start Date (only if not currently working)
+      if (!values.isCurrentlyWorking && values.endDate && values.startDate) {
+        const startYearMonth = new Date(values.startDate + '-01');
+        const endYearMonth = new Date(values.endDate + '-01');
+        if (endYearMonth < startYearMonth) {
+          errors.endDate = 'End date must be after start date';
+        }
+      }
+
+      // Require end date if not currently working
+      if (!values.isCurrentlyWorking && !values.endDate) {
+        errors.endDate = 'End date is required or mark as currently working';
+      }
+
       return errors;
     },
     onSubmit: async (values) => {
@@ -727,8 +887,8 @@ export default function ProfileDashboard() {
           position: values.title,
           company: values.company,
           startDate: values.startDate ? `${values.startDate}-01` : null,
-          endDate: values.endDate ? `${values.endDate}-01` : null,
-          current: !values.endDate,
+          endDate: values.isCurrentlyWorking ? null : (values.endDate ? `${values.endDate}-01` : null),
+          current: values.isCurrentlyWorking,
           description: values.description || ''
         };
 
@@ -1394,15 +1554,44 @@ export default function ProfileDashboard() {
                 }
               />
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {skills.map((skill) => (
-                  <SkillTag
-                    key={skill}
-                    skill={skill}
-                    onRemove={handleRemoveSkill}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {skills.slice(0, 6).map((skill) => (
+                    <SkillTag
+                      key={skill}
+                      skill={skill}
+                      onRemove={handleRemoveSkill}
+                    />
+                  ))}
+                </div>
+                {skills.length > 6 && (
+                  <button
+                    onClick={() => setViewAllSkillsOpen(true)}
+                    className={`
+                      mt-4 group flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
+                      transition-all duration-300 ease-out
+                      ${isDark
+                        ? 'bg-gradient-to-r from-dark-700/80 to-dark-600/60 hover:from-primary-500/20 hover:to-accent-500/20 text-dark-300 hover:text-white border border-dark-600 hover:border-primary-500/50'
+                        : 'bg-gradient-to-r from-gray-100 to-gray-50 hover:from-primary-50 hover:to-accent-50 text-gray-600 hover:text-primary-600 border border-gray-200 hover:border-primary-300'
+                      }
+                      hover:shadow-lg hover:scale-[1.02]
+                    `}
+                  >
+                    <Eye className="w-4 h-4 transition-transform group-hover:scale-110" />
+                    <span>View All Skills</span>
+                    <span className={`
+                      px-2 py-0.5 rounded-lg text-xs font-bold
+                      ${isDark
+                        ? 'bg-primary-500/20 text-primary-300'
+                        : 'bg-primary-100 text-primary-600'
+                      }
+                    `}>
+                      {skills.length}
+                    </span>
+                    <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                  </button>
+                )}
+              </>
             )}
           </SectionCard>
 
@@ -1585,26 +1774,91 @@ export default function ProfileDashboard() {
             variant={isDark ? 'dark' : 'light'}
           />
           <div className="grid grid-cols-2 gap-4">
-            <FormInput
+            <DatePicker
               label="Start Date"
               name="startDate"
-              type="month"
+              placeholder="DD/MM/YYYY"
               value={experienceForm.values.startDate}
               onChange={experienceForm.handleChange}
-              onBlur={experienceForm.handleBlur}
               error={experienceForm.touched.startDate && experienceForm.errors.startDate}
               required
+              max={new Date().toISOString().slice(0, 10)}
               variant={isDark ? 'dark' : 'light'}
             />
-            <FormInput
+            <DatePicker
               label="End Date"
               name="endDate"
-              type="month"
-              value={experienceForm.values.endDate}
+              placeholder="DD/MM/YYYY"
+              value={experienceForm.values.isCurrentlyWorking ? '' : experienceForm.values.endDate}
               onChange={experienceForm.handleChange}
+              error={experienceForm.touched.endDate && experienceForm.errors.endDate}
+              disabled={experienceForm.values.isCurrentlyWorking}
+              min={experienceForm.values.startDate || undefined}
+              max={new Date().toISOString().slice(0, 10)}
               variant={isDark ? 'dark' : 'light'}
+              className={experienceForm.values.isCurrentlyWorking ? 'opacity-50' : ''}
             />
           </div>
+
+          {/* Currently Working Checkbox */}
+          <label className={`
+            flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200
+            ${experienceForm.values.isCurrentlyWorking
+              ? isDark
+                ? 'bg-accent-500/10 border border-accent-500/30'
+                : 'bg-accent-50 border border-accent-200'
+              : isDark
+                ? 'bg-dark-700/50 border border-dark-600 hover:border-dark-500'
+                : 'bg-gray-50 border border-gray-200 hover:border-gray-300'
+            }
+          `}>
+            <div className="relative">
+              <input
+                type="checkbox"
+                name="isCurrentlyWorking"
+                checked={experienceForm.values.isCurrentlyWorking}
+                onChange={(e) => {
+                  experienceForm.handleChange(e);
+                  // Clear end date error when toggling
+                  if (e.target.checked) {
+                    experienceForm.setFieldValue('endDate', '');
+                  }
+                }}
+                className="sr-only"
+              />
+              <div className={`
+                w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all duration-200
+                ${experienceForm.values.isCurrentlyWorking
+                  ? 'bg-accent-500 border-accent-500'
+                  : isDark
+                    ? 'border-dark-500 bg-dark-700'
+                    : 'border-gray-300 bg-white'
+                }
+              `}>
+                {experienceForm.values.isCurrentlyWorking && (
+                  <CheckCircle className="w-3.5 h-3.5 text-white" />
+                )}
+              </div>
+            </div>
+            <div className="flex-1">
+              <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                I currently work here
+              </span>
+              {experienceForm.values.isCurrentlyWorking && (
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-accent-400' : 'text-accent-600'}`}>
+                  This is your current position
+                </p>
+              )}
+            </div>
+            {experienceForm.values.isCurrentlyWorking && (
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-accent-500 animate-pulse" />
+                <span className={`text-xs font-medium ${isDark ? 'text-accent-400' : 'text-accent-600'}`}>
+                  Active
+                </span>
+              </div>
+            )}
+          </label>
           <div>
             <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-dark-300' : 'text-gray-700'}`}>
               Description
@@ -1951,6 +2205,158 @@ export default function ProfileDashboard() {
                 >
                   Cancel
                 </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* View All Skills Modal */}
+      {viewAllSkillsOpen && (
+        <>
+          {/* Backdrop with blur */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-md z-[55] animate-fade-in"
+            onClick={() => setViewAllSkillsOpen(false)}
+          />
+          {/* Modal */}
+          <div className="fixed inset-0 flex items-center justify-center z-[55] p-4">
+            <div
+              className={`
+                rounded-3xl shadow-2xl w-full max-w-2xl animate-scale-in border
+                max-h-[85vh] flex flex-col overflow-hidden
+                ${isDark
+                  ? 'bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 border-dark-600'
+                  : 'bg-gradient-to-br from-white via-gray-50 to-gray-100 border-gray-200'
+                }
+              `}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header with gradient accent */}
+              <div className={`
+                relative p-6 flex-shrink-0
+                ${isDark ? 'bg-gradient-to-r from-primary-500/10 via-accent-500/10 to-transparent' : 'bg-gradient-to-r from-primary-50 via-accent-50 to-transparent'}
+              `}>
+                {/* Decorative sparkles */}
+                <div className="absolute top-4 right-16 opacity-50">
+                  <Sparkles className={`w-5 h-5 ${isDark ? 'text-primary-400' : 'text-primary-500'}`} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`
+                      w-12 h-12 rounded-2xl flex items-center justify-center
+                      bg-gradient-to-br from-primary-500 to-accent-500
+                      shadow-lg shadow-primary-500/25
+                    `}>
+                      <Code className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        All Skills
+                      </h3>
+                      <p className={`text-sm mt-0.5 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                        {skills.length} skills in your profile
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setViewAllSkillsOpen(false)}
+                    className={`
+                      p-2.5 rounded-xl transition-all duration-200
+                      ${isDark
+                        ? 'text-dark-400 hover:text-white hover:bg-dark-600'
+                        : 'text-gray-400 hover:text-gray-900 hover:bg-gray-200'
+                      }
+                    `}
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Skills Grid */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex flex-wrap gap-3">
+                  {skills.map((skill, index) => (
+                    <div
+                      key={skill}
+                      className={`
+                        group relative inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl
+                        border transition-all duration-300 ease-out
+                        animate-fade-in hover:scale-105 hover:shadow-lg
+                        ${isDark
+                          ? 'bg-dark-700/80 border-dark-600 hover:border-primary-500/50 hover:bg-dark-600/80'
+                          : 'bg-white border-gray-200 hover:border-primary-300 hover:bg-primary-50/30 shadow-sm'
+                        }
+                      `}
+                      style={{
+                        animationDelay: `${index * 30}ms`,
+                        animationFillMode: 'backwards'
+                      }}
+                    >
+                      <SkillIcon skill={skill} size="w-5 h-5" />
+                      <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                        {skill}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveSkill(skill);
+                        }}
+                        className={`
+                          ml-1 p-1 rounded-lg transition-all duration-200
+                          opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0
+                          ${isDark
+                            ? 'text-dark-400 hover:text-red-400 hover:bg-red-500/20'
+                            : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                          }
+                        `}
+                        title="Remove skill"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className={`
+                flex items-center justify-between p-5 border-t flex-shrink-0
+                ${isDark ? 'border-dark-700 bg-dark-800/50' : 'border-gray-200 bg-gray-50/50'}
+              `}>
+                <p className={`text-sm ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                  Click on a skill to remove it from your profile
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setViewAllSkillsOpen(false);
+                      skillsModal.open();
+                    }}
+                    className={`
+                      flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
+                      transition-all duration-200
+                      ${isDark
+                        ? 'text-dark-300 hover:text-white hover:bg-dark-600 border border-dark-600'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200 border border-gray-300'
+                      }
+                    `}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add More Skills
+                  </button>
+                  <button
+                    onClick={() => setViewAllSkillsOpen(false)}
+                    className={`
+                      px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                      bg-gradient-to-r from-primary-500 to-primary-600 text-white
+                      hover:shadow-lg hover:shadow-primary-500/25 hover:scale-105
+                    `}
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
             </div>
           </div>
