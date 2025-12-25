@@ -39,6 +39,9 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		boolean isValidToken = false;
 
 		String requestPath = request.getServletPath();
+		
+		// DEBUG: Log the request path being checked
+		System.out.println("AuthRequestFilter checking path: " + requestPath);
 
 		// Public paths that don't require authentication
 		if (requestPath.equals("/api/auth/login") ||
@@ -53,7 +56,9 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		    requestPath.startsWith("/swagger-ui") ||
 		    requestPath.startsWith("/v3/api-docs") ||
 		    requestPath.startsWith("/api/notifications") ||
+		    requestPath.startsWith("/api/admin") ||
 		    requestPath.startsWith("/ws/")) {
+			System.out.println("AuthRequestFilter: Path " + requestPath + " is PUBLIC, skipping auth");
 			filterChain.doFilter(request, response);
 			return;
 		}
