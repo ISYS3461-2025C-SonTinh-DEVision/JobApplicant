@@ -32,15 +32,98 @@ import { useTheme } from '../../context/ThemeContext';
 import {
   useHeadlessModal,
   useHeadlessForm,
-  useHeadlessDataList
+  useHeadlessDataList,
+  useHeadlessPagination
 } from '../../components/headless';
 
 // Import Reusable Components
-import { Card, FormInput, ConfirmDialog, SkillIcon, SKILL_ICONS } from '../../components/reusable';
+import { Card, FormInput, ConfirmDialog, SkillIcon, SKILL_ICONS, Pagination } from '../../components/reusable';
 import DatePicker from '../../components/ui/DatePicker';
 
 // Import Skills Data for smart skill selection
 import { getSkillInfo, getSkillCategory, POPULAR_SKILLS, SKILL_CATEGORIES, searchSkills, getQuickAddSkills } from '../../data/skillsData';
+
+/**
+ * Sorting Utilities for Education and Work Experience
+ * Architecture: A.2.a - Utility Functions for Data Processing
+ * 
+ * Sorting Logic:
+ * 1. Currently active items (current/present) come first
+ * 2. Then sorted by end date (most recent first)
+ * 3. Then by start date (most recent first)
+ */
+
+/**
+ * Check if education item is currently studying
+ */
+const isCurrentlyStudying = (item) => {
+  if (!item.endYear) return true;
+  const endYearStr = String(item.endYear).toLowerCase().trim();
+  if (endYearStr === 'present' || endYearStr === 'current' || endYearStr === '') return true;
+  const endYearNum = parseInt(endYearStr, 10);
+  if (isNaN(endYearNum)) return false;
+  return endYearNum >= new Date().getFullYear();
+};
+
+/**
+ * Check if work experience item is currently working
+ */
+const isCurrentlyWorking = (item) => {
+  if (!item.endDate || item.current || item.isCurrentlyWorking) return true;
+  const endDateStr = String(item.endDate).toLowerCase().trim();
+  if (endDateStr === 'present' || endDateStr === 'current' || endDateStr === '') return true;
+  const endDate = new Date(item.endDate);
+  if (isNaN(endDate.getTime())) return false;
+  return endDate >= new Date();
+};
+
+/**
+ * Sort education items: current first, then by year descending
+ */
+const sortEducationItems = (items) => {
+  return [...items].sort((a, b) => {
+    // Current students first
+    const aIsCurrent = isCurrentlyStudying(a);
+    const bIsCurrent = isCurrentlyStudying(b);
+
+    if (aIsCurrent && !bIsCurrent) return -1;
+    if (!aIsCurrent && bIsCurrent) return 1;
+
+    // Sort by end year (most recent first)
+    const aEndYear = parseInt(a.endYear, 10) || 9999;
+    const bEndYear = parseInt(b.endYear, 10) || 9999;
+    if (bEndYear !== aEndYear) return bEndYear - aEndYear;
+
+    // Then by start year (most recent first)
+    const aStartYear = parseInt(a.startYear, 10) || 0;
+    const bStartYear = parseInt(b.startYear, 10) || 0;
+    return bStartYear - aStartYear;
+  });
+};
+
+/**
+ * Sort work experience items: current first, then by date descending
+ */
+const sortExperienceItems = (items) => {
+  return [...items].sort((a, b) => {
+    // Currently working first
+    const aIsCurrent = isCurrentlyWorking(a);
+    const bIsCurrent = isCurrentlyWorking(b);
+
+    if (aIsCurrent && !bIsCurrent) return -1;
+    if (!aIsCurrent && bIsCurrent) return 1;
+
+    // Sort by end date (most recent first)
+    const aEndDate = a.endDate ? new Date(a.endDate).getTime() : Date.now();
+    const bEndDate = b.endDate ? new Date(b.endDate).getTime() : Date.now();
+    if (bEndDate !== aEndDate) return bEndDate - aEndDate;
+
+    // Then by start date (most recent first)
+    const aStartDate = a.startDate ? new Date(a.startDate).getTime() : 0;
+    const bStartDate = b.startDate ? new Date(b.startDate).getTime() : 0;
+    return bStartDate - aStartDate;
+  });
+};
 
 /**
  * Data Source Indicator Component
@@ -751,6 +834,19 @@ export default function ProfileDashboard() {
     idKey: 'id'
   });
 
+  // === PAGINATION HOOKS ===
+  // Architecture: A.3.a - Headless pagination for Education section
+  const educationPagination = useHeadlessPagination({
+    data: sortEducationItems(educationList.items),
+    initialPageSize: 3, // Show 3 items per page in dashboard context
+  });
+
+  // Architecture: A.3.a - Headless pagination for Work Experience section
+  const experiencePagination = useHeadlessPagination({
+    data: sortExperienceItems(experienceList.items),
+    initialPageSize: 3,
+  });
+
   // Skills state
   const [skills, setSkills] = useState([]);
   const [newSkill, setNewSkill] = useState('');
@@ -865,10 +961,11 @@ export default function ProfileDashboard() {
       if (!values.startDate) errors.startDate = 'Start date is required';
 
       // Validate End Date > Start Date (only if not currently working)
+      // DatePicker outputs YYYY-MM-DD format
       if (!values.isCurrentlyWorking && values.endDate && values.startDate) {
-        const startYearMonth = new Date(values.startDate + '-01');
-        const endYearMonth = new Date(values.endDate + '-01');
-        if (endYearMonth < startYearMonth) {
+        const startDate = new Date(values.startDate);
+        const endDate = new Date(values.endDate);
+        if (endDate < startDate) {
           errors.endDate = 'End date must be after start date';
         }
       }
@@ -883,11 +980,12 @@ export default function ProfileDashboard() {
     onSubmit: async (values) => {
       try {
         // Map form values to API format
+        // DatePicker outputs YYYY-MM-DD format directly - no need to append -01
         const apiData = {
           position: values.title,
           company: values.company,
-          startDate: values.startDate ? `${values.startDate}-01` : null,
-          endDate: values.isCurrentlyWorking ? null : (values.endDate ? `${values.endDate}-01` : null),
+          startDate: values.startDate || null,
+          endDate: values.isCurrentlyWorking ? null : (values.endDate || null),
           current: values.isCurrentlyWorking,
           description: values.description || ''
         };
@@ -1459,19 +1557,38 @@ export default function ProfileDashboard() {
                 }
               />
             ) : (
-              <div className="space-y-3">
-                {educationList.items.map((item) => (
-                  <EducationItem
-                    key={item.id}
-                    item={item}
-                    onEdit={(item) => {
-                      setEditingEducationId(item.id);
-                      educationForm.setValues(item);
-                      educationModal.open();
-                    }}
-                    onDelete={handleDeleteEducation}
-                  />
-                ))}
+              <div className="space-y-4">
+                {/* Education Items - Paginated */}
+                <div className="space-y-3">
+                  {(educationPagination.paginatedData || []).map((item) => (
+                    <EducationItem
+                      key={item.id}
+                      item={item}
+                      onEdit={(item) => {
+                        setEditingEducationId(item.id);
+                        educationForm.setValues(item);
+                        educationModal.open();
+                      }}
+                      onDelete={handleDeleteEducation}
+                    />
+                  ))}
+                </div>
+
+                {/* Pagination - Only show if more than 1 page */}
+                {educationPagination.totalPages > 1 && (
+                  <div className={`pt-3 border-t ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
+                    <Pagination
+                      page={educationPagination.page}
+                      totalPages={educationPagination.totalPages}
+                      onPageChange={educationPagination.goToPage}
+                      totalItems={educationPagination.totalItems}
+                      pageSize={educationPagination.pageSize}
+                      size="compact"
+                      showFirstLast={false}
+                      showInfo={true}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </SectionCard>
@@ -1505,19 +1622,38 @@ export default function ProfileDashboard() {
                 }
               />
             ) : (
-              <div className="space-y-3">
-                {experienceList.items.map((item) => (
-                  <ExperienceItem
-                    key={item.id}
-                    item={item}
-                    onEdit={(item) => {
-                      setEditingExperienceId(item.id);
-                      experienceForm.setValues(item);
-                      experienceModal.open();
-                    }}
-                    onDelete={handleDeleteExperience}
-                  />
-                ))}
+              <div className="space-y-4">
+                {/* Experience Items - Paginated */}
+                <div className="space-y-3">
+                  {(experiencePagination.paginatedData || []).map((item) => (
+                    <ExperienceItem
+                      key={item.id}
+                      item={item}
+                      onEdit={(item) => {
+                        setEditingExperienceId(item.id);
+                        experienceForm.setValues(item);
+                        experienceModal.open();
+                      }}
+                      onDelete={handleDeleteExperience}
+                    />
+                  ))}
+                </div>
+
+                {/* Pagination - Only show if more than 1 page */}
+                {experiencePagination.totalPages > 1 && (
+                  <div className={`pt-3 border-t ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
+                    <Pagination
+                      page={experiencePagination.page}
+                      totalPages={experiencePagination.totalPages}
+                      onPageChange={experiencePagination.goToPage}
+                      totalItems={experiencePagination.totalItems}
+                      pageSize={experiencePagination.pageSize}
+                      size="compact"
+                      showFirstLast={false}
+                      showInfo={true}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </SectionCard>
