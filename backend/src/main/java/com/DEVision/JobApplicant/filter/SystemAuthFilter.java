@@ -64,11 +64,6 @@ public class SystemAuthFilter extends OncePerRequestFilter {
                 token = systemAuthToken.substring(7);
             }
             
-            // IMPORTANT: JM generates tokens with their own keys for their system
-            // We cannot decrypt JWE tokens encrypted with JM's keys without their private key
-            // Therefore, we MUST use API-based verification (call JM's verify-token endpoint)
-            
-            // Try API-based verification first (recommended for JWE tokens from external systems)
             if (systemAuthConfig.isJobManagerConfigured() && 
                 systemAuthConfig.getJobManagerVerifyTokenUrl() != null && 
                 !systemAuthConfig.getJobManagerVerifyTokenUrl().isEmpty()) {
