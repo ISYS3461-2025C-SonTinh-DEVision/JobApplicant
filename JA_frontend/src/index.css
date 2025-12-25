@@ -461,3 +461,59 @@ code {
 .shadow-glow-lg {
   box-shadow: 0 0 40px rgba(37, 99, 235, 0.5);
 }
+
+/* ========================================
+ * PAGINATION TRANSITION ANIMATIONS
+ * Smooth, polished transitions for paginated content
+ * ======================================== */
+
+/* Fade slide in - for container when page changes */
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-slide-in {
+  animation: fade-slide-in 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fade in up - for individual items with stagger effect */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Subtle pulse - for status badges */
+@keyframes pulse-subtle {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

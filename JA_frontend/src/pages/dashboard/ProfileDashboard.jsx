@@ -1558,19 +1558,30 @@ export default function ProfileDashboard() {
               />
             ) : (
               <div className="space-y-4">
-                {/* Education Items - Paginated */}
-                <div className="space-y-3">
-                  {(educationPagination.paginatedData || []).map((item) => (
-                    <EducationItem
+                {/* Education Items - Paginated with smooth transitions */}
+                <div
+                  key={`edu-page-${educationPagination.page}`}
+                  className="space-y-3 animate-fade-slide-in"
+                >
+                  {(educationPagination.paginatedData || []).map((item, index) => (
+                    <div
                       key={item.id}
-                      item={item}
-                      onEdit={(item) => {
-                        setEditingEducationId(item.id);
-                        educationForm.setValues(item);
-                        educationModal.open();
+                      className="animate-fade-in-up"
+                      style={{
+                        animationDelay: `${index * 80}ms`,
+                        animationFillMode: 'backwards'
                       }}
-                      onDelete={handleDeleteEducation}
-                    />
+                    >
+                      <EducationItem
+                        item={item}
+                        onEdit={(item) => {
+                          setEditingEducationId(item.id);
+                          educationForm.setValues(item);
+                          educationModal.open();
+                        }}
+                        onDelete={handleDeleteEducation}
+                      />
+                    </div>
                   ))}
                 </div>
 
@@ -1623,19 +1634,30 @@ export default function ProfileDashboard() {
               />
             ) : (
               <div className="space-y-4">
-                {/* Experience Items - Paginated */}
-                <div className="space-y-3">
-                  {(experiencePagination.paginatedData || []).map((item) => (
-                    <ExperienceItem
+                {/* Experience Items - Paginated with smooth transitions */}
+                <div
+                  key={`exp-page-${experiencePagination.page}`}
+                  className="space-y-3 animate-fade-slide-in"
+                >
+                  {(experiencePagination.paginatedData || []).map((item, index) => (
+                    <div
                       key={item.id}
-                      item={item}
-                      onEdit={(item) => {
-                        setEditingExperienceId(item.id);
-                        experienceForm.setValues(item);
-                        experienceModal.open();
+                      className="animate-fade-in-up"
+                      style={{
+                        animationDelay: `${index * 80}ms`,
+                        animationFillMode: 'backwards'
                       }}
-                      onDelete={handleDeleteExperience}
-                    />
+                    >
+                      <ExperienceItem
+                        item={item}
+                        onEdit={(item) => {
+                          setEditingExperienceId(item.id);
+                          experienceForm.setValues(item);
+                          experienceModal.open();
+                        }}
+                        onDelete={handleDeleteExperience}
+                      />
+                    </div>
                   ))}
                 </div>
 
