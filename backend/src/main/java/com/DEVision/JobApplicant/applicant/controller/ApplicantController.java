@@ -2,6 +2,9 @@ package com.DEVision.JobApplicant.applicant.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +19,8 @@ import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillsRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddWorkExperienceRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.EducationResponse;
+import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioItemResponse;
+import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.ProfileResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.UpdateEducationRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.UpdateProfileRequest;
@@ -402,9 +407,13 @@ public class ApplicantController {
         @ApiResponse(responseCode = "401", description = "User not authenticated"),
         @ApiResponse(responseCode = "500", description = "Server error")
     })
-    @PostMapping("/me/avatar")
+    @PostMapping(value = "/me/avatar", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadMyAvatar(
-            @Parameter(description = "Avatar image file")
+            @Parameter(
+                description = "Avatar image file (JPG, PNG, WEBP). Max size: 5MB",
+                required = true,
+                content = @Content(mediaType = "multipart/form-data", schema = @Schema(type = "string", format = "binary"))
+            )
             @RequestParam("file") MultipartFile file) {
         try {
             ProfileResponse profile = internalService.uploadMyAvatar(file);
@@ -419,6 +428,198 @@ public class ApplicantController {
             return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
         } catch (Exception e) {
             System.err.println("Error uploading avatar: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ===== Portfolio Endpoints for Current User (/api/me) =====
+
+    @Operation(
+        summary = "Get my portfolio",
+        description = "Retrieve current user's portfolio images and videos. Max 20 images, 5 videos."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Portfolio retrieved successfully"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @GetMapping("/me/portfolio")
+    public ResponseEntity<?> getMyPortfolio() {
+        try {
+            PortfolioResponse portfolio = internalService.getMyPortfolio();
+            return new ResponseEntity<>(portfolio, HttpStatus.OK);
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            System.err.println("Error fetching portfolio: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Operation(
+        summary = "Add portfolio image",
+        description = "Upload an image to showcase skills/activities. Max 20 images, 5MB each. Supported formats: JPG, PNG, WEBP, GIF"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Image uploaded successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid file, file too large, or max limit reached"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @PostMapping(value = "/me/portfolio/images", consumes = "multipart/form-data")
+    public ResponseEntity<?> addMyPortfolioImage(
+            @Parameter(
+                description = "Image file to upload (JPG, PNG, WEBP, GIF). Max size: 5MB",
+                required = true,
+                content = @Content(mediaType = "multipart/form-data", schema = @Schema(type = "string", format = "binary"))
+            )
+            @RequestParam("file") MultipartFile file,
+            @Parameter(
+                description = "Optional title/description for the image",
+                required = false
+            )
+            @RequestParam(value = "title", required = false) String title) {
+        System.out.println("=== Portfolio Image Upload Request Received ===");
+        System.out.println("File name: " + (file != null ? file.getOriginalFilename() : "null"));
+        System.out.println("File size: " + (file != null ? file.getSize() : "null"));
+        
+        try {
+            PortfolioItemResponse item = internalService.addMyPortfolioImage(file, title);
+            if (item == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "Failed to upload portfolio image. Please ensure you have an applicant profile.");
+                System.err.println("Portfolio image upload failed - item is null");
+                return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+            }
+            System.out.println("Portfolio image uploaded successfully: " + item.getId());
+            return new ResponseEntity<>(item, HttpStatus.CREATED);
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            System.err.println("Validation error: " + e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            System.err.println("Security error: " + e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            System.err.println("Error uploading portfolio image: " + e.getMessage());
+            e.printStackTrace();
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Failed to upload portfolio image: " + e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Operation(
+        summary = "Delete portfolio image",
+        description = "Remove an image from your portfolio"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Image deleted successfully"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "404", description = "Image not found"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @DeleteMapping("/me/portfolio/images/{imageId}")
+    public ResponseEntity<?> deleteMyPortfolioImage(
+            @Parameter(description = "Portfolio image ID to delete")
+            @PathVariable String imageId) {
+        try {
+            boolean deleted = internalService.deleteMyPortfolioImage(imageId);
+            Map<String, String> response = new HashMap<>();
+
+            if (deleted) {
+                response.put("message", "Portfolio image deleted successfully");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("message", "Portfolio image not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            System.err.println("Error deleting portfolio image: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Operation(
+        summary = "Add portfolio video",
+        description = "Upload a video to showcase skills/activities. Max 5 videos, 100MB each. Supported formats: MP4, MOV, AVI, WEBM"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Video uploaded successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid file, file too large, or max limit reached"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @PostMapping(value = "/me/portfolio/videos", consumes = "multipart/form-data")
+    public ResponseEntity<?> addMyPortfolioVideo(
+            @Parameter(
+                description = "Video file to upload (MP4, MOV, AVI, WEBM). Max size: 100MB",
+                required = true,
+                content = @Content(mediaType = "multipart/form-data", schema = @Schema(type = "string", format = "binary"))
+            )
+            @RequestParam("file") MultipartFile file,
+            @Parameter(
+                description = "Optional title/description for the video",
+                required = false
+            )
+            @RequestParam(value = "title", required = false) String title) {
+        try {
+            PortfolioItemResponse item = internalService.addMyPortfolioVideo(file, title);
+            return new ResponseEntity<>(item, HttpStatus.CREATED);
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            System.err.println("Error uploading portfolio video: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Operation(
+        summary = "Delete portfolio video",
+        description = "Remove a video from your portfolio"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Video deleted successfully"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "404", description = "Video not found"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @DeleteMapping("/me/portfolio/videos/{videoId}")
+    public ResponseEntity<?> deleteMyPortfolioVideo(
+            @Parameter(description = "Portfolio video ID to delete")
+            @PathVariable String videoId) {
+        try {
+            boolean deleted = internalService.deleteMyPortfolioVideo(videoId);
+            Map<String, String> response = new HashMap<>();
+
+            if (deleted) {
+                response.put("message", "Portfolio video deleted successfully");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("message", "Portfolio video not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            System.err.println("Error deleting portfolio video: " + e.getMessage());
             return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -766,11 +967,15 @@ public class ApplicantController {
         @ApiResponse(responseCode = "404", description = "Applicant not found"),
         @ApiResponse(responseCode = "500", description = "Server error")
     })
-    @PostMapping("/{id}/avatar")
+    @PostMapping(value = "/{id}/avatar", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadAvatar(
             @Parameter(description = "Applicant ID")
             @PathVariable String id,
-            @Parameter(description = "Avatar image file")
+            @Parameter(
+                description = "Avatar image file (JPG, PNG, WEBP). Max size: 5MB",
+                required = true,
+                content = @Content(mediaType = "multipart/form-data", schema = @Schema(type = "string", format = "binary"))
+            )
             @RequestParam("file") MultipartFile file) {
         try {
             ProfileResponse profile = internalService.uploadAvatar(id, file);
@@ -898,6 +1103,199 @@ public class ApplicantController {
             return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
         } catch (Exception e) {
             System.err.println("Error deleting skill: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    // ===== Portfolio Endpoints (require applicant ID) =====
+
+    @Operation(
+        summary = "Get portfolio by applicant ID",
+        description = "Retrieve applicant's portfolio images and videos"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Portfolio retrieved successfully"),
+        @ApiResponse(responseCode = "404", description = "Applicant not found"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @GetMapping("/{id}/portfolio")
+    public ResponseEntity<?> getPortfolio(
+            @Parameter(description = "Applicant ID")
+            @PathVariable String id) {
+        try {
+            PortfolioResponse portfolio = internalService.getPortfolio(id);
+            if (portfolio != null) {
+                return new ResponseEntity<>(portfolio, HttpStatus.OK);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            System.err.println("Error fetching portfolio: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Operation(
+        summary = "Add portfolio image",
+        description = "Upload an image to applicant's portfolio. Max 20 images, 5MB each. Supported formats: JPG, PNG, WEBP, GIF"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Image uploaded successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid file, file too large, or max limit reached"),
+        @ApiResponse(responseCode = "403", description = "Not authorized to modify this profile"),
+        @ApiResponse(responseCode = "404", description = "Applicant not found"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @PostMapping(value = "/{id}/portfolio/images", consumes = "multipart/form-data")
+    public ResponseEntity<?> addPortfolioImage(
+            @Parameter(description = "Applicant ID")
+            @PathVariable String id,
+            @Parameter(
+                description = "Image file to upload (JPG, PNG, WEBP, GIF). Max size: 5MB",
+                required = true,
+                content = @Content(mediaType = "multipart/form-data", schema = @Schema(type = "string", format = "binary"))
+            )
+            @RequestParam("file") MultipartFile file,
+            @Parameter(
+                description = "Optional title/description for the image",
+                required = false
+            )
+            @RequestParam(value = "title", required = false) String title) {
+        try {
+            PortfolioItemResponse item = internalService.addPortfolioImage(id, file, title);
+            if (item != null) {
+                return new ResponseEntity<>(item, HttpStatus.CREATED);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+        } catch (Exception e) {
+            System.err.println("Error uploading portfolio image: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Operation(
+        summary = "Delete portfolio image",
+        description = "Remove an image from applicant's portfolio"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Image deleted successfully"),
+        @ApiResponse(responseCode = "403", description = "Not authorized to modify this profile"),
+        @ApiResponse(responseCode = "404", description = "Applicant or image not found"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @DeleteMapping("/{id}/portfolio/images/{imageId}")
+    public ResponseEntity<?> deletePortfolioImage(
+            @Parameter(description = "Applicant ID")
+            @PathVariable String id,
+            @Parameter(description = "Portfolio image ID to delete")
+            @PathVariable String imageId) {
+        try {
+            boolean deleted = internalService.deletePortfolioImage(id, imageId);
+            Map<String, String> response = new HashMap<>();
+
+            if (deleted) {
+                response.put("message", "Portfolio image deleted successfully");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("message", "Portfolio image not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+        } catch (Exception e) {
+            System.err.println("Error deleting portfolio image: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Operation(
+        summary = "Add portfolio video",
+        description = "Upload a video to applicant's portfolio. Max 5 videos, 100MB each. Supported formats: MP4, MOV, AVI, WEBM"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Video uploaded successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid file, file too large, or max limit reached"),
+        @ApiResponse(responseCode = "403", description = "Not authorized to modify this profile"),
+        @ApiResponse(responseCode = "404", description = "Applicant not found"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @PostMapping(value = "/{id}/portfolio/videos", consumes = "multipart/form-data")
+    public ResponseEntity<?> addPortfolioVideo(
+            @Parameter(description = "Applicant ID")
+            @PathVariable String id,
+            @Parameter(
+                description = "Video file to upload (MP4, MOV, AVI, WEBM). Max size: 100MB",
+                required = true,
+                content = @Content(mediaType = "multipart/form-data", schema = @Schema(type = "string", format = "binary"))
+            )
+            @RequestParam("file") MultipartFile file,
+            @Parameter(
+                description = "Optional title/description for the video",
+                required = false
+            )
+            @RequestParam(value = "title", required = false) String title) {
+        try {
+            PortfolioItemResponse item = internalService.addPortfolioVideo(id, file, title);
+            if (item != null) {
+                return new ResponseEntity<>(item, HttpStatus.CREATED);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+        } catch (Exception e) {
+            System.err.println("Error uploading portfolio video: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Operation(
+        summary = "Delete portfolio video",
+        description = "Remove a video from applicant's portfolio"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Video deleted successfully"),
+        @ApiResponse(responseCode = "403", description = "Not authorized to modify this profile"),
+        @ApiResponse(responseCode = "404", description = "Applicant or video not found"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @DeleteMapping("/{id}/portfolio/videos/{videoId}")
+    public ResponseEntity<?> deletePortfolioVideo(
+            @Parameter(description = "Applicant ID")
+            @PathVariable String id,
+            @Parameter(description = "Portfolio video ID to delete")
+            @PathVariable String videoId) {
+        try {
+            boolean deleted = internalService.deletePortfolioVideo(id, videoId);
+            Map<String, String> response = new HashMap<>();
+
+            if (deleted) {
+                response.put("message", "Portfolio video deleted successfully");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("message", "Portfolio video not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+        } catch (Exception e) {
+            System.err.println("Error deleting portfolio video: " + e.getMessage());
             return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

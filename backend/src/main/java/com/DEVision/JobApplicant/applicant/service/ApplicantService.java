@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.DEVision.JobApplicant.applicant.entity.Applicant;
 import com.DEVision.JobApplicant.applicant.entity.Education;
+import com.DEVision.JobApplicant.applicant.entity.PortfolioItem;
 import com.DEVision.JobApplicant.applicant.entity.WorkExperience;
 import com.DEVision.JobApplicant.applicant.repository.ApplicantRepository;
 import com.DEVision.JobApplicant.common.storage.service.FileStorageService;
@@ -21,8 +22,13 @@ public class ApplicantService {
     private static final int MAX_EDUCATION_ENTRIES = 20;
     private static final int MAX_WORK_EXPERIENCE_ENTRIES = 20;
     private static final int MAX_SKILLS_ENTRIES = 50;
+    private static final int MAX_PORTFOLIO_IMAGES = 20;
+    private static final int MAX_PORTFOLIO_VIDEOS = 5;
     private static final String AVATAR_FOLDER = "applicant-avatars";
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    private static final String PORTFOLIO_IMAGES_FOLDER = "applicant-portfolio-images";
+    private static final String PORTFOLIO_VIDEOS_FOLDER = "applicant-portfolio-videos";
+    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for images
+    private static final long MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB for videos
     
     @Autowired
     private ApplicantRepository applicantRepository;
@@ -350,6 +356,181 @@ public class ApplicantService {
             return true;
         }
         return false;
+    }
+    
+    // Portfolio Image Management
+    public Applicant addPortfolioImage(String applicantId, MultipartFile file, String title) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        // Initialize list if null
+        if (applicant.getPortfolioImages() == null) {
+            applicant.setPortfolioImages(new java.util.ArrayList<>());
+        }
+        
+        if (applicant.getPortfolioImages().size() >= MAX_PORTFOLIO_IMAGES) {
+            throw new IllegalStateException("Maximum " + MAX_PORTFOLIO_IMAGES + " portfolio images allowed. Please delete an existing image first.");
+        }
+        
+        // Validate file
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new IllegalArgumentException("File size exceeds maximum limit of 5MB");
+        }
+        
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Only image files (JPG, PNG, WEBP, GIF) are allowed");
+        }
+        
+        // Upload to Cloudinary
+        FileUploadResult result = fileStorageService.uploadFile(file, PORTFOLIO_IMAGES_FOLDER);
+        
+        PortfolioItem portfolioItem = new PortfolioItem(
+            result.fileUrl(),
+            result.publicId(),
+            result.resourceType(),
+            title
+        );
+        
+        applicant.getPortfolioImages().add(portfolioItem);
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    public Applicant deletePortfolioImage(String applicantId, String portfolioItemId) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        if (applicant.getPortfolioImages() == null) {
+            return null;
+        }
+        
+        org.bson.types.ObjectId objId = new org.bson.types.ObjectId(portfolioItemId);
+        
+        // Find the item to delete (to get publicId for Cloudinary deletion)
+        Optional<PortfolioItem> itemToDelete = applicant.getPortfolioImages().stream()
+                .filter(item -> item.getId().equals(objId))
+                .findFirst();
+        
+        if (itemToDelete.isEmpty()) {
+            return null;
+        }
+        
+        // Delete from Cloudinary
+        try {
+            fileStorageService.deleteFile(itemToDelete.get().getPublicId(), itemToDelete.get().getResourceType());
+        } catch (Exception e) {
+            System.err.println("Warning: Failed to delete file from Cloudinary: " + e.getMessage());
+        }
+        
+        // Remove from list
+        applicant.getPortfolioImages().removeIf(item -> item.getId().equals(objId));
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    // Portfolio Video Management
+    public Applicant addPortfolioVideo(String applicantId, MultipartFile file, String title) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        // Initialize list if null
+        if (applicant.getPortfolioVideos() == null) {
+            applicant.setPortfolioVideos(new java.util.ArrayList<>());
+        }
+        
+        if (applicant.getPortfolioVideos().size() >= MAX_PORTFOLIO_VIDEOS) {
+            throw new IllegalStateException("Maximum " + MAX_PORTFOLIO_VIDEOS + " portfolio videos allowed. Please delete an existing video first.");
+        }
+        
+        // Validate file
+        if (file.getSize() > MAX_VIDEO_SIZE) {
+            throw new IllegalArgumentException("File size exceeds maximum limit of 100MB");
+        }
+        
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("video/")) {
+            throw new IllegalArgumentException("Only video files (MP4, MOV, AVI, WEBM) are allowed");
+        }
+        
+        // Upload to Cloudinary
+        FileUploadResult result = fileStorageService.uploadFile(file, PORTFOLIO_VIDEOS_FOLDER);
+        
+        PortfolioItem portfolioItem = new PortfolioItem(
+            result.fileUrl(),
+            result.publicId(),
+            result.resourceType(),
+            title
+        );
+        
+        applicant.getPortfolioVideos().add(portfolioItem);
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    public Applicant deletePortfolioVideo(String applicantId, String portfolioItemId) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        if (applicant.getPortfolioVideos() == null) {
+            return null;
+        }
+        
+        org.bson.types.ObjectId objId = new org.bson.types.ObjectId(portfolioItemId);
+        
+        // Find the item to delete (to get publicId for Cloudinary deletion)
+        Optional<PortfolioItem> itemToDelete = applicant.getPortfolioVideos().stream()
+                .filter(item -> item.getId().equals(objId))
+                .findFirst();
+        
+        if (itemToDelete.isEmpty()) {
+            return null;
+        }
+        
+        // Delete from Cloudinary
+        try {
+            fileStorageService.deleteFile(itemToDelete.get().getPublicId(), itemToDelete.get().getResourceType());
+        } catch (Exception e) {
+            System.err.println("Warning: Failed to delete file from Cloudinary: " + e.getMessage());
+        }
+        
+        // Remove from list
+        applicant.getPortfolioVideos().removeIf(item -> item.getId().equals(objId));
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    // Getters for max limits
+    public int getMaxPortfolioImages() {
+        return MAX_PORTFOLIO_IMAGES;
+    }
+    
+    public int getMaxPortfolioVideos() {
+        return MAX_PORTFOLIO_VIDEOS;
     }
 }
 

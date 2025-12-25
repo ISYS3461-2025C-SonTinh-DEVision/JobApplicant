@@ -25,6 +25,8 @@ public class ProfileResponse {
     private String objectiveSummary;
     private PlanType planType;
     private String avatarUrl;
+    private List<PortfolioItemResponse> portfolioImages;
+    private List<PortfolioItemResponse> portfolioVideos;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -34,7 +36,9 @@ public class ProfileResponse {
                           Country country, String phoneNumber, String address, String city,
                           List<EducationResponse> education, List<WorkExperienceResponse> workExperience,
                           List<String> skills, String objectiveSummary, PlanType planType,
-                          String avatarUrl, LocalDateTime createdAt, LocalDateTime updatedAt) {
+                          String avatarUrl, List<PortfolioItemResponse> portfolioImages,
+                          List<PortfolioItemResponse> portfolioVideos,
+                          LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
         this.firstName = firstName;
@@ -49,6 +53,8 @@ public class ProfileResponse {
         this.objectiveSummary = objectiveSummary;
         this.planType = planType;
         this.avatarUrl = avatarUrl;
+        this.portfolioImages = portfolioImages;
+        this.portfolioVideos = portfolioVideos;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -164,6 +170,22 @@ public class ProfileResponse {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public List<PortfolioItemResponse> getPortfolioImages() {
+        return portfolioImages;
+    }
+
+    public void setPortfolioImages(List<PortfolioItemResponse> portfolioImages) {
+        this.portfolioImages = portfolioImages;
+    }
+
+    public List<PortfolioItemResponse> getPortfolioVideos() {
+        return portfolioVideos;
+    }
+
+    public void setPortfolioVideos(List<PortfolioItemResponse> portfolioVideos) {
+        this.portfolioVideos = portfolioVideos;
     }
 
     public LocalDateTime getCreatedAt() {
