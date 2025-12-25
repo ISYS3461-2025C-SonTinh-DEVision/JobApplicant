@@ -1423,7 +1423,7 @@ export default function ProfileDashboard() {
 
       {/* Objective Summary Section (Requirement 3.1.2) */}
       <div className={`
-        p-6 rounded-2xl border
+        p-6 rounded-2xl border transition-all duration-300
         ${isDark
           ? 'bg-dark-800 border-dark-700'
           : 'bg-white border-gray-200 shadow-sm'
@@ -1436,7 +1436,7 @@ export default function ProfileDashboard() {
             </div>
             <div className="flex items-center gap-3">
               <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Objective Summary</h2>
-              <DataSourceIndicator isRealData={false} />
+              <DataSourceIndicator isRealData={isProfileFromApi} />
             </div>
           </div>
           {!isEditingObjective && (
@@ -1451,45 +1451,93 @@ export default function ProfileDashboard() {
         </div>
 
         {isEditingObjective ? (
-          <div className="space-y-4">
-            <textarea
-              value={tempObjective}
-              onChange={(e) => setTempObjective(e.target.value)}
-              placeholder="Write a brief summary of your career objectives..."
-              rows={4}
-              className={`
-                w-full px-4 py-3 rounded-xl border transition-colors resize-none
-                ${isDark
-                  ? 'bg-dark-700 border-dark-600 text-white placeholder:text-dark-500 focus:border-primary-500'
-                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-primary-500'
+          <div className="space-y-4 animate-fade-in">
+            <div className="relative">
+              <textarea
+                value={tempObjective}
+                onChange={(e) => {
+                  if (e.target.value.length <= 500) {
+                    setTempObjective(e.target.value);
+                  }
+                }}
+                placeholder="Write a brief summary of your career objectives, goals, and aspirations..."
+                rows={4}
+                maxLength={500}
+                className={`
+                  w-full px-4 py-3 rounded-xl border transition-all duration-200 resize-none
+                  ${isDark
+                    ? 'bg-dark-700 border-dark-600 text-white placeholder:text-dark-500 focus:border-primary-500'
+                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-primary-500'
+                  }
+                  focus:outline-none focus:ring-2 focus:ring-primary-500/20
+                `}
+              />
+              {/* Character counter */}
+              <div className={`
+                absolute bottom-3 right-3 text-xs font-medium
+                ${tempObjective.length >= 450
+                  ? (tempObjective.length >= 490 ? 'text-red-400' : 'text-amber-400')
+                  : (isDark ? 'text-dark-500' : 'text-gray-400')
                 }
-                focus:outline-none focus:ring-2 focus:ring-primary-500/20
-              `}
-            />
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={handleCancelObjective}
-                className={`px-4 py-2 rounded-lg transition-colors ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveObjective}
-                className="btn-primary px-4 py-2 flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                Save
-              </button>
+              `}>
+                {tempObjective.length}/500
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className={`text-xs ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>
+                Describe your career goals and what you're looking for in your next role
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleCancelObjective}
+                  disabled={savingObjective}
+                  className={`px-4 py-2 rounded-lg transition-colors ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'} disabled:opacity-50`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveObjective}
+                  disabled={savingObjective}
+                  className="btn-primary px-4 py-2 flex items-center gap-2 disabled:opacity-50"
+                >
+                  {savingObjective ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         ) : (
-          <p className={`leading-relaxed ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
-            {objectiveSummary || (
-              <span className={isDark ? 'text-dark-500 italic' : 'text-gray-400 italic'}>
-                No objective summary yet. Click "Edit" to add one.
-              </span>
+          <div className="animate-fade-in">
+            {objectiveSummary ? (
+              <p className={`leading-relaxed ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
+                {objectiveSummary}
+              </p>
+            ) : (
+              <div className={`
+                p-4 rounded-xl border-2 border-dashed text-center
+                ${isDark ? 'border-dark-600 bg-dark-700/30' : 'border-gray-200 bg-gray-50/50'}
+              `}>
+                <p className={`text-sm ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                  No objective summary yet.
+                </p>
+                <button
+                  onClick={handleEditObjective}
+                  className="mt-2 text-sm font-medium text-primary-400 hover:text-primary-300 transition-colors"
+                >
+                  + Add your career objectives
+                </button>
+              </div>
             )}
-          </p>
+          </div>
         )}
       </div>
 
