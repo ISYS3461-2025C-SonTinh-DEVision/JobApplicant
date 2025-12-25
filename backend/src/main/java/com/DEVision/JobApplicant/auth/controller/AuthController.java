@@ -25,7 +25,6 @@ import jakarta.validation.Valid;
 import com.DEVision.JobApplicant.auth.internal.dto.AuthResponse;
 import com.DEVision.JobApplicant.auth.internal.dto.ForgotPasswordRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.LoginRequest;
-import com.DEVision.JobApplicant.auth.internal.dto.OAuth2CallbackRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.OAuth2LoginRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.RegisterRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.RegistrationResponse;
@@ -207,7 +206,18 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
     }
 
     /**
-     * OAuth2 login endpoint (Google SSO)
+     * OAuth2 login endpoint (Google SSO) - ID Token Flow
+     *
+     * This endpoint implements the ID Token Flow (Client-Side Flow):
+     * 1. Frontend handles Google Sign-In using Google's JavaScript SDK
+     * 2. Google returns an ID token directly to the frontend
+     * 3. Frontend sends the ID token to this endpoint
+     * 4. Backend verifies the token with Google's tokeninfo endpoint
+     * 5. Backend creates/logs in the user and returns JWT tokens
+     *
+     * SRS Requirement 1.3.2: Users registered via SSO cannot use password authentication
+     *
+     * See: backend/OAUTH2_SSO_GUIDE.md for complete implementation details
      */
     @Operation(summary = "OAuth2 login (Google SSO)", description = "Authenticate user with Google ID token and return JWT tokens")
     @ApiResponses(value = {
@@ -240,66 +250,6 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
         } catch (Exception e) {
             return new ResponseEntity<>(
                 Map.of("message", "OAuth2 login failed: " + e.getMessage()),
-                HttpStatus.UNAUTHORIZED
-            );
-        }
-    }
-
-    /**
-     * Get Google OAuth2 authorization URL (Authorization Code Flow)
-     */
-    @Operation(summary = "Get Google OAuth2 URL", description = "Returns Google OAuth2 authorization URL for Authorization Code Flow")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Authorization URL generated successfully"),
-        @ApiResponse(responseCode = "500", description = "Failed to generate authorization URL")
-    })
-    @PostMapping("/oauth2/google")
-    public ResponseEntity<?> getGoogleAuthUrl() {
-        try {
-            Map<String, String> response = authInternalService.getGoogleAuthUrl();
-            return new ResponseEntity<>(response, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(
-                Map.of("message", "Failed to generate Google OAuth URL: " + e.getMessage()),
-                HttpStatus.INTERNAL_SERVER_ERROR
-            );
-        }
-    }
-
-    /**
-     * Handle Google OAuth2 callback (Authorization Code Flow)
-     */
-    @Operation(summary = "Google OAuth2 callback", description = "Exchange authorization code for JWT tokens")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "OAuth2 authentication successful"),
-        @ApiResponse(responseCode = "401", description = "Invalid authorization code or OAuth2 authentication failed")
-    })
-    @PostMapping("/oauth2/callback/google")
-    public ResponseEntity<?> handleGoogleCallback(
-            @Valid @RequestBody OAuth2CallbackRequest callbackRequest,
-            HttpServletResponse response) {
-        try {
-            AuthResponse authResponse = authInternalService.handleGoogleCallback(callbackRequest.getCode());
-
-            // Set HTTP-only cookie for access token (5 hours)
-            Cookie accessTokenCookie = HttpOnlyCookieConfig.createCookie(AuthConfig.AUTH_COOKIE_NAME, authResponse.getAccessToken());
-            response.addCookie(accessTokenCookie);
-
-            // Set HTTP-only cookie for refresh token (7 days)
-            Cookie refreshTokenCookie = HttpOnlyCookieConfig.createCookie(AuthConfig.REFRESH_COOKIE_NAME, authResponse.getRefreshToken());
-            refreshTokenCookie.setMaxAge(86400 * 7); // 7 days
-            response.addCookie(refreshTokenCookie);
-
-            // Return response with access token
-            Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("accessToken", authResponse.getAccessToken());
-            responseBody.put("message", "OAuth2 authentication successful");
-
-            return new ResponseEntity<>(responseBody, HttpStatus.OK);
-
-        } catch (Exception e) {
-            return new ResponseEntity<>(
-                Map.of("message", "OAuth2 callback failed: " + e.getMessage()),
                 HttpStatus.UNAUTHORIZED
             );
         }
