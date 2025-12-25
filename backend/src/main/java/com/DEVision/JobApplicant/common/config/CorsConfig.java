@@ -8,13 +8,17 @@ import org.springframework.beans.factory.annotation.Value;
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
-    @Value("${FRONTEND_BASE_URL}")
+    @Value("${app.frontend.base-url}")
     private String frontendBaseUrl;
+    
+    @Value("${app.job-manager.base-url}")
+    private String jobManagerBaseUrl;
+    
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:3000", frontendBaseUrl)
+                .allowedOrigins("http://localhost:3000", frontendBaseUrl, jobManagerBaseUrl)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("Authorization", "Content-Type", "X-Requested-With", "Accept", "x-debug-info")
                 .exposedHeaders("Authorization")

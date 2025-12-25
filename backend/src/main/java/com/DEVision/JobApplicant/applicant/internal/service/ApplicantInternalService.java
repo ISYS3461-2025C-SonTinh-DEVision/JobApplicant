@@ -8,12 +8,15 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.DEVision.JobApplicant.applicant.entity.Applicant;
 import com.DEVision.JobApplicant.applicant.entity.Education;
+import com.DEVision.JobApplicant.applicant.entity.PortfolioItem;
 import com.DEVision.JobApplicant.applicant.entity.WorkExperience;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddEducationRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillsRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddWorkExperienceRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.EducationResponse;
+import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioItemResponse;
+import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.ProfileResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.UpdateEducationRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.UpdateProfileRequest;
@@ -361,6 +364,100 @@ public class ApplicantInternalService {
         Applicant updated = applicantService.uploadAvatar(applicant.getId(), file);
         return updated != null ? toProfileResponse(updated) : null;
     }
+    
+    // Portfolio operations for current user (/api/me endpoints)
+    public PortfolioResponse getMyPortfolio() {
+        Applicant applicant = getMyApplicant();
+        return toPortfolioResponse(applicant);
+    }
+    
+    public PortfolioItemResponse addMyPortfolioImage(MultipartFile file, String title) {
+        try {
+            Applicant applicant = getMyApplicant();
+            System.out.println("Adding portfolio image for applicant: " + applicant.getId());
+            Applicant updated = applicantService.addPortfolioImage(applicant.getId(), file, title);
+            
+            if (updated == null || updated.getPortfolioImages() == null || updated.getPortfolioImages().isEmpty()) {
+                System.err.println("Failed to add portfolio image - updated applicant is null or has no images");
+                return null;
+            }
+            
+            // Return the newly added item
+            PortfolioItem added = updated.getPortfolioImages().get(updated.getPortfolioImages().size() - 1);
+            System.out.println("Successfully added portfolio image: " + added.getId());
+            return toPortfolioItemResponse(added);
+        } catch (SecurityException e) {
+            System.err.println("Security error in addMyPortfolioImage: " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            System.err.println("Error in addMyPortfolioImage: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+    
+    public boolean deleteMyPortfolioImage(String portfolioItemId) {
+        Applicant applicant = getMyApplicant();
+        return applicantService.deletePortfolioImage(applicant.getId(), portfolioItemId) != null;
+    }
+    
+    public PortfolioItemResponse addMyPortfolioVideo(MultipartFile file, String title) {
+        Applicant applicant = getMyApplicant();
+        Applicant updated = applicantService.addPortfolioVideo(applicant.getId(), file, title);
+        
+        if (updated == null || updated.getPortfolioVideos() == null || updated.getPortfolioVideos().isEmpty()) {
+            return null;
+        }
+        
+        // Return the newly added item
+        PortfolioItem added = updated.getPortfolioVideos().get(updated.getPortfolioVideos().size() - 1);
+        return toPortfolioItemResponse(added);
+    }
+    
+    public boolean deleteMyPortfolioVideo(String portfolioItemId) {
+        Applicant applicant = getMyApplicant();
+        return applicantService.deletePortfolioVideo(applicant.getId(), portfolioItemId) != null;
+    }
+    
+    // Portfolio operations for specific applicant ID (legacy endpoints)
+    public PortfolioResponse getPortfolio(String applicantId) {
+        Applicant applicant = applicantService.getApplicantById(applicantId);
+        return applicant != null ? toPortfolioResponse(applicant) : null;
+    }
+    
+    public PortfolioItemResponse addPortfolioImage(String applicantId, MultipartFile file, String title) {
+        validateOwnership(applicantId);
+        Applicant updated = applicantService.addPortfolioImage(applicantId, file, title);
+        
+        if (updated == null || updated.getPortfolioImages() == null || updated.getPortfolioImages().isEmpty()) {
+            return null;
+        }
+        
+        PortfolioItem added = updated.getPortfolioImages().get(updated.getPortfolioImages().size() - 1);
+        return toPortfolioItemResponse(added);
+    }
+    
+    public boolean deletePortfolioImage(String applicantId, String portfolioItemId) {
+        validateOwnership(applicantId);
+        return applicantService.deletePortfolioImage(applicantId, portfolioItemId) != null;
+    }
+    
+    public PortfolioItemResponse addPortfolioVideo(String applicantId, MultipartFile file, String title) {
+        validateOwnership(applicantId);
+        Applicant updated = applicantService.addPortfolioVideo(applicantId, file, title);
+        
+        if (updated == null || updated.getPortfolioVideos() == null || updated.getPortfolioVideos().isEmpty()) {
+            return null;
+        }
+        
+        PortfolioItem added = updated.getPortfolioVideos().get(updated.getPortfolioVideos().size() - 1);
+        return toPortfolioItemResponse(added);
+    }
+    
+    public boolean deletePortfolioVideo(String applicantId, String portfolioItemId) {
+        validateOwnership(applicantId);
+        return applicantService.deletePortfolioVideo(applicantId, portfolioItemId) != null;
+    }
 
     // Helper methods
     private String getCurrentUserEmail() {
@@ -379,14 +476,14 @@ public class ApplicantInternalService {
         // Get User entity to retrieve the User ID
         User user = authRepository.findByEmail(email);
         if (user == null) {
-            throw new IllegalArgumentException("User not found");
+            throw new SecurityException("User not found. Please log in again.");
         }
 
         // Find applicant by User ID (not email)
         Applicant applicant = applicantService.getApplicantByUserId(user.getId());
 
         if (applicant == null) {
-            throw new IllegalArgumentException("Applicant profile not found");
+            throw new SecurityException("Applicant profile not found. Please create your profile first.");
         }
 
         return applicant;
@@ -430,6 +527,18 @@ public class ApplicantInternalService {
             ? applicant.getSkills()
             : List.of();
 
+        List<PortfolioItemResponse> portfolioImages = applicant.getPortfolioImages() != null
+            ? applicant.getPortfolioImages().stream()
+                .map(this::toPortfolioItemResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
+        List<PortfolioItemResponse> portfolioVideos = applicant.getPortfolioVideos() != null
+            ? applicant.getPortfolioVideos().stream()
+                .map(this::toPortfolioItemResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
         // Fetch user to get planType
         User user = authRepository.findByEmail(applicant.getUserId());
         PlanType planType = user != null && user.getPlanType() != null
@@ -451,6 +560,8 @@ public class ApplicantInternalService {
             applicant.getObjectiveSummary(),
             planType,
             applicant.getAvatarUrl(),
+            portfolioImages,
+            portfolioVideos,
             applicant.getCreatedAt(),
             applicant.getUpdatedAt()
         );
@@ -478,6 +589,37 @@ public class ApplicantInternalService {
             workExperience.getStartDate(),
             workExperience.getEndDate(),
             workExperience.isCurrent()
+        );
+    }
+    
+    private PortfolioItemResponse toPortfolioItemResponse(PortfolioItem item) {
+        return new PortfolioItemResponse(
+            item.getId().toString(),
+            item.getUrl(),
+            item.getResourceType(),
+            item.getTitle(),
+            item.getUploadedAt()
+        );
+    }
+    
+    private PortfolioResponse toPortfolioResponse(Applicant applicant) {
+        List<PortfolioItemResponse> imageResponses = applicant.getPortfolioImages() != null
+            ? applicant.getPortfolioImages().stream()
+                .map(this::toPortfolioItemResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
+        List<PortfolioItemResponse> videoResponses = applicant.getPortfolioVideos() != null
+            ? applicant.getPortfolioVideos().stream()
+                .map(this::toPortfolioItemResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
+        return new PortfolioResponse(
+            imageResponses,
+            videoResponses,
+            applicantService.getMaxPortfolioImages(),
+            applicantService.getMaxPortfolioVideos()
         );
     }
 }

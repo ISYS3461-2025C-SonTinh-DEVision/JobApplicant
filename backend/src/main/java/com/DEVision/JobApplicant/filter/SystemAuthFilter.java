@@ -17,6 +17,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.DEVision.JobApplicant.common.config.SystemAuthConfig;
+import com.DEVision.JobApplicant.jwt.JweTokenVerifier;
+import com.DEVision.JobApplicant.jwt.JweTokenVerifier.TokenVerificationResult;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -32,6 +34,9 @@ public class SystemAuthFilter extends OncePerRequestFilter {
     
     @Autowired
     private SystemAuthConfig systemAuthConfig;
+    
+    @Autowired
+    private JweTokenVerifier jweTokenVerifier;
     
     private final RestTemplate restTemplate = new RestTemplate();
     
@@ -50,18 +55,42 @@ public class SystemAuthFilter extends OncePerRequestFilter {
         // Check for system authorization header
         String systemAuthToken = request.getHeader(SystemAuthConfig.SYSTEM_AUTH_HEADER);
         
-        if (systemAuthToken != null && validateTokenWithJobManager(systemAuthToken)) {
-            // Create authentication for system
-            UsernamePasswordAuthenticationToken authentication = 
-                new UsernamePasswordAuthenticationToken(
-                    SystemAuthConfig.JOB_MANAGER_SYSTEM,
-                    null,
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_SYSTEM"))
-                );
+        if (systemAuthToken != null) {
+            boolean isValid = false;
             
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            // Extract token from "Bearer <token>" format
+            String token = systemAuthToken;
+            if (systemAuthToken.startsWith("Bearer ")) {
+                token = systemAuthToken.substring(7);
+            }
             
-            System.out.println("System-to-system authentication successful for: " + requestPath);
+            if (systemAuthConfig.isJobManagerConfigured() && 
+                systemAuthConfig.getJobManagerVerifyTokenUrl() != null && 
+                !systemAuthConfig.getJobManagerVerifyTokenUrl().isEmpty()) {
+                isValid = validateTokenWithJobManager(systemAuthToken);
+            }
+            
+            // Fallback: Try local verification (only works if JM encrypted with OUR public key)
+            // This is NOT the normal case - normally JM uses their own keys
+            if (!isValid && systemAuthConfig.isVerifyLocally()) {
+                isValid = validateTokenLocally(token);
+            }
+            
+            if (isValid) {
+                // Create authentication for system
+                UsernamePasswordAuthenticationToken authentication = 
+                    new UsernamePasswordAuthenticationToken(
+                        SystemAuthConfig.JOB_MANAGER_SYSTEM,
+                        null,
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_SYSTEM"))
+                    );
+                
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                
+                System.out.println("System-to-system authentication successful for: " + requestPath);
+            } else {
+                System.err.println("System-to-system authentication failed for: " + requestPath);
+            }
         }
         
         filterChain.doFilter(request, response);
@@ -76,7 +105,40 @@ public class SystemAuthFilter extends OncePerRequestFilter {
     }
     
     /**
-     * Validate token by calling Job Manager's verify-token API
+     * Validate JWE token locally by decrypting and verifying claims
+     * 
+     * NOTE: This only works if JM encrypted the token with JobApplicant's public key.
+     * This is NOT the normal case - normally JM generates tokens with their own keys
+     * for their own system, and we cannot decrypt those without their private key.
+     * 
+     * Use API-based verification (validateTokenWithJobManager) for normal system-to-system auth.
+     * 
+     * @param token JWE token string (without "Bearer " prefix)
+     * @return true if token is valid
+     */
+    private boolean validateTokenLocally(String token) {
+        try {
+            TokenVerificationResult result = jweTokenVerifier.verifyJobManagerToken(
+                token,
+                systemAuthConfig.getJobManagerExpectedIssuer(),
+                systemAuthConfig.getJobManagerExpectedSystemId()
+            );
+            
+            if (result.isValid()) {
+                System.out.println("Local JWE token verification successful. System: " + result.getSystemId());
+                return true;
+            } else {
+                System.err.println("Local JWE token verification failed: " + result.getMessage());
+                return false;
+            }
+        } catch (Exception e) {
+            System.err.println("Error during local token verification: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Validate token by calling Job Manager's verify-token API (fallback method)
      * @param token The token from X-System-Authorization header (format: "Bearer <token>")
      * @return true if Job Manager confirms the token is valid
      */

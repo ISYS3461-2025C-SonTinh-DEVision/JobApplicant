@@ -3,7 +3,7 @@ package com.DEVision.JobApplicant.applicant.entity;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import com.DEVision.JobApplicant.common.model.Country;
+import com.DEVision.JobApplicant.common.country.model.Country;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -46,6 +46,12 @@ public class Applicant {
 
     private String avatarUrl;
 
+    @Size(max = 20, message = "Maximum 20 portfolio images allowed")
+    private List<PortfolioItem> portfolioImages;
+
+    @Size(max = 5, message = "Maximum 5 portfolio videos allowed")
+    private List<PortfolioItem> portfolioVideos;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -53,6 +59,8 @@ public class Applicant {
         this.education = new ArrayList<>();
         this.workExperience = new ArrayList<>();
         this.skills = new ArrayList<>();
+        this.portfolioImages = new ArrayList<>();
+        this.portfolioVideos = new ArrayList<>();
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -63,6 +71,8 @@ public class Applicant {
         this.education = new ArrayList<>();
         this.workExperience = new ArrayList<>();
         this.skills = new ArrayList<>();
+        this.portfolioImages = new ArrayList<>();
+        this.portfolioVideos = new ArrayList<>();
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -186,5 +196,21 @@ public class Applicant {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public List<PortfolioItem> getPortfolioImages() {
+        return portfolioImages;
+    }
+
+    public void setPortfolioImages(List<PortfolioItem> portfolioImages) {
+        this.portfolioImages = portfolioImages;
+    }
+
+    public List<PortfolioItem> getPortfolioVideos() {
+        return portfolioVideos;
+    }
+
+    public void setPortfolioVideos(List<PortfolioItem> portfolioVideos) {
+        this.portfolioVideos = portfolioVideos;
     }
 }

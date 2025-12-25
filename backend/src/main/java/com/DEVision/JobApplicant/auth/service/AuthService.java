@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 
 import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
-import com.DEVision.JobApplicant.jwt.JwtUtil;
+import com.DEVision.JobApplicant.jwt.JweUtil;
 
 @Service
 public class AuthService implements UserDetailsService {
@@ -22,7 +22,7 @@ public class AuthService implements UserDetailsService {
     private AuthRepository userRepository;
     
     @Autowired
-    private JwtUtil jwtUtil;
+    private JweUtil jweUtil;
     
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -45,13 +45,13 @@ public class AuthService implements UserDetailsService {
         return userRepository.save(user);
     }
     
-    // Generate JWT tokens
+    // Generate JWE tokens (encrypted)
     public Map<String, String> createAuthTokens(UserDetails userDetails, boolean isAuthenticated) {
         Map<String, String> tokens = new HashMap<>();
         
         if (isAuthenticated) {
-            String accessToken = jwtUtil.generateToken(userDetails);
-            String refreshToken = jwtUtil.generateRefreshToken(userDetails);
+            String accessToken = jweUtil.generateToken(userDetails);
+            String refreshToken = jweUtil.generateRefreshToken(userDetails);
             
             tokens.put("accessToken", accessToken);
             tokens.put("refreshToken", refreshToken);
@@ -64,12 +64,12 @@ public class AuthService implements UserDetailsService {
     public Map<String, String> refreshToken(String refreshToken) {
         Map<String, String> tokens = new HashMap<>();
         
-        if (jwtUtil.verifyJwtSignature(refreshToken)) {
-            String username = jwtUtil.extractUsername(refreshToken);
+        if (jweUtil.verifyJweToken(refreshToken)) {
+            String username = jweUtil.extractUsername(refreshToken);
             UserDetails userDetails = this.loadUserByUsername(username);
             
             // Generate new access token
-            String newAccessToken = jwtUtil.generateToken(userDetails);
+            String newAccessToken = jweUtil.generateToken(userDetails);
             
             tokens.put("accessToken", newAccessToken);
             tokens.put("refreshToken", refreshToken); // Return the existing refresh token

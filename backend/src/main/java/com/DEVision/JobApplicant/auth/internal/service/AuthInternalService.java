@@ -23,7 +23,7 @@ import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.auth.service.AuthService;
 import com.DEVision.JobApplicant.auth.service.OAuth2Service;
 import com.DEVision.JobApplicant.common.config.RoleConfig;
-import com.DEVision.JobApplicant.common.service.EmailService;
+import com.DEVision.JobApplicant.common.mail.EmailService;
 
 import java.time.LocalDateTime;
 import java.util.Map;

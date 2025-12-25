@@ -1,6 +1,6 @@
 package com.DEVision.JobApplicant.auth.internal.dto;
 
-import com.DEVision.JobApplicant.common.model.Country;
+import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.validator.ValidEmail;
 import com.DEVision.JobApplicant.common.validator.ValidPassword;
 import com.DEVision.JobApplicant.common.validator.ValidPhoneNumber;

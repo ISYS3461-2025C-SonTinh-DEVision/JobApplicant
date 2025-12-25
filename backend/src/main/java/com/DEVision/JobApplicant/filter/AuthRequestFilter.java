@@ -17,7 +17,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import com.DEVision.JobApplicant.auth.config.AuthConfig;
-import com.DEVision.JobApplicant.jwt.JwtUtil;
+import com.DEVision.JobApplicant.jwt.JweUtil;
 
 @Component
 public class AuthRequestFilter extends OncePerRequestFilter { 
@@ -26,10 +26,10 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 	private UserDetailsService userDetailsService;
 
 	@Autowired
-	private JwtUtil jwtUtil;
+	private JweUtil jweUtil;
 
 	@Autowired
-	private com.DEVision.JobApplicant.common.service.RedisService redisService;
+	private com.DEVision.JobApplicant.common.redis.RedisService redisService;
 	
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -64,7 +64,7 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		String authHeader = request.getHeader("Authorization");
 		if (authHeader != null && authHeader.startsWith("Bearer ")) {
 			token = authHeader.substring(7);
-			isValidToken = jwtUtil.verifyJwtSignature(token);
+			isValidToken = jweUtil.verifyJweToken(token);
 		}
 
 		// If no Bearer token, try to get token from cookie
@@ -74,7 +74,7 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 				for (Cookie ck : cookies) {
 					if (AuthConfig.AUTH_COOKIE_NAME.equals(ck.getName())) {
 						token = ck.getValue();
-						isValidToken = jwtUtil.verifyJwtSignature(token);
+						isValidToken = jweUtil.verifyJweToken(token);
 						break;
 					}
 				}
@@ -104,7 +104,7 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		if (token != null && isValidToken
 			&& SecurityContextHolder.getContext().getAuthentication() == null) {
 
-			String username = jwtUtil.extractUsername(token);
+			String username = jweUtil.extractUsername(token);
 
 			UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
