@@ -29,6 +29,14 @@ import DashboardHome from '../pages/dashboard/DashboardHome';
 import ProfileDashboard from '../pages/dashboard/ProfileDashboard';
 import EditProfile from '../pages/dashboard/EditProfile';
 
+// Admin Pages
+import AdminLoginPage from '../pages/admin/AdminLoginPage';
+import AdminLayout from '../components/layout/AdminLayout';
+import AdminDashboardPage from '../pages/admin/DashboardPage';
+import ApplicantListPage from '../pages/admin/ApplicantListPage';
+import CompanyListPage from '../pages/admin/CompanyListPage';
+import JobPostListPage from '../pages/admin/JobPostListPage';
+
 // Placeholder Pages
 import ComingSoon from '../pages/placeholder/ComingSoon';
 
@@ -37,6 +45,7 @@ import NotFound from '../pages/error/NotFound';
 
 // Protected Route Components
 import { ProtectedRoute, PublicOnlyRoute } from './ProtectedRoute';
+import { AdminProtectedRoute, AdminPublicRoute } from './AdminProtectedRoute';
 
 /**
  * Router configuration
@@ -88,6 +97,48 @@ const router = createBrowserRouter([
   {
     path: '/activate',
     element: <VerifyEmailPage />,
+  },
+
+  // =====================================
+  // Admin Routes
+  // =====================================
+  {
+    path: '/admin/login',
+    element: (
+      <AdminPublicRoute>
+        <AdminLoginPage />
+      </AdminPublicRoute>
+    ),
+  },
+  {
+    path: '/admin',
+    element: (
+      <AdminProtectedRoute>
+        <AdminLayout />
+      </AdminProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/admin/dashboard" replace />,
+      },
+      {
+        path: 'dashboard',
+        element: <AdminDashboardPage />,
+      },
+      {
+        path: 'applicants',
+        element: <ApplicantListPage />,
+      },
+      {
+        path: 'companies',
+        element: <CompanyListPage />,
+      },
+      {
+        path: 'job-posts',
+        element: <JobPostListPage />,
+      },
+    ],
   },
 
   // =====================================

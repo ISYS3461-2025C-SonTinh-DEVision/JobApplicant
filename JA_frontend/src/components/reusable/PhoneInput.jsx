@@ -114,6 +114,24 @@ export default function PhoneInput({
         return grouped;
     }, [searchQuery]);
 
+    // Sync internal state when external value changes
+    useEffect(() => {
+        const parsed = parsePhoneValue(value);
+
+        // Update selected country if dial code changed
+        if (parsed.dialCode) {
+            const matchingCountry = COUNTRIES.find(c => c.dialCode === parsed.dialCode);
+            if (matchingCountry && matchingCountry.value !== selectedCountry.value) {
+                setSelectedCountry(matchingCountry);
+            }
+        }
+
+        // Update phone number if different
+        if (parsed.number !== phoneNumber) {
+            setPhoneNumber(parsed.number);
+        }
+    }, [value]); // Only depend on value, not internal state to avoid loops
+
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {

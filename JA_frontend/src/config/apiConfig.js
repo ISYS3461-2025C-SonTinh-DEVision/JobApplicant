@@ -39,6 +39,26 @@ export const API_ENDPOINTS = {
     DELETE: (id) => `/api/applicants/${id}`,
   },
 
+  // Current User Profile endpoints (/api/applicants/me)
+  ME: {
+    // GET /api/applicants/me - Get authenticated user's profile
+    PROFILE: '/api/applicants/me',
+    // PUT /api/applicants/me - Update authenticated user's profile
+    UPDATE: '/api/applicants/me',
+    // POST /api/applicants/me/avatar - Upload avatar
+    AVATAR: '/api/applicants/me/avatar',
+    // Work Experience CRUD
+    WORK_EXPERIENCE: '/api/applicants/me/work-experience',
+    WORK_EXPERIENCE_BY_ID: (id) => `/api/applicants/me/work-experience/${id}`,
+    // Education CRUD
+    EDUCATION: '/api/applicants/me/education',
+    EDUCATION_BY_ID: (id) => `/api/applicants/me/education/${id}`,
+    // Skills CRUD
+    SKILLS: '/api/applicants/me/skills',
+    SKILLS_BATCH: '/api/applicants/me/skills/batch',
+    SKILL_BY_NAME: (skill) => `/api/applicants/me/skills/${encodeURIComponent(skill)}`,
+  },
+
   // Job endpoints
   JOBS: {
     SEARCH: '/api/jobs/search',

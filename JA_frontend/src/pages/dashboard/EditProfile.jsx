@@ -97,30 +97,42 @@ export default function EditProfile() {
       try {
         setLoading(true);
 
-        // Fetch profile or use mock data
-        if (currentUser?.userId) {
-          const profileData = await ProfileService.getProfileByUserId(currentUser.userId);
-          setProfile(profileData);
+        // Try to fetch real profile using /api/applicants/me
+        if (currentUser) {
+          try {
+            const profileData = await ProfileService.getMyProfile();
+            console.log('[EditProfile] Loaded profile:', profileData);
+            setProfile(profileData);
+          } catch (apiError) {
+            console.warn('[EditProfile] API error, trying fallback:', apiError);
+            // Try legacy endpoint if /me fails
+            if (currentUser.userId) {
+              const profileData = await ProfileService.getProfileByUserId(currentUser.userId);
+              setProfile(ProfileService.normalizeProfile ? ProfileService.normalizeProfile(profileData) : profileData);
+            } else {
+              throw apiError;
+            }
+          }
         } else {
-          // Mock profile for demo mode
+          // Mock profile for demo mode (no auth)
           setProfile({
             id: 'demo',
             firstName: 'Demo',
             lastName: 'User',
-            country: 'VN',
+            countryCode: 'VN',
             phoneNumber: '+84123456789',
             address: '702 Nguyễn Văn Linh',
             city: 'Ho Chi Minh City',
           });
         }
       } catch (err) {
-        console.error('Error loading data:', err);
+        console.error('[EditProfile] Error loading data:', err);
         // Fallback to mock profile
         setProfile({
           id: 'demo',
           firstName: 'Demo',
           lastName: 'User',
-          country: 'VN',
+          countryCode: 'VN',
           phoneNumber: '',
           address: '',
           city: '',
@@ -156,13 +168,20 @@ export default function EditProfile() {
     validate: validateProfileForm,
     onSubmit: async (formValues) => {
       try {
-        await ProfileService.updateProfile(profile.id, formValues);
+        // Use /api/applicants/me for authenticated user
+        if (currentUser) {
+          await ProfileService.updateMyProfile(formValues);
+        } else {
+          // Fallback to legacy endpoint for demo
+          await ProfileService.updateProfile(profile.id, formValues);
+        }
         setSaveSuccess(true);
         setTimeout(() => {
           navigate('/dashboard/profile');
         }, 1500);
         return { success: true };
       } catch (err) {
+        console.error('[EditProfile] Save error:', err);
         throw new Error(err.message || 'Failed to update profile');
       }
     },
@@ -171,10 +190,17 @@ export default function EditProfile() {
   // Set form values when profile loads
   useEffect(() => {
     if (profile) {
+      // Use countryCode from normalized profile, fallback to extracting from country object
+      const countryValue = profile.countryCode
+        || (typeof profile.country === 'object' ? profile.country?.code : profile.country)
+        || '';
+
+      console.log('[EditProfile] Setting form values, country:', countryValue, 'phone:', profile.phoneNumber);
+
       setValues({
         firstName: profile.firstName || '',
         lastName: profile.lastName || '',
-        country: typeof profile.country === 'object' ? profile.country.code : (profile.country || ''),
+        country: countryValue,
         phoneNumber: profile.phoneNumber || '',
         address: profile.address || '',
         city: profile.city || '',

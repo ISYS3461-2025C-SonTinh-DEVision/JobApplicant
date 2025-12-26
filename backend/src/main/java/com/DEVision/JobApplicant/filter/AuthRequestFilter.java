@@ -39,8 +39,12 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		boolean isValidToken = false;
 
 		String requestPath = request.getServletPath();
+		
+		// DEBUG: Log the request path being checked
+		System.out.println("AuthRequestFilter checking path: " + requestPath);
 
 		// Public paths that don't require authentication
+		// Combined from both fe-myprofile-page (admin) and main (applications)
 		if (requestPath.equals("/api/auth/login") ||
 		    requestPath.equals("/api/auth/register") ||
 		    requestPath.equals("/api/auth/refresh") ||
@@ -53,9 +57,11 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		    requestPath.startsWith("/swagger-ui") ||
 		    requestPath.startsWith("/v3/api-docs") ||
 		    requestPath.startsWith("/api/notifications") ||
+		    requestPath.startsWith("/api/admin") ||
 		    requestPath.startsWith("/ws/") ||
 		    requestPath.startsWith("/api/system/verify-token") ||
 		    requestPath.startsWith("/api/applications/job/")) {
+			System.out.println("AuthRequestFilter: Path " + requestPath + " is PUBLIC, skipping auth");
 			filterChain.doFilter(request, response);
 			return;
 		}

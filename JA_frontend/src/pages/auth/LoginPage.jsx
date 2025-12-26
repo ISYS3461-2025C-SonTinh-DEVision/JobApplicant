@@ -14,14 +14,14 @@ function BackgroundShapes() {
     <div className="fixed inset-0 overflow-hidden pointer-events-none">
       {/* Gradient mesh */}
       <div className="absolute inset-0 bg-gradient-mesh" />
-      
+
       {/* Floating shapes */}
       <div className="bg-shape w-96 h-96 bg-primary-600/20 -top-20 -right-20" style={{ animationDelay: '0s' }} />
       <div className="bg-shape w-80 h-80 bg-accent-500/15 bottom-1/4 -left-20" style={{ animationDelay: '2s' }} />
       <div className="bg-shape w-72 h-72 bg-primary-500/10 top-1/3 right-1/4" style={{ animationDelay: '4s' }} />
-      
+
       {/* Grid pattern */}
-      <div 
+      <div
         className="absolute inset-0 opacity-[0.02]"
         style={{
           backgroundImage: `
@@ -83,7 +83,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       <BackgroundShapes />
-      
+
       {/* Left Side - Login Form */}
       <div className="w-full lg:w-1/2 xl:w-[55%] relative z-10 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
@@ -91,7 +91,7 @@ export default function LoginPage() {
           <div className="lg:hidden mb-8 flex justify-center">
             <Logo />
           </div>
-          
+
           {/* Form Card */}
           <div className="glass-card p-8 animate-fade-in">
             <div className="text-center mb-8">
@@ -100,14 +100,14 @@ export default function LoginPage() {
                 Sign in to continue to your dashboard
               </p>
             </div>
-            
+
             <LoginForm
               onSuccess={handleSuccess}
               onRegisterClick={handleRegisterClick}
               onForgotPasswordClick={handleForgotPasswordClick}
             />
           </div>
-          
+
           {/* Trust badges */}
           <div className="mt-8 flex items-center justify-center gap-6 text-dark-500">
             <div className="flex items-center gap-2">
@@ -119,16 +119,27 @@ export default function LoginPage() {
               <span className="text-xs">Fast & Reliable</span>
             </div>
           </div>
+
+          {/* Admin Login Link */}
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => navigate('/admin/login')}
+              className="inline-flex items-center gap-2 text-sm text-dark-500 hover:text-violet-400 transition-colors group"
+            >
+              <Shield className="w-4 h-4 group-hover:text-violet-400" />
+              <span>Login as Admin</span>
+            </button>
+          </div>
         </div>
       </div>
-      
+
       {/* Right Side - Branding & Stats */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-[45%] relative z-10 flex-col justify-between p-12">
         {/* Logo */}
         <div className="flex justify-end">
           <Logo />
         </div>
-        
+
         {/* Main Content */}
         <div className="max-w-md ml-auto text-right">
           <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
@@ -138,7 +149,7 @@ export default function LoginPage() {
           <p className="text-lg text-dark-300 mb-12">
             Connect with top tech companies and find opportunities that match your expertise.
           </p>
-          
+
           {/* Stats */}
           <div className="grid grid-cols-3 gap-6">
             <StatsItem
@@ -158,7 +169,7 @@ export default function LoginPage() {
             />
           </div>
         </div>
-        
+
         {/* Footer */}
         <div className="flex justify-end">
           <p className="text-sm text-dark-500">
