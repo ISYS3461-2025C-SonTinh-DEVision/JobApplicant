@@ -80,7 +80,7 @@ class ApplicationService {
      * @returns {Promise<Object>} Updated application
      */
     async withdrawApplication(id) {
-        return httpUtil.put(API_ENDPOINTS.APPLICATIONS.WITHDRAW(id));
+        return httpUtil.patch(API_ENDPOINTS.APPLICATIONS.WITHDRAW(id));
     }
 
     /**

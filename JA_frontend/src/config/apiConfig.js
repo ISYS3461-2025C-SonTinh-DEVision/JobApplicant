@@ -74,20 +74,20 @@ export const API_ENDPOINTS = {
 
   // Application endpoints (Requirement 3.2.4 - Display applications)
   APPLICATIONS: {
-    // GET /api/applications/me - Get current user's applications with pagination
-    MY: '/api/applications/me',
+    // GET /api/applications/my-applications - Get current user's applications with pagination
+    MY: '/api/applications/my-applications',
     // GET /api/applications/history - Get application history
     HISTORY: '/api/applications/history',
     // POST /api/applications - Create new application (multipart/form-data)
     CREATE: '/api/applications',
     // GET /api/applications/{id} - Get application by ID
     BY_ID: (id) => `/api/applications/${id}`,
-    // PUT /api/applications/{id}/withdraw - Withdraw application
+    // PATCH /api/applications/{id}/withdraw - Withdraw application
     WITHDRAW: (id) => `/api/applications/${id}/withdraw`,
     // DELETE /api/applications/{id} - Delete application
     DELETE: (id) => `/api/applications/${id}`,
-    // GET /api/applications/job-post/{jobPostId} - Get applications by job post
-    BY_JOB_POST: (jobPostId) => `/api/applications/job-post/${jobPostId}`,
+    // GET /api/applications/job/{jobPostId} - Get applications by job post
+    BY_JOB_POST: (jobPostId) => `/api/applications/job/${jobPostId}`,
   },
 
   // Subscription endpoints
