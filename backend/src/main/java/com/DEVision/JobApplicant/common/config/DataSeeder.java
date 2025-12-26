@@ -17,7 +17,7 @@ import com.DEVision.JobApplicant.applicant.entity.WorkExperience;
 import com.DEVision.JobApplicant.applicant.repository.ApplicantRepository;
 import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
-import com.DEVision.JobApplicant.common.model.Country;
+import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.model.PlanType;
 
 /**
