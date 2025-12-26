@@ -50,8 +50,12 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		    requestPath.equals("/api/auth/refresh") ||
 		    requestPath.equals("/api/auth/logout") ||
 		    requestPath.equals("/api/auth/activate") ||
+		    requestPath.equals("/api/auth/resend-activation") ||
 		    requestPath.equals("/api/auth/forgot-password") ||
 		    requestPath.equals("/api/auth/reset-password") ||
+		    requestPath.equals("/api/auth/oauth2/login") ||
+		    requestPath.equals("/api/auth/oauth2/google") ||
+		    requestPath.equals("/api/auth/oauth2/callback/google") ||
 		    requestPath.equals("/api/countries") ||
 		    requestPath.equals("/api/system/verify-token") ||
 		    requestPath.startsWith("/swagger-ui") ||

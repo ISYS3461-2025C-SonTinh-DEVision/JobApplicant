@@ -1,134 +1,162 @@
+/**
+ * Application Service
+ * Handles all job application-related API calls
+ * 
+ * Architecture:
+ * - A.2.c: REST HTTP Helper Class (httpUtil) provides base functions
+ * - Uses /api/applications/* endpoints for application management
+ * - Supports file uploads for CV and Cover Letter (Requirement 4.3.2)
+ */
 
-import { mockApiClient } from './mockApiClient';
+import httpUtil from '../utils/httpUtil';
+import { API_ENDPOINTS } from '../config/apiConfig';
 
-// Mock data store
-let applications = [
-    {
-        id: '1',
-        jobId: '101',
-        jobTitle: 'Senior Frontend Engineer',
-        companyName: 'TechCorp Inc.',
-        location: 'San Francisco, CA (Remote)',
-        status: 'Pending',
-        appliedDate: '2025-12-20T10:00:00Z',
-        jobDescription: 'We are looking for an experienced Frontend Engineer...',
-        resume: 'resume.pdf',
-        coverLetter: 'cover_letter.pdf',
-        timeline: [
-            { status: 'Applied', date: '2025-12-20T10:00:00Z', note: 'Application submitted successfully' }
-        ]
-    },
-    {
-        id: '2',
-        jobId: '102',
-        jobTitle: 'Product Designer',
-        companyName: 'Creative Studio',
-        location: 'New York, NY',
-        status: 'Reviewed',
-        appliedDate: '2025-12-18T14:30:00Z',
-        jobDescription: 'Creative Studio is seeking a Product Designer...',
-        resume: 'resume_v2.pdf',
-        timeline: [
-            { status: 'Reviewed', date: '2025-12-21T09:00:00Z', note: 'Application under review by hiring manager' },
-            { status: 'Applied', date: '2025-12-18T14:30:00Z', note: 'Application submitted successfully' }
-        ]
-    },
-    {
-        id: '3',
-        jobId: '103',
-        jobTitle: 'Full Stack Developer',
-        companyName: 'StartupX',
-        location: 'Austin, TX',
-        status: 'Rejected',
-        appliedDate: '2025-12-15T11:00:00Z',
-        jobDescription: 'Join our fast-paced startup environment...',
-        resume: 'resume.pdf',
-        timeline: [
-            { status: 'Rejected', date: '2025-12-22T16:00:00Z', note: 'Thank you for your interest. We have decided to move forward with other candidates.' },
-            { status: 'Applied', date: '2025-12-15T11:00:00Z', note: 'Application submitted successfully' }
-        ]
-    },
-    {
-        id: '4',
-        jobId: '104',
-        jobTitle: 'Backend Engineer',
-        companyName: 'DataSystems',
-        location: 'Remote',
-        status: 'Accepted',
-        appliedDate: '2025-12-10T09:00:00Z',
-        jobDescription: 'Heavy backend focus with Go and Python...',
-        resume: 'resume_backend.pdf',
-        timeline: [
-            { status: 'Accepted', date: '2025-12-23T10:00:00Z', note: 'Congratulations! We would like to offer you the position.' },
-            { status: 'Interview', date: '2025-12-15T10:00:00Z', note: 'Technical interview scheduled' },
-            { status: 'Applied', date: '2025-12-10T09:00:00Z', note: 'Application submitted successfully' }
-        ]
-    },
-    {
-        id: '5',
-        jobId: '105',
-        jobTitle: 'DevOps Engineer',
-        companyName: 'CloudNet',
-        location: 'Seattle, WA',
-        status: 'Withdrawn',
-        appliedDate: '2025-12-05T08:00:00Z',
-        jobDescription: 'Manage our cloud infrastructure...',
-        resume: 'resume_devops.pdf',
-        timeline: [
-            { status: 'Withdrawn', date: '2025-12-08T12:00:00Z', note: 'Application withdrawn by candidate' },
-            { status: 'Applied', date: '2025-12-05T08:00:00Z', note: 'Application submitted successfully' }
-        ]
+class ApplicationService {
+    /**
+     * Get current user's applications with optional filtering and pagination
+     * @param {Object} options - Query options
+     * @param {string} [options.status] - Filter by status (PENDING, REVIEWING, ACCEPTED, REJECTED, WITHDRAWN)
+     * @param {number} [options.page] - Page number (0-indexed)
+     * @param {number} [options.size] - Page size
+     * @returns {Promise<Object>} Paginated applications response
+     */
+    async getMyApplications(options = {}) {
+        const params = {};
+        if (options.status) params.status = options.status;
+        if (options.page !== undefined) params.page = options.page;
+        if (options.size !== undefined) params.size = options.size;
+
+        return httpUtil.get(API_ENDPOINTS.APPLICATIONS.MY, params);
     }
-];
 
-export const ApplicationService = {
-    getApplications: async () => {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 800));
-        return [...applications];
-    },
-
-    getApplicationById: async (id) => {
-        await new Promise(resolve => setTimeout(resolve, 600));
-        const app = applications.find(a => a.id === id);
-        if (!app) throw new Error('Application not found');
-        return { ...app };
-    },
-
-    withdrawApplication: async (id) => {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const index = applications.findIndex(a => a.id === id);
-        if (index === -1) throw new Error('Application not found');
-
-        // Update local mock
-        const updatedApp = {
-            ...applications[index],
-            status: 'Withdrawn',
-            timeline: [
-                { status: 'Withdrawn', date: new Date().toISOString(), note: 'Application withdrawn by candidate' },
-                ...applications[index].timeline
-            ]
-        };
-        applications[index] = updatedApp;
-        return updatedApp;
-    },
-
-    reapply: async (id) => {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const index = applications.findIndex(a => a.id === id);
-        if (index === -1) throw new Error('Application not found');
-
-        // Update local mock
-        const updatedApp = {
-            ...applications[index],
-            status: 'Pending',
-            appliedDate: new Date().toISOString(),
-            timeline: [
-                { status: 'Applied', date: new Date().toISOString(), note: 'Re-applied successfully' },
-                ...applications[index].timeline
-            ]
-        };
-        applications[index] = updatedApp;
-        return updatedApp;
+    /**
+     * Get application history for current user
+     * @returns {Promise<Array>} List of applications with timeline
+     */
+    async getApplicationHistory() {
+        return httpUtil.get(API_ENDPOINTS.APPLICATIONS.HISTORY);
     }
-};
+
+    /**
+     * Get application by ID
+     * @param {string} id - Application ID
+     * @returns {Promise<Object>} Application details
+     */
+    async getApplicationById(id) {
+        return httpUtil.get(API_ENDPOINTS.APPLICATIONS.BY_ID(id));
+    }
+
+    /**
+     * Create a new job application (Requirement 4.3.2 - Upload CV and Cover Letter)
+     * @param {Object} applicationData - Application data
+     * @param {string} applicationData.jobPostId - Job post ID (required)
+     * @param {File} [applicationData.cvFile] - CV file
+     * @param {File} [applicationData.coverLetterFile] - Cover letter file
+     * @param {string} [applicationData.coverLetterText] - Cover letter text (optional)
+     * @returns {Promise<Object>} Created application
+     */
+    async createApplication(applicationData) {
+        const { jobPostId, cvFile, coverLetterFile, coverLetterText } = applicationData;
+
+        const formData = new FormData();
+        formData.append('jobPostId', jobPostId);
+
+        if (cvFile) {
+            formData.append('cv', cvFile);
+        }
+        if (coverLetterFile) {
+            formData.append('coverLetter', coverLetterFile);
+        }
+        if (coverLetterText) {
+            formData.append('coverLetterText', coverLetterText);
+        }
+
+        return httpUtil.upload(API_ENDPOINTS.APPLICATIONS.CREATE, formData);
+    }
+
+    /**
+     * Withdraw an application
+     * @param {string} id - Application ID
+     * @returns {Promise<Object>} Updated application
+     */
+    async withdrawApplication(id) {
+        return httpUtil.put(API_ENDPOINTS.APPLICATIONS.WITHDRAW(id));
+    }
+
+    /**
+     * Delete an application
+     * @param {string} id - Application ID  
+     * @returns {Promise<Object>} Deletion result
+     */
+    async deleteApplication(id) {
+        return httpUtil.delete(API_ENDPOINTS.APPLICATIONS.DELETE(id));
+    }
+
+    /**
+     * Get applications for a specific job post (for company use)
+     * @param {string} jobPostId - Job post ID
+     * @returns {Promise<Array>} List of applications
+     */
+    async getApplicationsByJobPost(jobPostId) {
+        return httpUtil.get(API_ENDPOINTS.APPLICATIONS.BY_JOB_POST(jobPostId));
+    }
+
+    // ==================== Helper Methods ====================
+
+    /**
+     * Format application status for display
+     * @param {string} status - Raw status from backend
+     * @returns {Object} Formatted status with label and color
+     */
+    formatStatus(status) {
+        const statusMap = {
+            PENDING: { label: 'Pending', color: 'warning', icon: 'clock' },
+            REVIEWING: { label: 'Under Review', color: 'info', icon: 'search' },
+            ACCEPTED: { label: 'Accepted', color: 'success', icon: 'check-circle' },
+            REJECTED: { label: 'Rejected', color: 'error', icon: 'x-circle' },
+            WITHDRAWN: { label: 'Withdrawn', color: 'muted', icon: 'archive' },
+        };
+
+        return statusMap[status] || { label: status, color: 'muted', icon: 'help-circle' };
+    }
+
+    /**
+     * Format date for display
+     * @param {string} dateStr - ISO date string
+     * @returns {string} Formatted date
+     */
+    formatDate(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+        });
+    }
+
+    /**
+     * Check if application can be withdrawn
+     * @param {Object} application - Application object
+     * @returns {boolean} True if can be withdrawn
+     */
+    canWithdraw(application) {
+        return ['PENDING', 'REVIEWING'].includes(application?.status);
+    }
+
+    /**
+     * Check if reapply is possible
+     * @param {Object} application - Application object
+     * @returns {boolean} True if can reapply
+     */
+    canReapply(application) {
+        return ['REJECTED', 'WITHDRAWN'].includes(application?.status);
+    }
+}
+
+// Export singleton instance
+const applicationService = new ApplicationService();
+export default applicationService;
+
+// Also export the class for testing
+export { ApplicationService };

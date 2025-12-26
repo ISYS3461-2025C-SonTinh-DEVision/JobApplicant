@@ -57,6 +57,12 @@ export const API_ENDPOINTS = {
     SKILLS: '/api/applicants/me/skills',
     SKILLS_BATCH: '/api/applicants/me/skills/batch',
     SKILL_BY_NAME: (skill) => `/api/applicants/me/skills/${encodeURIComponent(skill)}`,
+    // Portfolio CRUD (Requirement 3.2.3)
+    PORTFOLIO: '/api/applicants/me/portfolio',
+    PORTFOLIO_IMAGES: '/api/applicants/me/portfolio/images',
+    PORTFOLIO_IMAGE_BY_ID: (id) => `/api/applicants/me/portfolio/images/${id}`,
+    PORTFOLIO_VIDEOS: '/api/applicants/me/portfolio/videos',
+    PORTFOLIO_VIDEO_BY_ID: (id) => `/api/applicants/me/portfolio/videos/${id}`,
   },
 
   // Job endpoints
@@ -66,10 +72,22 @@ export const API_ENDPOINTS = {
     APPLY: '/api/jobs/apply',
   },
 
-  // Application endpoints
+  // Application endpoints (Requirement 3.2.4 - Display applications)
   APPLICATIONS: {
-    LIST: '/api/applications',
-    DETAILS: '/api/applications',
+    // GET /api/applications/me - Get current user's applications with pagination
+    MY: '/api/applications/me',
+    // GET /api/applications/history - Get application history
+    HISTORY: '/api/applications/history',
+    // POST /api/applications - Create new application (multipart/form-data)
+    CREATE: '/api/applications',
+    // GET /api/applications/{id} - Get application by ID
+    BY_ID: (id) => `/api/applications/${id}`,
+    // PUT /api/applications/{id}/withdraw - Withdraw application
+    WITHDRAW: (id) => `/api/applications/${id}/withdraw`,
+    // DELETE /api/applications/{id} - Delete application
+    DELETE: (id) => `/api/applications/${id}`,
+    // GET /api/applications/job-post/{jobPostId} - Get applications by job post
+    BY_JOB_POST: (jobPostId) => `/api/applications/job-post/${jobPostId}`,
   },
 
   // Subscription endpoints

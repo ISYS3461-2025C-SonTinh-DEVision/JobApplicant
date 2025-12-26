@@ -1,19 +1,24 @@
 
 import { useCallback, useEffect } from 'react';
-import { ApplicationService } from '../services/ApplicationService';
+import applicationService from '../services/ApplicationService';
 import useHeadlessDataList from '../components/headless/HeadlessDataList';
 import useHeadlessPagination from '../components/headless/HeadlessPagination';
 import useHeadlessSearch from '../components/headless/HeadlessSearch';
 
 export function useApplications() {
     // 1. Setup Headless Data List for fetching and state management
+    // Uses real API via applicationService (Requirement 3.2.4)
     const {
         items: allApplications,
         loading,
         error,
         fetchData: refreshApplications,
     } = useHeadlessDataList({
-        fetchFn: ApplicationService.getApplications,
+        fetchFn: async () => {
+            const response = await applicationService.getMyApplications();
+            // Handle both array and paginated response
+            return Array.isArray(response) ? response : response.content || [];
+        },
         fetchOnMount: true,
     });
 

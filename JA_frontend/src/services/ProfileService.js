@@ -132,6 +132,64 @@ class ProfileService {
     return httpUtil.delete(API_ENDPOINTS.ME.SKILL_BY_NAME(skill));
   }
 
+  // ==================== Portfolio CRUD (Requirement 3.2.3) ====================
+
+  /**
+   * Get user's portfolio (images and videos)
+   * @returns {Promise<Object>} Portfolio with images and videos arrays
+   */
+  async getMyPortfolio() {
+    return httpUtil.get(API_ENDPOINTS.ME.PORTFOLIO);
+  }
+
+  /**
+   * Upload portfolio image
+   * @param {File} file - Image file (JPG, PNG, WEBP, GIF)
+   * @param {string} [title] - Optional title/description
+   * @returns {Promise<Object>} Uploaded portfolio item
+   */
+  async uploadPortfolioImage(file, title = null) {
+    // httpUtil.upload expects (endpoint, file, additionalData) - NOT FormData
+    const additionalData = {};
+    if (title) {
+      additionalData.title = title;
+    }
+    return httpUtil.upload(API_ENDPOINTS.ME.PORTFOLIO_IMAGES, file, additionalData);
+  }
+
+  /**
+   * Upload portfolio video
+   * @param {File} file - Video file (MP4, MOV, AVI, WEBM)
+   * @param {string} [title] - Optional title/description
+   * @returns {Promise<Object>} Uploaded portfolio item
+   */
+  async uploadPortfolioVideo(file, title = null) {
+    // httpUtil.upload expects (endpoint, file, additionalData) - NOT FormData
+    const additionalData = {};
+    if (title) {
+      additionalData.title = title;
+    }
+    return httpUtil.upload(API_ENDPOINTS.ME.PORTFOLIO_VIDEOS, file, additionalData);
+  }
+
+  /**
+   * Delete portfolio image
+   * @param {string} id - Portfolio image ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deletePortfolioImage(id) {
+    return httpUtil.delete(API_ENDPOINTS.ME.PORTFOLIO_IMAGE_BY_ID(id));
+  }
+
+  /**
+   * Delete portfolio video
+   * @param {string} id - Portfolio video ID
+   * @returns {Promise<Object>} Deletion result
+   */
+  async deletePortfolioVideo(id) {
+    return httpUtil.delete(API_ENDPOINTS.ME.PORTFOLIO_VIDEO_BY_ID(id));
+  }
+
   // ==================== Legacy Endpoints (for admin/other use) ====================
 
   /**

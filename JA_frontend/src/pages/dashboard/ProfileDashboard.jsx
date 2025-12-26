@@ -23,7 +23,7 @@ import {
   Briefcase, GraduationCap, Code, Award, FileText, TrendingUp,
   CheckCircle, Clock, XCircle, AlertCircle, Plus, Trash2, ExternalLink,
   Database, Server, Target, Save, Upload, Camera, Eye, ChevronRight, Search, Sparkles,
-  BookOpen
+  BookOpen, Image
 } from 'lucide-react';
 import ProfileService from '../../services/ProfileService';
 import { useAuth } from '../../hooks/useAuth';
@@ -39,6 +39,7 @@ import {
 // Import Reusable Components
 import { Card, FormInput, ConfirmDialog, SkillIcon, SKILL_ICONS, Pagination } from '../../components/reusable';
 import DatePicker from '../../components/ui/DatePicker';
+import PortfolioSection from '../../components/profile/PortfolioSection';
 
 // Import Skills Data for smart skill selection
 import { getSkillInfo, getSkillCategory, POPULAR_SKILLS, SKILL_CATEGORIES, searchSkills, getQuickAddSkills } from '../../data/skillsData';
@@ -874,6 +875,12 @@ export default function ProfileDashboard() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef(null);
 
+  // Portfolio state (Requirement 3.2.3)
+  const [portfolio, setPortfolio] = useState({ images: [], videos: [] });
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [uploadingPortfolioImage, setUploadingPortfolioImage] = useState(false);
+  const [uploadingPortfolioVideo, setUploadingPortfolioVideo] = useState(false);
+
   // Edit mode tracking for forms
   const [editingEducationId, setEditingEducationId] = useState(null);
   const [editingExperienceId, setEditingExperienceId] = useState(null);
@@ -1351,6 +1358,97 @@ export default function ProfileDashboard() {
     }
   };
 
+  // ==================== Portfolio Handlers (Requirement 3.2.3) ====================
+
+  // Fetch portfolio
+  const fetchPortfolio = useCallback(async () => {
+    setPortfolioLoading(true);
+    try {
+      const data = await ProfileService.getMyPortfolio();
+      setPortfolio({
+        images: data?.images || [],
+        videos: data?.videos || [],
+      });
+    } catch (error) {
+      console.error('[ProfileDashboard] Error fetching portfolio:', error);
+      // Don't show error for 404 (no portfolio yet)
+      if (error.status !== 404) {
+        console.warn('Portfolio fetch failed:', error.message);
+      }
+    } finally {
+      setPortfolioLoading(false);
+    }
+  }, []);
+
+  // Fetch portfolio on mount
+  useEffect(() => {
+    if (currentUser?.userId) {
+      fetchPortfolio();
+    }
+  }, [currentUser?.userId, fetchPortfolio]);
+
+  // Upload portfolio image
+  const handleUploadPortfolioImage = async (file, title = null) => {
+    setUploadingPortfolioImage(true);
+    try {
+      const newItem = await ProfileService.uploadPortfolioImage(file, title);
+      setPortfolio(prev => ({
+        ...prev,
+        images: [...(prev.images || []), newItem],
+      }));
+    } catch (error) {
+      console.error('[ProfileDashboard] Error uploading portfolio image:', error);
+      throw error; // Re-throw for component to handle
+    } finally {
+      setUploadingPortfolioImage(false);
+    }
+  };
+
+  // Upload portfolio video
+  const handleUploadPortfolioVideo = async (file, title = null) => {
+    setUploadingPortfolioVideo(true);
+    try {
+      const newItem = await ProfileService.uploadPortfolioVideo(file, title);
+      setPortfolio(prev => ({
+        ...prev,
+        videos: [...(prev.videos || []), newItem],
+      }));
+    } catch (error) {
+      console.error('[ProfileDashboard] Error uploading portfolio video:', error);
+      throw error;
+    } finally {
+      setUploadingPortfolioVideo(false);
+    }
+  };
+
+  // Delete portfolio image
+  const handleDeletePortfolioImage = async (imageId) => {
+    try {
+      await ProfileService.deletePortfolioImage(imageId);
+      setPortfolio(prev => ({
+        ...prev,
+        images: prev.images.filter(img => img.id !== imageId),
+      }));
+    } catch (error) {
+      console.error('[ProfileDashboard] Error deleting portfolio image:', error);
+      throw error;
+    }
+  };
+
+  // Delete portfolio video
+  const handleDeletePortfolioVideo = async (videoId) => {
+    try {
+      await ProfileService.deletePortfolioVideo(videoId);
+      setPortfolio(prev => ({
+        ...prev,
+        videos: prev.videos.filter(vid => vid.id !== videoId),
+      }));
+    } catch (error) {
+      console.error('[ProfileDashboard] Error deleting portfolio video:', error);
+      throw error;
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -1801,26 +1899,21 @@ export default function ProfileDashboard() {
             )}
           </SectionCard>
 
-          {/* Portfolio Section */}
+          {/* Portfolio Section (Requirement 3.2.3) */}
           <SectionCard
-            icon={Award}
+            icon={Image}
             title="Portfolio"
-            isRealData={false}
-            action={
-              <button className="flex items-center gap-1 text-sm text-primary-400 hover:text-primary-300 transition-colors">
-                <Plus className="w-4 h-4" />
-                Upload
-              </button>
-            }
           >
-            <EmptyState
-              icon={Award}
-              message="No portfolio items yet"
-              action={
-                <button className="btn-secondary btn-sm">
-                  Upload Portfolio
-                </button>
-              }
+            <PortfolioSection
+              portfolio={portfolio}
+              loading={portfolioLoading}
+              uploadingImage={uploadingPortfolioImage}
+              uploadingVideo={uploadingPortfolioVideo}
+              onUploadImage={handleUploadPortfolioImage}
+              onUploadVideo={handleUploadPortfolioVideo}
+              onDeleteImage={handleDeletePortfolioImage}
+              onDeleteVideo={handleDeletePortfolioVideo}
+              variant={isDark ? 'dark' : 'light'}
             />
           </SectionCard>
 
