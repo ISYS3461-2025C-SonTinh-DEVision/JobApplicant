@@ -30,6 +30,8 @@ import ProfileDashboard from '../pages/dashboard/ProfileDashboard';
 import EditProfile from '../pages/dashboard/EditProfile';
 import MyApplicationsPage from '../pages/dashboard/MyApplicationsPage';
 import ApplicationDetailPage from '../pages/dashboard/ApplicationDetailPage';
+import JobListPage from '../pages/job/JobListPage';
+import JobDetailPage from '../pages/job/JobDetailPage';
 
 // Placeholder Pages
 import ComingSoon from '../pages/placeholder/ComingSoon';
@@ -93,6 +95,18 @@ const router = createBrowserRouter([
   },
 
   // =====================================
+  // Job Routes
+  // =====================================
+  {
+    path: '/jobs',
+    element: <JobListPage />,
+  },
+  {
+    path: '/jobs/:id',
+    element: <JobDetailPage />,
+  },
+
+  // =====================================
   // Protected Dashboard Routes
   // =====================================
   {
@@ -125,17 +139,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'jobs',
-        element: (
-          <ComingSoon
-            featureName="Job Search"
-            description="Find your dream job with our powerful search. Filter by skills, location, salary and more."
-            features={[
-              { icon: Search, title: 'Smart Search', description: 'Full-text search across all job listings' },
-              { icon: MapPin, title: 'Location Filter', description: 'Find jobs in your preferred location' },
-              { icon: Briefcase, title: 'Quick Apply', description: 'Apply with one click using your profile' }
-            ]}
-          />
-        ),
+        element: <JobListPage />,
       },
       {
         path: 'subscription',
