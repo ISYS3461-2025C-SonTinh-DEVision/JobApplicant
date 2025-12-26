@@ -16,4 +16,5 @@ export { default as useHeadlessSearch } from './HeadlessSearch';
 export { default as useHeadlessDataList } from './HeadlessDataList';
 export { default as useHeadlessNotification } from './HeadlessNotification';
 export { default as useHeadlessTabs } from './HeadlessTabs';
+export { default as useHeadlessToggle } from './HeadlessToggle';
 

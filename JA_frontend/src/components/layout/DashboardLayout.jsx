@@ -3,11 +3,12 @@
  * 
  * Main layout for authenticated user dashboard
  * Features:
+ * - Collapsible sidebar with toggle button
  * - Responsive sidebar navigation
  * - Header with user info, notifications, and theme toggle
  * - Mobile menu toggle
  * - Light/Dark mode support
- * - Headless UI integration
+ * - Headless UI integration (useHeadlessModal, useHeadlessToggle)
  * 
  * Architecture: A.2.b - Componentized Frontend + A.3.a Headless UI
  */
@@ -16,12 +17,12 @@ import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, User, Briefcase, Search, Bell, Settings,
-  LogOut, Menu, X, ChevronDown, Crown,
-  FileText, TrendingUp, Sun, Moon
+  LogOut, Menu, X, ChevronDown, Crown, ChevronLeft, ChevronRight,
+  FileText, TrendingUp, Sun, Moon, PanelLeftClose, PanelLeft
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
-import { useHeadlessModal } from '../../components/headless';
+import { useHeadlessModal, useHeadlessToggle } from '../../components/headless';
 
 /**
  * Theme Toggle Button
@@ -52,14 +53,17 @@ function ThemeToggle() {
 
 /**
  * Navigation Item Component
+ * Supports collapsed mode with tooltip
  */
-function NavItem({ to, icon: Icon, label, badge, isActive, onClick, className = '', isDark }) {
+function NavItem({ to, icon: Icon, label, badge, isActive, onClick, className = '', isDark, isCollapsed = false }) {
   return (
     <button
       onClick={() => onClick(to)}
+      title={isCollapsed ? label : undefined}
       className={`
         w-full flex items-center gap-3 px-4 py-3 rounded-xl
-        transition-all duration-200 group
+        transition-all duration-200 group relative
+        ${isCollapsed ? 'justify-center px-3' : ''}
         ${isActive
           ? 'bg-primary-600 text-white shadow-glow'
           : isDark
@@ -69,17 +73,33 @@ function NavItem({ to, icon: Icon, label, badge, isActive, onClick, className = 
         ${className}
       `}
     >
-      <Icon className={`w-5 h-5 ${isActive
+      <Icon className={`w-5 h-5 flex-shrink-0 ${isActive
         ? 'text-white'
         : isDark
           ? 'text-dark-400 group-hover:text-primary-400'
           : 'text-gray-400 group-hover:text-primary-500'
         }`} />
-      <span className="font-medium flex-1 text-left">{label}</span>
-      {badge && (
-        <span className="px-2 py-0.5 text-xs font-semibold bg-accent-500 text-white rounded-full">
-          {badge}
-        </span>
+      {!isCollapsed && (
+        <>
+          <span className="font-medium flex-1 text-left">{label}</span>
+          {badge && (
+            <span className="px-2 py-0.5 text-xs font-semibold bg-accent-500 text-white rounded-full">
+              {badge}
+            </span>
+          )}
+        </>
+      )}
+      {/* Tooltip for collapsed mode */}
+      {isCollapsed && (
+        <div className={`
+          absolute left-full ml-2 px-3 py-2 rounded-lg text-sm font-medium
+          opacity-0 invisible group-hover:opacity-100 group-hover:visible
+          transition-all duration-200 z-50 whitespace-nowrap
+          ${isDark ? 'bg-dark-700 text-white shadow-lg' : 'bg-gray-800 text-white shadow-lg'}
+        `}>
+          {label}
+          {badge && <span className="ml-2 px-1.5 py-0.5 text-xs bg-accent-500 rounded-full">{badge}</span>}
+        </div>
       )}
     </button>
   );
@@ -242,11 +262,20 @@ export default function DashboardLayout() {
     return location.pathname.startsWith(path);
   };
 
+  // Sidebar collapse state using useHeadlessToggle with localStorage persistence
+  const sidebarCollapse = useHeadlessToggle({
+    initialValue: false,
+    storageKey: 'dashboard-sidebar-collapsed',
+  });
+  const isCollapsed = sidebarCollapse.isOn;
+
   return (
     <div className={`min-h-screen flex ${isDark ? 'bg-dark-900' : 'bg-gray-50'}`}>
-      {/* Sidebar - Desktop */}
+      {/* Sidebar - Desktop (Collapsible) */}
       <aside className={`
-        hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 
+        hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 
+        transition-all duration-300 ease-in-out
+        ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
         ${isDark
           ? 'bg-dark-800 border-r border-dark-700'
           : 'bg-white border-r border-gray-200'
@@ -254,20 +283,23 @@ export default function DashboardLayout() {
       `}>
         {/* Logo */}
         <div className={`
-          flex items-center gap-3 px-6 py-5 border-b
+          flex items-center gap-3 px-4 py-5 border-b relative
+          ${isCollapsed ? 'justify-center' : 'px-6'}
           ${isDark ? 'border-dark-700' : 'border-gray-200'}
         `}>
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-glow">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-glow flex-shrink-0">
             <Briefcase className="w-5 h-5 text-white" />
           </div>
-          <div>
-            <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>DEVision</h1>
-            <p className={`text-xs ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Job Applicant</p>
-          </div>
+          {!isCollapsed && (
+            <div className="overflow-hidden">
+              <h1 className={`text-xl font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>DEVision</h1>
+              <p className={`text-xs truncate ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Job Applicant</p>
+            </div>
+          )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+        <nav className={`flex-1 py-6 space-y-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-4'}`}>
           {navigationItems.map((item) => (
             <NavItem
               key={item.to}
@@ -278,6 +310,7 @@ export default function DashboardLayout() {
               isActive={isActive(item.to, item.exact)}
               onClick={handleNavigation}
               isDark={isDark}
+              isCollapsed={isCollapsed}
               className={item.highlight ? `
                 ${isDark
                   ? 'bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-500/20'
@@ -288,31 +321,60 @@ export default function DashboardLayout() {
           ))}
         </nav>
 
+        {/* Toggle Button */}
+        <div className={`px-4 py-3 border-t ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
+          <button
+            onClick={sidebarCollapse.toggle}
+            className={`
+              w-full flex items-center gap-3 px-4 py-3 rounded-xl
+              transition-all duration-200 group
+              ${isCollapsed ? 'justify-center px-3' : ''}
+              ${isDark
+                ? 'text-dark-400 hover:bg-dark-700/50 hover:text-white'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+              }
+            `}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? (
+              <PanelLeft className="w-5 h-5" />
+            ) : (
+              <>
+                <PanelLeftClose className="w-5 h-5" />
+                <span className="font-medium text-sm">Collapse</span>
+              </>
+            )}
+          </button>
+        </div>
+
         {/* User Section */}
         <div className={`p-4 border-t ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
           <div className={`
-            flex items-center gap-3 px-4 py-3 rounded-xl
+            flex items-center gap-3 py-3 rounded-xl
+            ${isCollapsed ? 'justify-center px-0' : 'px-4'}
             ${isDark ? 'bg-dark-700' : 'bg-gray-100'}
           `}>
             {currentUser?.avatarUrl ? (
               <img
                 src={currentUser.avatarUrl}
                 alt="Avatar"
-                className="w-10 h-10 rounded-full object-cover"
+                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold text-sm">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
                 {currentUser?.firstName?.[0] || currentUser?.email?.[0]?.toUpperCase() || 'U'}
               </div>
             )}
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {currentUser?.firstName || 'User'} {currentUser?.lastName || ''}
-              </p>
-              <p className={`text-xs truncate ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
-                {currentUser?.email}
-              </p>
-            </div>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {currentUser?.firstName || 'User'} {currentUser?.lastName || ''}
+                </p>
+                <p className={`text-xs truncate ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                  {currentUser?.email}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </aside>
@@ -382,7 +444,7 @@ export default function DashboardLayout() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-64">
+      <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         {/* Header */}
         <header className={`
           sticky top-0 z-30 backdrop-blur-sm border-b
