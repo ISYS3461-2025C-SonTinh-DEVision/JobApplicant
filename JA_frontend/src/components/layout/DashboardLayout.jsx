@@ -70,10 +70,10 @@ function NavItem({ to, icon: Icon, label, badge, isActive, onClick, className = 
       `}
     >
       <Icon className={`w-5 h-5 ${isActive
-          ? 'text-white'
-          : isDark
-            ? 'text-dark-400 group-hover:text-primary-400'
-            : 'text-gray-400 group-hover:text-primary-500'
+        ? 'text-white'
+        : isDark
+          ? 'text-dark-400 group-hover:text-primary-400'
+          : 'text-gray-400 group-hover:text-primary-500'
         }`} />
       <span className="font-medium flex-1 text-left">{label}</span>
       {badge && (
@@ -105,9 +105,17 @@ function UserDropdown({ user, onLogout, isDark }) {
           }
         `}
       >
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold">
-          {user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
-        </div>
+        {user?.avatarUrl ? (
+          <img
+            src={user.avatarUrl}
+            alt="Avatar"
+            className="w-9 h-9 rounded-full object-cover"
+          />
+        ) : (
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold">
+            {user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
+          </div>
+        )}
         <div className="hidden md:block text-left">
           <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
             {user?.firstName || 'User'} {user?.lastName || ''}
@@ -286,9 +294,17 @@ export default function DashboardLayout() {
             flex items-center gap-3 px-4 py-3 rounded-xl
             ${isDark ? 'bg-dark-700' : 'bg-gray-100'}
           `}>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold text-sm">
-              {currentUser?.firstName?.[0] || currentUser?.email?.[0]?.toUpperCase() || 'U'}
-            </div>
+            {currentUser?.avatarUrl ? (
+              <img
+                src={currentUser.avatarUrl}
+                alt="Avatar"
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold text-sm">
+                {currentUser?.firstName?.[0] || currentUser?.email?.[0]?.toUpperCase() || 'U'}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {currentUser?.firstName || 'User'} {currentUser?.lastName || ''}

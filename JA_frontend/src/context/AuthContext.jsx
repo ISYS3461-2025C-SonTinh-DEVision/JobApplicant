@@ -34,6 +34,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   /**
+   * Update user data (e.g., after avatar upload)
+   */
+  const updateUser = useCallback((updates) => {
+    setUser(prev => prev ? { ...prev, ...updates } : prev);
+  }, []);
+
+  /**
    * Check session on mount and token changes
    */
   const checkAuth = useCallback(async () => {
@@ -52,6 +59,7 @@ export function AuthProvider({ children }) {
           firstName: response.firstName,
           lastName: response.lastName,
           email: response.email,
+          avatarUrl: response.avatarUrl || null, // Avatar URL for sidebar/navbar
         });
         setStatus(AUTH_STATUS.AUTHENTICATED);
       } else {
@@ -258,6 +266,7 @@ export function AuthProvider({ children }) {
     register,
     checkAuth,
     clearError,
+    updateUser, // New: update user data (avatar, etc.)
     activateAccount,
     forgotPassword,
     resetPassword,

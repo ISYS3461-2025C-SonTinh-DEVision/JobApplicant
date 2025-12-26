@@ -40,6 +40,7 @@ import {
 import { Card, FormInput, ConfirmDialog, SkillIcon, SKILL_ICONS, Pagination } from '../../components/reusable';
 import DatePicker from '../../components/ui/DatePicker';
 import PortfolioSection from '../../components/profile/PortfolioSection';
+import NotificationModal, { useNotificationModal } from '../../components/common/NotificationModal';
 
 // Import Skills Data for smart skill selection
 import { getSkillInfo, getSkillCategory, POPULAR_SKILLS, SKILL_CATEGORIES, searchSkills, getQuickAddSkills } from '../../data/skillsData';
@@ -804,7 +805,7 @@ function Modal({ isOpen, onClose, title, children }) {
  */
 export default function ProfileDashboard() {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, updateUser } = useAuth();
   const { isDark } = useTheme();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -822,6 +823,9 @@ export default function ProfileDashboard() {
 
   // Skills Modal - Using useHeadlessModal
   const skillsModal = useHeadlessModal();
+
+  // Notification Modal - Using useNotificationModal (replaces browser alerts)
+  const notification = useNotificationModal();
 
   // Education Data List - Using useHeadlessDataList
   const educationList = useHeadlessDataList({
@@ -1336,23 +1340,30 @@ export default function ProfileDashboard() {
 
     // Validate file type and size
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+      notification.showError('Invalid File', 'Please select an image file');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image size must be less than 5MB');
+      notification.showError('File Too Large', 'Image size must be less than 5MB');
       return;
     }
 
     setUploadingAvatar(true);
     try {
       const response = await ProfileService.uploadMyAvatar(file);
+      const newAvatarUrl = response?.avatarUrl || response;
+
       // Update profile with new avatar URL
-      setProfile(prev => ({ ...prev, avatarUrl: response?.avatarUrl || response }));
-      alert('Avatar uploaded successfully!');
+      setProfile(prev => ({ ...prev, avatarUrl: newAvatarUrl }));
+
+      // Sync avatar with AuthContext for sidebar/navbar
+      updateUser?.({ avatarUrl: newAvatarUrl });
+
+      // Show success notification
+      notification.showSuccess('Success', 'Avatar uploaded successfully!');
     } catch (error) {
       console.error('[ProfileDashboard] Error uploading avatar:', error);
-      alert('Failed to upload avatar. Please try again.');
+      notification.showError('Upload Failed', 'Failed to upload avatar. Please try again.');
     } finally {
       setUploadingAvatar(false);
     }
@@ -2675,6 +2686,15 @@ export default function ProfileDashboard() {
         cancelText="Cancel"
         variant="danger"
         loading={deleteDialog.loading}
+      />
+
+      {/* Notification Modal - replaces browser alerts */}
+      <NotificationModal
+        isOpen={notification.isOpen}
+        onClose={notification.close}
+        type={notification.notification.type}
+        title={notification.notification.title}
+        message={notification.notification.message}
       />
     </div>
   );
