@@ -274,7 +274,7 @@ export default function DashboardLayout() {
       {/* Sidebar - Desktop (Collapsible) */}
       <aside className={`
         hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 
-        transition-all duration-300 ease-in-out
+        transition-all duration-300 ease-in-out overflow-visible
         ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
         ${isDark
           ? 'bg-dark-800 border-r border-dark-700'
