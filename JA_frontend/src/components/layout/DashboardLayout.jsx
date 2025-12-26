@@ -53,7 +53,7 @@ function ThemeToggle() {
 
 /**
  * Navigation Item Component
- * Supports collapsed mode with tooltip
+ * Uses native title for tooltip when collapsed
  */
 function NavItem({ to, icon: Icon, label, badge, isActive, onClick, className = '', isDark, isCollapsed = false }) {
   return (
@@ -62,7 +62,7 @@ function NavItem({ to, icon: Icon, label, badge, isActive, onClick, className = 
       title={isCollapsed ? label : undefined}
       className={`
         w-full flex items-center gap-3 px-4 py-3 rounded-xl
-        transition-all duration-200 group relative
+        transition-all duration-200 group
         ${isCollapsed ? 'justify-center px-3' : ''}
         ${isActive
           ? 'bg-primary-600 text-white shadow-glow'
@@ -88,18 +88,6 @@ function NavItem({ to, icon: Icon, label, badge, isActive, onClick, className = 
             </span>
           )}
         </>
-      )}
-      {/* Tooltip for collapsed mode */}
-      {isCollapsed && (
-        <div className={`
-          absolute left-full ml-2 px-3 py-2 rounded-lg text-sm font-medium
-          opacity-0 invisible group-hover:opacity-100 group-hover:visible
-          transition-all duration-200 z-50 whitespace-nowrap
-          ${isDark ? 'bg-dark-700 text-white shadow-lg' : 'bg-gray-800 text-white shadow-lg'}
-        `}>
-          {label}
-          {badge && <span className="ml-2 px-1.5 py-0.5 text-xs bg-accent-500 rounded-full">{badge}</span>}
-        </div>
       )}
     </button>
   );
