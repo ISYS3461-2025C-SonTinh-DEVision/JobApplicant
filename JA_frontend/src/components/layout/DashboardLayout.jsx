@@ -270,7 +270,7 @@ export default function DashboardLayout() {
   const isCollapsed = sidebarCollapse.isOn;
 
   return (
-    <div className={`min-h-screen flex ${isDark ? 'bg-dark-900' : 'bg-gray-50'}`}>
+    <div className={`min-h-screen flex overflow-x-hidden ${isDark ? 'bg-dark-900' : 'bg-gray-50'}`}>
       {/* Sidebar - Desktop (Collapsible) */}
       <aside className={`
         hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 
