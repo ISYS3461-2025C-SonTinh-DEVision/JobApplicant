@@ -50,16 +50,25 @@ class ApplicationService {
      * Create a new job application (Requirement 4.3.2 - Upload CV and Cover Letter)
      * @param {Object} applicationData - Application data
      * @param {string} applicationData.jobPostId - Job post ID (required)
-     * @param {File} [applicationData.cvFile] - CV file
+     * @param {string} [applicationData.jobTitle] - Job title (optional)
+     * @param {string} [applicationData.companyName] - Company name (optional)
+     * @param {File} applicationData.cvFile - CV file (required by backend)
      * @param {File} [applicationData.coverLetterFile] - Cover letter file
      * @param {string} [applicationData.coverLetterText] - Cover letter text (optional)
      * @returns {Promise<Object>} Created application
      */
     async createApplication(applicationData) {
-        const { jobPostId, cvFile, coverLetterFile, coverLetterText } = applicationData;
+        const { jobPostId, jobTitle, companyName, cvFile, coverLetterFile, coverLetterText } = applicationData;
 
         const formData = new FormData();
         formData.append('jobPostId', jobPostId);
+
+        if (jobTitle) {
+            formData.append('jobTitle', jobTitle);
+        }
+        if (companyName) {
+            formData.append('companyName', companyName);
+        }
 
         if (cvFile) {
             formData.append('cv', cvFile);
@@ -70,8 +79,9 @@ class ApplicationService {
         if (coverLetterText) {
             formData.append('coverLetterText', coverLetterText);
         }
-
-        return httpUtil.upload(API_ENDPOINTS.APPLICATIONS.CREATE, formData);
+        // Use httpUtil.post directly since we're already constructing the FormData
+        // httpUtil.upload would wrap this FormData again, corrupting the request
+        return httpUtil.post(API_ENDPOINTS.APPLICATIONS.CREATE, formData);
     }
 
     /**

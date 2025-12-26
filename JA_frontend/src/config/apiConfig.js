@@ -6,6 +6,9 @@
 // Base API URL - Backend server
 export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
+// Job Manager API URL - External backend for job posts and companies
+export const JOB_MANAGER_API_URL = process.env.REACT_APP_JOB_MANAGER_API_URL || 'https://jobmanager-backend-production.up.railway.app';
+
 // API Endpoints
 export const API_ENDPOINTS = {
   // Auth endpoints
@@ -65,11 +68,23 @@ export const API_ENDPOINTS = {
     PORTFOLIO_VIDEO_BY_ID: (id) => `/api/applicants/me/portfolio/videos/${id}`,
   },
 
-  // Job endpoints
+  // Job endpoints (local backend proxy)
   JOBS: {
     SEARCH: '/api/jobs/search',
     DETAILS: '/api/jobs',
     APPLY: '/api/jobs/apply',
+  },
+
+  // Job Manager external API endpoints
+  JOB_MANAGER: {
+    // Job Posts
+    JOB_POSTS: '/api/job-posts',
+    JOB_POST_BY_ID: (id) => `/api/job-posts/${id}`,
+    // Companies
+    COMPANIES: '/api/companies',
+    COMPANY_BY_ID: (id) => `/api/companies/${id}`,
+    // Auth (for token forwarding)
+    AUTH_USERS: '/api/auth/users',
   },
 
   // Application endpoints (Requirement 3.2.4 - Display applications)

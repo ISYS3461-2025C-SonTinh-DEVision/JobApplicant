@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, Loader2 } from 'lucide-react';
 import JobList from '../../components/job/JobList';
 import FilterSidebar from '../../components/job/FilterSidebar';
+import ApplicationModal from '../../components/job/ApplicationModal';
 import { useJobSearch } from '../../hooks/useJobSearch';
 import { useJobPagination } from '../../hooks/useJobPagination';
 import { useTheme } from '../../context/ThemeContext';
@@ -25,6 +26,13 @@ const JobListPage = () => {
     });
 
     const [showFilters, setShowFilters] = useState(false); // Collapsed by default
+
+    // Application Modal State
+    const [selectedJobForApply, setSelectedJobForApply] = useState(null);
+    const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
+
+    // Infinite scroll ref
+    const loadMoreRef = useRef(null);
 
     const {
         jobs,
@@ -79,6 +87,36 @@ const JobListPage = () => {
         navigate(`/jobs/${job.id}`);
     };
 
+    // Handle Apply action
+    const handleApply = useCallback((job) => {
+        setSelectedJobForApply(job);
+        setIsApplicationModalOpen(true);
+    }, []);
+
+    // Handle application success
+    const handleApplicationSuccess = useCallback(() => {
+        // Could show a toast or update saved state
+        console.log('Application submitted successfully');
+    }, []);
+
+    // Infinite Scroll with IntersectionObserver (Requirement 4.2.4)
+    useEffect(() => {
+        if (!loadMoreRef.current || loading || !hasMore) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore && !loading) {
+                    loadMore();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        observer.observe(loadMoreRef.current);
+
+        return () => observer.disconnect();
+    }, [hasMore, loading, loadMore]);
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -94,8 +132,8 @@ const JobListPage = () => {
                 <div className="flex gap-3 w-full md:w-auto">
                     <button
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-colors ${isDark
-                                ? `${showFilters ? 'bg-primary-600 border-primary-500 text-white' : 'bg-dark-800 border-dark-700 text-dark-300 hover:text-white'}`
-                                : `${showFilters ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`
+                            ? `${showFilters ? 'bg-primary-600 border-primary-500 text-white' : 'bg-dark-800 border-dark-700 text-dark-300 hover:text-white'}`
+                            : `${showFilters ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`
                             }`}
                         onClick={() => setShowFilters(!showFilters)}
                     >
@@ -180,7 +218,7 @@ const JobListPage = () => {
                         loading={loading && page === 1}
                         variant={isDark ? 'dark' : 'light'}
                         onView={handleViewJob}
-                        onApply={(job) => console.log('Apply', job.id)}
+                        onApply={handleApply}
                         onSave={(job) => console.log('Save', job.id)}
                     />
 
@@ -214,6 +252,14 @@ const JobListPage = () => {
                     )}
                 </div>
             </div>
+
+            {/* Application Modal */}
+            <ApplicationModal
+                isOpen={isApplicationModalOpen}
+                onClose={() => setIsApplicationModalOpen(false)}
+                job={selectedJobForApply}
+                onSuccess={handleApplicationSuccess}
+            />
         </div>
     );
 };

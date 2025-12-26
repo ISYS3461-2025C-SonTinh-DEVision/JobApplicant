@@ -34,6 +34,11 @@ import ApplicationDetailPage from '../pages/dashboard/ApplicationDetailPage';
 import JobListPage from '../pages/job/JobListPage';
 import JobDetailPage from '../pages/job/JobDetailPage';
 
+// Subscription Pages
+import SubscriptionPage from '../pages/subscription/SubscriptionPage';
+import PaymentPage from '../pages/subscription/PaymentPage';
+import SearchProfilePage from '../pages/subscription/SearchProfilePage';
+
 // Admin Pages
 import AdminLoginPage from '../pages/admin/AdminLoginPage';
 import AdminLayout from '../components/layout/AdminLayout';
@@ -195,17 +200,15 @@ const router = createBrowserRouter([
       },
       {
         path: 'subscription',
-        element: (
-          <ComingSoon
-            featureName="Premium Subscription"
-            description="Unlock powerful features with DEVision Premium. Get real-time job alerts and more."
-            features={[
-              { icon: Crown, title: 'Real-time Alerts', description: 'Get notified instantly when matching jobs appear' },
-              { icon: TrendingUp, title: 'Priority Listing', description: 'Stand out to employers with priority status' },
-              { icon: FileText, title: 'Unlimited Apply', description: 'Apply to unlimited jobs without restrictions' }
-            ]}
-          />
-        ),
+        element: <SubscriptionPage />,
+      },
+      {
+        path: 'subscription/payment',
+        element: <PaymentPage />,
+      },
+      {
+        path: 'subscription/search-profile',
+        element: <SearchProfilePage />,
       },
       {
         path: 'analytics',
