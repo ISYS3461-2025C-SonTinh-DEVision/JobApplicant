@@ -6,6 +6,7 @@
  * - Public routes (login, register)
  * - Protected routes (dashboard)
  * - Admin routes
+ * - Job routes
  */
 
 import React from 'react';
@@ -28,6 +29,10 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import DashboardHome from '../pages/dashboard/DashboardHome';
 import ProfileDashboard from '../pages/dashboard/ProfileDashboard';
 import EditProfile from '../pages/dashboard/EditProfile';
+import MyApplicationsPage from '../pages/dashboard/MyApplicationsPage';
+import ApplicationDetailPage from '../pages/dashboard/ApplicationDetailPage';
+import JobListPage from '../pages/job/JobListPage';
+import JobDetailPage from '../pages/job/JobDetailPage';
 
 // Admin Pages
 import AdminLoginPage from '../pages/admin/AdminLoginPage';
@@ -100,6 +105,18 @@ const router = createBrowserRouter([
   },
 
   // =====================================
+  // Public Job Routes
+  // =====================================
+  {
+    path: '/jobs',
+    element: <JobListPage />,
+  },
+  {
+    path: '/jobs/:id',
+    element: <JobDetailPage />,
+  },
+
+  // =====================================
   // Admin Routes
   // =====================================
   {
@@ -166,31 +183,15 @@ const router = createBrowserRouter([
       },
       {
         path: 'applications',
-        element: (
-          <ComingSoon
-            featureName="My Applications"
-            description="Track all your job applications in one place. See status updates and manage your applications."
-            features={[
-              { icon: FileText, title: 'Application Tracking', description: 'View status of all your submitted applications' },
-              { icon: Clock, title: 'Timeline View', description: 'See your application history chronologically' },
-              { icon: CheckCircle, title: 'Smart Filters', description: 'Filter by status, date, or company' }
-            ]}
-          />
-        ),
+        element: <MyApplicationsPage />,
+      },
+      {
+        path: 'applications/:applicationId',
+        element: <ApplicationDetailPage />,
       },
       {
         path: 'jobs',
-        element: (
-          <ComingSoon
-            featureName="Job Search"
-            description="Find your dream job with our powerful search. Filter by skills, location, salary and more."
-            features={[
-              { icon: Search, title: 'Smart Search', description: 'Full-text search across all job listings' },
-              { icon: MapPin, title: 'Location Filter', description: 'Find jobs in your preferred location' },
-              { icon: Briefcase, title: 'Quick Apply', description: 'Apply with one click using your profile' }
-            ]}
-          />
-        ),
+        element: <JobListPage />,
       },
       {
         path: 'subscription',
