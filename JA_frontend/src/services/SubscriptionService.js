@@ -16,6 +16,9 @@
 import httpUtil from '../utils/httpUtil';
 import { API_ENDPOINTS } from '../config/apiConfig';
 
+// Storage key for persisting subscription state
+const STORAGE_KEY = 'devision_subscription';
+
 // Mock subscription data
 const MOCK_SUBSCRIPTION = {
     isPremium: false,
@@ -76,7 +79,36 @@ const MOCK_PAYMENT_HISTORY = [
 class SubscriptionService {
     constructor() {
         this.useMock = true; // Start with mock, toggle to false when backend is ready
-        this._mockSubscription = { ...MOCK_SUBSCRIPTION };
+        // Load subscription from localStorage for persistence across refreshes
+        this._mockSubscription = this._loadFromStorage() || { ...MOCK_SUBSCRIPTION };
+    }
+
+    /**
+     * Load subscription from localStorage
+     * @private
+     */
+    _loadFromStorage() {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                return JSON.parse(stored);
+            }
+        } catch (error) {
+            console.error('Error loading subscription from storage:', error);
+        }
+        return null;
+    }
+
+    /**
+     * Save subscription to localStorage
+     * @private
+     */
+    _saveToStorage() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(this._mockSubscription));
+        } catch (error) {
+            console.error('Error saving subscription to storage:', error);
+        }
     }
 
     /**
@@ -118,6 +150,9 @@ class SubscriptionService {
                 renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
             };
 
+            // Persist to localStorage
+            this._saveToStorage();
+
             return {
                 success: true,
                 message: 'Subscription activated successfully!',
@@ -153,6 +188,9 @@ class SubscriptionService {
                 status: 'cancelled',
                 cancelledAt: new Date().toISOString(),
             };
+
+            // Persist to localStorage
+            this._saveToStorage();
 
             return {
                 success: true,
@@ -278,6 +316,7 @@ class SubscriptionService {
      */
     resetToFree() {
         this._mockSubscription = { ...MOCK_SUBSCRIPTION };
+        this._saveToStorage();
     }
 
     /**
@@ -285,6 +324,7 @@ class SubscriptionService {
      */
     setToPremium() {
         this._mockSubscription = { ...MOCK_PREMIUM_SUBSCRIPTION };
+        this._saveToStorage();
     }
 
     /**

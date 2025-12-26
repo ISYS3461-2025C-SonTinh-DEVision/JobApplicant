@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useEffect } from 'react';
-import { ApplicationService } from '../services/ApplicationService';
+import applicationService from '../services/ApplicationService';
 import { toast } from '../components/reusable/Toast';
 
 export function useApplicationDetail(applicationId) {
@@ -15,7 +15,7 @@ export function useApplicationDetail(applicationId) {
         setLoading(true);
         setError(null);
         try {
-            const data = await ApplicationService.getApplicationById(applicationId);
+            const data = await applicationService.getApplicationById(applicationId);
             setApplication(data);
         } catch (err) {
             setError(err.message || 'Failed to load application details');
@@ -34,7 +34,7 @@ export function useApplicationDetail(applicationId) {
 
         setActionLoading(true);
         try {
-            const updatedApp = await ApplicationService.withdrawApplication(application.id);
+            const updatedApp = await applicationService.withdrawApplication(application.id);
             setApplication(updatedApp);
             // Assuming toast is available globally or imported, using simple alert/console fallback if not
             console.log('Application withdrawn');
@@ -51,7 +51,7 @@ export function useApplicationDetail(applicationId) {
 
         setActionLoading(true);
         try {
-            const updatedApp = await ApplicationService.reapply(application.id);
+            const updatedApp = await applicationService.reapply(application.id);
             setApplication(updatedApp);
             console.log('Re-applied successfully');
         } catch (err) {

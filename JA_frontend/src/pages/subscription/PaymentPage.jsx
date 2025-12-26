@@ -46,8 +46,9 @@ const PaymentPage = () => {
         validate: (values) => {
             const errors = {};
 
-            // Card number
-            const cleanNumber = values.cardNumber.replace(/\s/g, '');
+            // Card number - handle undefined/null safely
+            const cardNumber = values.cardNumber || '';
+            const cleanNumber = cardNumber.replace(/\s/g, '');
             if (!cleanNumber) {
                 errors.cardNumber = 'Card number is required';
             } else if (!/^\d{16}$/.test(cleanNumber)) {
@@ -71,15 +72,17 @@ const PaymentPage = () => {
                 }
             }
 
-            // CVC
-            if (!values.cvc) {
+            // CVC - handle undefined/null safely
+            const cvc = values.cvc || '';
+            if (!cvc) {
                 errors.cvc = 'CVC is required';
-            } else if (!/^\d{3,4}$/.test(values.cvc)) {
+            } else if (!/^\d{3,4}$/.test(cvc)) {
                 errors.cvc = 'Invalid CVC';
             }
 
-            // Cardholder name
-            if (!values.cardholderName.trim()) {
+            // Cardholder name - handle undefined/null safely
+            const cardholderName = values.cardholderName || '';
+            if (!cardholderName.trim()) {
                 errors.cardholderName = 'Name is required';
             }
 
