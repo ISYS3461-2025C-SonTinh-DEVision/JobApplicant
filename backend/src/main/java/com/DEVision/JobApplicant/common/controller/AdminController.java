@@ -38,25 +38,37 @@ public class AdminController {
 
     /**
      * Get dashboard statistics
+     * 
+     * Stats are calculated for APPLICANT role users only (not admin accounts)
+     * according to requirement 6.1.2 which manages Job Applicant accounts
      */
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getDashboardStats() {
         Map<String, Object> stats = new HashMap<>();
         
+        // Count only applicants (not admin or company users)
         long totalApplicants = applicantRepository.count();
-        long totalUsers = authRepository.count();
-        long premiumCount = authRepository.findAll().stream()
+        
+        // Get all users with APPLICANT role for accurate stats
+        List<User> applicantUsers = authRepository.findAll().stream()
+            .filter(u -> RoleConfig.APPLICANT.getRoleName().equals(u.getRole()))
+            .collect(Collectors.toList());
+        
+        // Premium count - only APPLICANT role users
+        long premiumCount = applicantUsers.stream()
             .filter(u -> u.getPlanType() != null && u.getPlanType().name().equals("PREMIUM"))
             .count();
-        long activeUsers = authRepository.findAll().stream()
+        
+        // Active users - only APPLICANT role users that are enabled
+        long activeApplicants = applicantUsers.stream()
             .filter(User::isEnabled)
             .count();
         
         stats.put("totalApplicants", totalApplicants);
         stats.put("totalCompanies", 0); // Companies are managed by Job Manager
         stats.put("totalJobPosts", 0);  // Job posts are managed by Job Manager
-        stats.put("activeUsers", activeUsers);
-        stats.put("premiumApplicants", premiumCount);
+        stats.put("activeUsers", activeApplicants);  // Only applicants, not admin
+        stats.put("premiumApplicants", premiumCount); // Only applicants, not admin
         stats.put("premiumCompanies", 0);
         
         return ResponseEntity.ok(stats);
