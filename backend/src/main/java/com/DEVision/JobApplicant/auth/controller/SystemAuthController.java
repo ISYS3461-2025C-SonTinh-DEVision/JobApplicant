@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.DEVision.JobApplicant.jwt.JwtUtil;
+import com.DEVision.JobApplicant.jwt.JweUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,7 +30,7 @@ import java.util.Map;
 public class SystemAuthController {
     
     @Autowired
-    private JwtUtil jwtUtil;
+    private JweUtil jweUtil;
     
     @Operation(
         summary = "Verify Job Applicant token",
@@ -59,11 +59,11 @@ public class SystemAuthController {
         String token = authHeader.substring(7);
         
         try {
-            // Verify the token signature and expiration
-            boolean isValid = jwtUtil.verifyJwtSignature(token);
+            // Verify the encrypted token and expiration
+            boolean isValid = jweUtil.verifyJweToken(token);
             
             if (isValid) {
-                String username = jwtUtil.extractUsername(token);
+                String username = jweUtil.extractUsername(token);
                 
                 response.put("valid", true);
                 response.put("systemId", "JOB_APPLICANT_SYSTEM");

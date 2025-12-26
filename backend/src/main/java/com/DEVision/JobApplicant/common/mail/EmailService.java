@@ -1,12 +1,16 @@
-package com.DEVision.JobApplicant.common.service;
+package com.DEVision.JobApplicant.common.mail;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Email Service - Handles sending beautiful HTML emails
@@ -19,80 +23,134 @@ import org.springframework.stereotype.Service;
 @Service
 public class EmailService {
 
-    @Autowired
-    private JavaMailSender mailSender;
+    @Autowired(required = false)
+    private RestTemplate restTemplate;
 
     @Value("${app.mail.from:noreply@rentmate.space}")
     private String fromEmail;
 
-    // New: sender display name shown in inbox (e.g., "DEVision Job Applicant")
     @Value("${app.mail.from-name:DEVision}")
     private String fromName;
 
     @Value("${app.frontend.base-url:http://localhost:3000}")
     private String frontendBaseUrl;
-    
-    // Brand colors matching frontend
-    private static final String PRIMARY_COLOR = "#2563EB";
-    private static final String PRIMARY_DARK = "#1D4ED8";
-    private static final String ACCENT_COLOR = "#14B8A6";
-    private static final String DARK_BG = "#0F172A";
-    private static final String SURFACE_COLOR = "#1E293B";
-    private static final String TEXT_COLOR = "#F1F5F9";
-    private static final String TEXT_MUTED = "#94A3B8";
-    
+
+    @Value("${app.mail.resend.api-key:}")
+    private String resendApiKey;
+
+        // Brand colors matching frontend
+        private static final String PRIMARY_COLOR = "#2563EB";
+        private static final String PRIMARY_DARK = "#1D4ED8";
+        private static final String ACCENT_COLOR = "#14B8A6";
+        private static final String DARK_BG = "#0F172A";
+        private static final String SURFACE_COLOR = "#1E293B";
+        private static final String TEXT_COLOR = "#F1F5F9";
+        private static final String TEXT_MUTED = "#94A3B8";
+
+    private static final String RESEND_API_URL = "https://api.resend.com/emails";
+
+    private RestTemplate getRestTemplate() {
+        if (restTemplate == null) {
+            restTemplate = new RestTemplate();
+        }
+        return restTemplate;
+    }
+
     /**
-     * Send activation email to new user with beautiful HTML template
+     * Send activation email to new user using Resend HTTP API with beautiful HTML template
      * @param toEmail Recipient email address
      * @param activationToken Activation token
      */
     public void sendActivationEmail(String toEmail, String activationToken) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            
-            helper.setFrom(fromEmail, fromName);
-            helper.setTo(toEmail);
-            helper.setSubject("🎉 Activate Your DEVision Account");
-            
+            if (resendApiKey == null || resendApiKey.isEmpty()) {
+                throw new RuntimeException("Resend API key not configured. Set app.mail.resend.api-key in application.yml");
+            }
+
             String activationLink = frontendBaseUrl + "/activate?token=" + activationToken;
             String htmlContent = buildActivationEmailTemplate(toEmail, activationLink);
-            
-            helper.setText(htmlContent, true); // true = HTML
-            
-            mailSender.send(message);
-            
-            System.out.println("Activation email sent to: " + toEmail);
+
+            // Prepare request body
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("from", fromName + " <" + fromEmail + ">");
+            requestBody.put("to", toEmail);
+            requestBody.put("subject", "🎉 Activate Your DEVision Account");
+            requestBody.put("html", htmlContent);
+
+            // Prepare headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            if (resendApiKey != null) {
+                headers.setBearerAuth(resendApiKey);
+            }
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+
+            // Send HTTP POST request to Resend API
+            ResponseEntity<?> response = getRestTemplate().postForEntity(
+                    RESEND_API_URL,
+                    request,
+                    Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                System.out.println("Activation email sent to: " + toEmail);
+            } else {
+                throw new RuntimeException("Failed to send email. Resend API returned: " + response.getStatusCode());
+            }
+
         } catch (Exception e) {
             System.err.println("Failed to send activation email: " + e.getMessage());
-            throw new RuntimeException("Failed to send activation email", e);
+            throw new RuntimeException("Failed to send activation email: " + e.getMessage(), e);
         }
     }
 
     /**
-     * Send password reset email with beautiful HTML template
+     * Send password reset email using Resend HTTP API with beautiful HTML template
      * @param toEmail Recipient email address
      * @param resetToken Password reset token
      */
     public void sendPasswordResetEmail(String toEmail, String resetToken) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            
-            helper.setFrom(fromEmail, fromName);
-            helper.setTo(toEmail);
-            helper.setSubject("🔐 Reset Your Password - DEVision");
-            
+            if (resendApiKey == null || resendApiKey.isEmpty()) {
+                throw new RuntimeException("Resend API key not configured. Set app.mail.resend.api-key in application.yml");
+            }
+
             String resetLink = frontendBaseUrl + "/reset-password?token=" + resetToken;
             String htmlContent = buildPasswordResetEmailTemplate(toEmail, resetLink);
-            
-            helper.setText(htmlContent, true); // true = HTML
-            
-            mailSender.send(message);
-            System.out.println("Password reset email sent to: " + toEmail);
+
+            // Prepare request body
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("from", fromName + " <" + fromEmail + ">");
+            requestBody.put("to", toEmail);
+            requestBody.put("subject", "🔐 Reset Your Password - DEVision");
+            requestBody.put("html", htmlContent);
+
+            // Prepare headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            if (resendApiKey != null) {
+                headers.setBearerAuth(resendApiKey);
+            }
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+
+            // Send HTTP POST request to Resend API
+            ResponseEntity<?> response = getRestTemplate().postForEntity(
+                    RESEND_API_URL,
+                    request,
+                    Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                System.out.println("Password reset email sent to: " + toEmail);
+            } else {
+                throw new RuntimeException("Failed to send email. Resend API returned: " + response.getStatusCode());
+            }
+
         } catch (Exception e) {
             System.err.println("Failed to send password reset email: " + e.getMessage());
-            throw new RuntimeException("Failed to send password reset email", e);
+            throw new RuntimeException("Failed to send password reset email: " + e.getMessage(), e);
         }
     }
     

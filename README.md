@@ -139,7 +139,7 @@ JobApplicant/
 - [x] POST /forgot-password - Request password reset via email ✅
 - [x] POST /reset-password - Reset password using email token ✅
 - [x] GET /check-session - Validate session and refresh token if needed ✅
-- [ ] POST /auth/google - Google OAuth SSO integration (Ultimo)
+- [x] POST /auth/oauth2/login - Google OAuth SSO integration (Ultimo) ✅
 - [x] Password validation (min 8 chars, complexity rules) ✅
 - [x] Email validation with real email delivery ✅
 - [x] Store tokens in HttpOnly cookies for security ✅

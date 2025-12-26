@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.common.controller;
+package com.DEVision.JobApplicant.common.country.controller;
 
 import java.util.HashMap;
 import java.util.List;

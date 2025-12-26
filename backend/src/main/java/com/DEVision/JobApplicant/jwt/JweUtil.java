@@ -8,12 +8,11 @@ import com.nimbusds.jose.crypto.RSADecrypter;
 import com.nimbusds.jose.crypto.RSAEncrypter;
 import com.nimbusds.jwt.EncryptedJWT;
 import com.nimbusds.jwt.JWTClaimsSet;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import com.DEVision.JobApplicant.auth.model.AuthModel;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Component;
 
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -22,100 +21,173 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
 
-@Service
+@Component
 public class JweUtil {
 	
 	@Autowired
 	private KeyStoreManager keyStoreManager;
 	
-	public String extractEmail(String token) {
-		return extractClaim(token, Claims::getSubject);
-	}
+	@Value("${jwt.access.expiration:86400000}")  // 24 hours default
+	private long accessTokenExpiration;
 	
-	private Date extractExpiration(String token) {
-		return extractClaim(token, Claims::getExpiration);
-	}
-
-	public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-		final Claims claims = extractAllClaims(token);
-		return claimsResolver.apply(claims);
-	}
+	@Value("${jwt.refresh.expiration:604800000}")  // 7 days default
+	private long refreshTokenExpiration;
 	
-	private Claims extractAllClaims(String token) {
-		return Jwts.parserBuilder().setSigningKey(keyStoreManager.getPublicKey())
-				.build()
-				.parseClaimsJws(token)
-				.getBody();
-	}
-	
-	private boolean isTokenExpired(String token) {
-		return extractExpiration(token).before(new Date());
-	}
-	
-	public String generateToken(AuthModel aseUserDetails) {
+	/**
+	 * Generate access token for user
+	 */
+	public String generateToken(UserDetails userDetails) {
 		Map<String, Object> claims = new HashMap<>();
-		System.out.println("UUID " + aseUserDetails.getId());
-		claims.put("uuid", aseUserDetails.getId());
-		claims.put("role", aseUserDetails.getRole());
-		return createToken(claims, aseUserDetails.getEmail());
+		claims.put("roles", userDetails.getAuthorities().toString());
+		return createToken(claims, userDetails.getUsername(), accessTokenExpiration);
 	}
 	
-	private String createToken(Map<String, Object> claims, String subject) {
+	/**
+	 * Generate refresh token for user
+	 */
+	public String generateRefreshToken(UserDetails userDetails) {
+		Map<String, Object> claims = new HashMap<>();
+		claims.put("type", "refresh");
+		claims.put("tokenId", UUID.randomUUID().toString());
+		return createToken(claims, userDetails.getUsername(), refreshTokenExpiration);
+	}
+	
+	/**
+	 * Create encrypted JWE token
+	 */
+	private String createToken(Map<String, Object> claims, String subject, long expirationTime) {
+		// JWE Header: RSA-OAEP-256 for key encryption, A256GCM for content encryption
 		JWEHeader jweHeader = new JWEHeader(JWEAlgorithm.RSA_OAEP_256, EncryptionMethod.A256GCM);
 
-		JWTClaimsSet.Builder claimsSet = new JWTClaimsSet.Builder();
-		claimsSet.issuer("ase-cas");
-		claimsSet.subject(subject);
+		// Build claims set
+		JWTClaimsSet.Builder claimsSetBuilder = new JWTClaimsSet.Builder();
+		claimsSetBuilder.issuer("JobApplicant");
+		claimsSetBuilder.subject(subject);
+		claimsSetBuilder.issueTime(new Date());
+		claimsSetBuilder.expirationTime(new Date(System.currentTimeMillis() + expirationTime));
+		claimsSetBuilder.notBeforeTime(new Date());
+		claimsSetBuilder.jwtID(UUID.randomUUID().toString());
 
-		// Add each claim to the ClaimsSet
-		claims.forEach((key, value) -> {
-			claimsSet.claim(key, value);
-		});
+		// Add custom claims
+		claims.forEach(claimsSetBuilder::claim);
 
-		claimsSet.expirationTime(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 5));
-		claimsSet.notBeforeTime(new Date());
+		// Create encrypted JWT
+		EncryptedJWT jwt = new EncryptedJWT(jweHeader, claimsSetBuilder.build());
 
-		claimsSet.jwtID(UUID.randomUUID().toString());
-
-		EncryptedJWT jwt = new EncryptedJWT(jweHeader, claimsSet.build());
-
+		// Encrypt with public key
 		RSAEncrypter encrypter = new RSAEncrypter((RSAPublicKey) keyStoreManager.getPublicKey());
 
 		try {
 			jwt.encrypt(encrypter);
-		} catch (Exception ex) {
+		} catch (JOSEException ex) {
 			System.err.println("Error when encrypting token");
 			ex.printStackTrace();
+			throw new RuntimeException("Failed to encrypt token", ex);
 		}
 
-		return jwt.toString();
+		return jwt.serialize();
 	}
 	
-	public boolean validateToken(String token, AuthModel aseUserDetails) {
-		final String email = extractEmail(token);
-		
-		return (Jwts.parserBuilder().setSigningKey(keyStoreManager.getPublicKey()).build().isSigned(token)
-				&& email.equals(aseUserDetails.getEmail())
-				&& !isTokenExpired(token)); 
+	/**
+	 * Decrypt and extract all claims from JWE token
+	 */
+	private JWTClaimsSet extractAllClaims(String token) {
+		try {
+			EncryptedJWT jwt = EncryptedJWT.parse(token);
+			RSADecrypter decrypter = new RSADecrypter((RSAPrivateKey) keyStoreManager.getPrivateKey());
+			jwt.decrypt(decrypter);
+			return jwt.getJWTClaimsSet();
+		} catch (ParseException | JOSEException e) {
+			throw new RuntimeException("Failed to decrypt token", e);
+		}
+	}
+	
+	/**
+	 * Extract username (subject) from token
+	 */
+	public String extractUsername(String token) {
+		return extractAllClaims(token).getSubject();
+	}
+	
+	/**
+	 * Extract expiration date from token
+	 */
+	private Date extractExpiration(String token) {
+		return extractAllClaims(token).getExpirationTime();
+	}
+	
+	/**
+	 * Check if token is expired
+	 */
+	private boolean isTokenExpired(String token) {
+		Date expiration = extractExpiration(token);
+		return expiration != null && expiration.before(new Date());
+	}
+	
+	/**
+	 * Verify JWE token (decrypt and check expiration)
+	 * Returns true if token is valid and not expired
+	 */
+	public boolean verifyJweToken(String token) {
+		try {
+			// Parse and decrypt the JWE token
+			EncryptedJWT jwt = EncryptedJWT.parse(token);
+			RSADecrypter decrypter = new RSADecrypter((RSAPrivateKey) keyStoreManager.getPrivateKey());
+			jwt.decrypt(decrypter);
+			
+			// Check expiration
+			JWTClaimsSet claims = jwt.getJWTClaimsSet();
+			Date expiration = claims.getExpirationTime();
+			
+			if (expiration == null || expiration.before(new Date())) {
+				return false;
+			}
+			
+			return true;
+		} catch (Exception e) {
+			System.err.println("JWE token verification failed: " + e.getMessage());
+			return false;
+		}
+	}
+	
+	/**
+	 * Validate token against user details
+	 */
+	public boolean validateToken(String token, UserDetails userDetails) {
+		try {
+			final String username = extractUsername(token);
+			return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+		} catch (Exception e) {
+			return false;
+		}
+	}
+	
+	/**
+	 * Check if token is a refresh token
+	 */
+	public boolean isRefreshToken(String token) {
+		try {
+			JWTClaimsSet claims = extractAllClaims(token);
+			return "refresh".equals(claims.getClaim("type"));
+		} catch (Exception e) {
+			return false;
+		}
 	}
 
-	public String decryptPasswordInJwe(String password) {
+	/**
+	 * Decrypt password from JWE (utility method for encrypted passwords)
+	 */
+	public String decryptPasswordInJwe(String encryptedPassword) {
 		RSADecrypter decrypter = new RSADecrypter((RSAPrivateKey) keyStoreManager.getPrivateKey());
-		System.out.println("Private RSA Key: " + ((RSAPrivateKey) keyStoreManager.getPrivateKey()).getPrivateExponent());
-
-		String decryptedPw = "";
 
 		try {
-			EncryptedJWT jwt = EncryptedJWT.parse(password);
+			EncryptedJWT jwt = EncryptedJWT.parse(encryptedPassword);
 			jwt.decrypt(decrypter);
-			decryptedPw = jwt.getJWTClaimsSet().getClaim("password").toString();
-			System.out.println("Decrypted pw: " + decryptedPw);
+			return jwt.getJWTClaimsSet().getClaim("password").toString();
 		} catch (JOSEException | ParseException e) {
 			e.printStackTrace();
+			throw new RuntimeException("Failed to decrypt password", e);
 		}
-		return decryptedPw;
 	}
-	
 }

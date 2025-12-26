@@ -59,7 +59,9 @@ public class SecurityConfig {
 								"/api/auth/oauth2/login",
 								"/api/auth/oauth2/google",
 								"/api/auth/oauth2/callback/google",
-								"/api/countries")
+								"/api/countries",
+								"/api/system/verify-token",
+								"/api/applications/job/**")
 						.permitAll()
 						// Swagger/OpenAPI documentation endpoints
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()

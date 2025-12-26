@@ -1,6 +1,7 @@
 package com.DEVision.JobApplicant.applicant.external.dto;
 
-import com.DEVision.JobApplicant.common.model.Country;
+import com.DEVision.JobApplicant.common.country.model.Country;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
