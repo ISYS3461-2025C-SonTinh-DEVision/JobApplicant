@@ -6,6 +6,14 @@ import useHeadlessPagination from '../components/headless/HeadlessPagination';
 import useHeadlessSearch from '../components/headless/HeadlessSearch';
 
 export function useApplications() {
+    // Memoized fetch function to prevent infinite re-renders
+    const fetchApplications = useCallback(async () => {
+        const response = await applicationService.getMyApplications();
+        // Handle both array and paginated response
+        // Backend returns { applications: [], ... }
+        return Array.isArray(response) ? response : response.applications || response.content || [];
+    }, []);
+
     // 1. Setup Headless Data List for fetching and state management
     // Uses real API via applicationService (Requirement 3.2.4)
     const {
@@ -14,11 +22,7 @@ export function useApplications() {
         error,
         fetchData: refreshApplications,
     } = useHeadlessDataList({
-        fetchFn: async () => {
-            const response = await applicationService.getMyApplications();
-            // Handle both array and paginated response
-            return Array.isArray(response) ? response : response.content || [];
-        },
+        fetchFn: fetchApplications,
         fetchOnMount: true,
     });
 
