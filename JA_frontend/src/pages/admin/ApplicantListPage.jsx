@@ -2,22 +2,331 @@
  * Applicant List Page
  * Admin page for viewing and managing applicants
  * 
- * Uses: useHeadlessTable, useHeadlessSearch, useHeadlessPagination
+ * Uses: useHeadlessTable, useHeadlessSearch, useHeadlessPagination, useHeadlessModal
  * Requirement 6.1.2, 6.2.1: View, search, and deactivate applicants
+ * 
+ * Architecture: Ultimo Frontend - Componentized with Headless UI patterns
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Users, Crown, MapPin, Mail, MoreVertical, UserX, Eye, Loader2, RefreshCw, X } from 'lucide-react';
-import { useHeadlessTable, useHeadlessSearch, useHeadlessPagination } from '../../components/headless';
+import {
+    Search, Users, Crown, MapPin, Mail, MoreVertical, UserX, Eye, Loader2,
+    RefreshCw, X, Phone, Briefcase, GraduationCap, Code, Calendar,
+    AlertTriangle, CheckCircle
+} from 'lucide-react';
+import { useHeadlessTable, useHeadlessSearch, useHeadlessPagination, useHeadlessModal } from '../../components/headless';
 import AdminService from '../../services/AdminService';
 
-// Status Badge Component
+// ============================================
+// MODAL COMPONENTS (Headless UI Pattern)
+// ============================================
+
+/**
+ * Base Modal Wrapper Component
+ * Provides consistent modal structure with backdrop and animations
+ */
+function ModalWrapper({ isOpen, onClose, children, size = 'md' }) {
+    const sizeClasses = {
+        sm: 'max-w-sm',
+        md: 'max-w-md',
+        lg: 'max-w-lg',
+        xl: 'max-w-xl',
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in"
+                onClick={onClose}
+            />
+            {/* Modal Content */}
+            <div className={`relative bg-dark-800 border border-white/10 rounded-2xl shadow-2xl w-full ${sizeClasses[size]} animate-scale-in overflow-hidden`}>
+                {children}
+            </div>
+        </div>
+    );
+}
+
+/**
+ * View Profile Modal Component
+ * Displays detailed applicant information in a beautiful modal
+ */
+function ViewProfileModal({ isOpen, onClose, applicant }) {
+    if (!applicant) return null;
+
+    return (
+        <ModalWrapper isOpen={isOpen} onClose={onClose} size="lg">
+            {/* Header */}
+            <div className="relative bg-gradient-to-br from-violet-600/20 to-pink-600/20 px-6 py-8 border-b border-white/10">
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 p-2 rounded-lg hover:bg-white/10 transition-colors text-dark-400 hover:text-white"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+
+                <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                        {applicant.name.charAt(0)}
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-bold text-white">{applicant.name}</h2>
+                        <div className="flex items-center gap-2 mt-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${applicant.status === 'active'
+                                    ? 'bg-emerald-500/20 text-emerald-400'
+                                    : 'bg-red-500/20 text-red-400'
+                                }`}>
+                                {applicant.status}
+                            </span>
+                            {applicant.isPremium && (
+                                <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-400 text-xs font-medium">
+                                    <Crown className="w-3 h-3" />
+                                    Premium
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                {/* Contact Info */}
+                <section>
+                    <h3 className="text-sm font-semibold text-dark-400 uppercase tracking-wider mb-3">
+                        Contact Information
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                            <Mail className="w-5 h-5 text-violet-400" />
+                            <div>
+                                <p className="text-xs text-dark-500">Email</p>
+                                <p className="text-white text-sm">{applicant.email}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                            <MapPin className="w-5 h-5 text-pink-400" />
+                            <div>
+                                <p className="text-xs text-dark-500">Location</p>
+                                <p className="text-white text-sm">{applicant.city}, {applicant.country}</p>
+                            </div>
+                        </div>
+                        {applicant.phone && (
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                                <Phone className="w-5 h-5 text-blue-400" />
+                                <div>
+                                    <p className="text-xs text-dark-500">Phone</p>
+                                    <p className="text-white text-sm">{applicant.phone}</p>
+                                </div>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                            <Calendar className="w-5 h-5 text-emerald-400" />
+                            <div>
+                                <p className="text-xs text-dark-500">Member Since</p>
+                                <p className="text-white text-sm">
+                                    {new Date(applicant.createdAt).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric'
+                                    })}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Skills */}
+                {applicant.skills && applicant.skills.length > 0 && (
+                    <section>
+                        <h3 className="text-sm font-semibold text-dark-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <Code className="w-4 h-4" />
+                            Technical Skills
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                            {applicant.skills.map((skill, index) => (
+                                <span
+                                    key={index}
+                                    className="px-3 py-1.5 rounded-lg bg-violet-500/20 text-violet-300 text-sm font-medium"
+                                >
+                                    {skill}
+                                </span>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* Work Experience */}
+                {applicant.workExperience && applicant.workExperience.length > 0 && (
+                    <section>
+                        <h3 className="text-sm font-semibold text-dark-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <Briefcase className="w-4 h-4" />
+                            Work Experience
+                        </h3>
+                        <div className="space-y-3">
+                            {applicant.workExperience.map((exp, index) => (
+                                <div key={index} className="p-4 rounded-xl bg-white/5 border border-white/5">
+                                    <p className="text-white font-medium">{exp.position}</p>
+                                    <p className="text-dark-400 text-sm">{exp.company}</p>
+                                    <p className="text-dark-500 text-xs mt-1">
+                                        {exp.startDate} - {exp.current ? 'Present' : exp.endDate}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* Education */}
+                {applicant.education && applicant.education.length > 0 && (
+                    <section>
+                        <h3 className="text-sm font-semibold text-dark-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <GraduationCap className="w-4 h-4" />
+                            Education
+                        </h3>
+                        <div className="space-y-3">
+                            {applicant.education.map((edu, index) => (
+                                <div key={index} className="p-4 rounded-xl bg-white/5 border border-white/5">
+                                    <p className="text-white font-medium">{edu.degree}</p>
+                                    <p className="text-dark-400 text-sm">{edu.institution}</p>
+                                    {edu.gpa && (
+                                        <p className="text-dark-500 text-xs mt-1">GPA: {edu.gpa}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-white/10 flex justify-end">
+                <button
+                    onClick={onClose}
+                    className="px-6 py-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors font-medium"
+                >
+                    Close
+                </button>
+            </div>
+        </ModalWrapper>
+    );
+}
+
+/**
+ * Deactivate Confirmation Modal Component
+ * Confirms applicant deactivation with warning message
+ */
+function DeactivateConfirmModal({ isOpen, onClose, onConfirm, applicant, isLoading }) {
+    if (!applicant) return null;
+
+    return (
+        <ModalWrapper isOpen={isOpen} onClose={onClose} size="md">
+            <div className="p-6">
+                {/* Warning Icon */}
+                <div className="flex justify-center mb-6">
+                    <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center animate-pulse">
+                        <AlertTriangle className="w-8 h-8 text-red-400" />
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="text-center mb-6">
+                    <h3 className="text-xl font-bold text-white mb-2">
+                        Deactivate Account?
+                    </h3>
+                    <p className="text-dark-400">
+                        Are you sure you want to deactivate the account for
+                    </p>
+                    <p className="text-white font-semibold mt-2">
+                        {applicant.name}
+                    </p>
+                    <p className="text-dark-500 text-sm mt-1">
+                        {applicant.email}
+                    </p>
+                </div>
+
+                {/* Warning Info */}
+                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 mb-6">
+                    <p className="text-red-400 text-sm text-center">
+                        This will prevent the user from logging in and accessing their account.
+                        The action can be reversed later.
+                    </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3">
+                    <button
+                        onClick={onClose}
+                        disabled={isLoading}
+                        className="flex-1 px-4 py-3 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors font-medium disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={isLoading}
+                        className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Deactivating...
+                            </>
+                        ) : (
+                            <>
+                                <UserX className="w-4 h-4" />
+                                Deactivate
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
+        </ModalWrapper>
+    );
+}
+
+/**
+ * Success Toast Component
+ * Shows success message after action completion
+ */
+function SuccessToast({ isVisible, message, onClose }) {
+    useEffect(() => {
+        if (isVisible) {
+            const timer = setTimeout(() => {
+                onClose();
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [isVisible, onClose]);
+
+    if (!isVisible) return null;
+
+    return (
+        <div className="fixed bottom-6 right-6 z-50 animate-slide-up">
+            <div className="flex items-center gap-3 px-5 py-4 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 shadow-2xl">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-medium">{message}</span>
+                <button onClick={onClose} className="ml-2 hover:text-emerald-300">
+                    <X className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ============================================
+// STATUS BADGE COMPONENT
+// ============================================
+
 function StatusBadge({ status, isPremium }) {
     return (
         <div className="flex items-center gap-2 flex-wrap">
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${status === 'active'
-                ? 'bg-emerald-500/20 text-emerald-400'
-                : 'bg-red-500/20 text-red-400'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-red-500/20 text-red-400'
                 }`}>
                 {status}
             </span>
@@ -31,13 +340,15 @@ function StatusBadge({ status, isPremium }) {
     );
 }
 
-// Action Menu Component - Fixed positioning
+// ============================================
+// ACTION MENU COMPONENT
+// ============================================
+
 function ActionMenu({ applicant, onDeactivate, onView }) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef(null);
     const buttonRef = useRef(null);
 
-    // Close on click outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (menuRef.current && !menuRef.current.contains(event.target) &&
@@ -90,7 +401,10 @@ function ActionMenu({ applicant, onDeactivate, onView }) {
     );
 }
 
-// Mobile Applicant Card Component
+// ============================================
+// MOBILE APPLICANT CARD COMPONENT
+// ============================================
+
 function ApplicantCard({ applicant, onDeactivate, onView, actionLoading }) {
     return (
         <div className="glass-card p-4 space-y-3">
@@ -138,11 +452,21 @@ function ApplicantCard({ applicant, onDeactivate, onView, actionLoading }) {
     );
 }
 
+// ============================================
+// MAIN PAGE COMPONENT
+// ============================================
+
 export default function ApplicantListPage() {
     const [applicants, setApplicants] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalItems, setTotalItems] = useState(0);
     const [actionLoading, setActionLoading] = useState(null);
+
+    // Modal states
+    const [viewModalOpen, setViewModalOpen] = useState(false);
+    const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
+    const [selectedApplicant, setSelectedApplicant] = useState(null);
+    const [successToast, setSuccessToast] = useState({ isVisible: false, message: '' });
 
     // Headless search hook
     const {
@@ -158,7 +482,6 @@ export default function ApplicantListPage() {
         currentPage,
         pageSize,
         totalPages,
-        goToPage,
         nextPage,
         prevPage,
         canGoNext,
@@ -171,8 +494,6 @@ export default function ApplicantListPage() {
 
     // Headless table hook
     const {
-        sortKey,
-        direction,
         toggleSort,
         sortedData,
         getSortIcon,
@@ -206,28 +527,37 @@ export default function ApplicantListPage() {
         fetchApplicants();
     }, [fetchApplicants]);
 
-    // Handle deactivate
-    const handleDeactivate = async (applicant) => {
-        if (!window.confirm(`Are you sure you want to deactivate ${applicant.name}?`)) {
-            return;
-        }
+    // Handle view profile - opens modal
+    const handleView = (applicant) => {
+        setSelectedApplicant(applicant);
+        setViewModalOpen(true);
+    };
 
-        setActionLoading(applicant.id);
+    // Handle deactivate - opens confirmation modal
+    const handleDeactivateClick = (applicant) => {
+        setSelectedApplicant(applicant);
+        setDeactivateModalOpen(true);
+    };
+
+    // Confirm deactivation
+    const handleDeactivateConfirm = async () => {
+        if (!selectedApplicant) return;
+
+        setActionLoading(selectedApplicant.id);
         try {
-            await AdminService.deactivateApplicant(applicant.id);
-            // Refresh list
+            await AdminService.deactivateApplicant(selectedApplicant.id);
+            setDeactivateModalOpen(false);
+            setSuccessToast({
+                isVisible: true,
+                message: `${selectedApplicant.name} has been deactivated`
+            });
             fetchApplicants();
         } catch (error) {
             console.error('Failed to deactivate applicant:', error);
         } finally {
             setActionLoading(null);
+            setSelectedApplicant(null);
         }
-    };
-
-    // Handle view profile
-    const handleView = (applicant) => {
-        // Could open a modal or navigate to profile
-        alert(`View profile: ${applicant.name}\nEmail: ${applicant.email}\nCountry: ${applicant.country}`);
     };
 
     // Table columns
@@ -301,7 +631,7 @@ export default function ApplicantListPage() {
                         <ApplicantCard
                             key={applicant.id}
                             applicant={applicant}
-                            onDeactivate={handleDeactivate}
+                            onDeactivate={handleDeactivateClick}
                             onView={handleView}
                             actionLoading={actionLoading}
                         />
@@ -391,7 +721,7 @@ export default function ApplicantListPage() {
                                             ) : (
                                                 <ActionMenu
                                                     applicant={applicant}
-                                                    onDeactivate={handleDeactivate}
+                                                    onDeactivate={handleDeactivateClick}
                                                     onView={handleView}
                                                 />
                                             )}
@@ -461,6 +791,35 @@ export default function ApplicantListPage() {
                     </div>
                 </div>
             )}
+
+            {/* View Profile Modal */}
+            <ViewProfileModal
+                isOpen={viewModalOpen}
+                onClose={() => {
+                    setViewModalOpen(false);
+                    setSelectedApplicant(null);
+                }}
+                applicant={selectedApplicant}
+            />
+
+            {/* Deactivate Confirmation Modal */}
+            <DeactivateConfirmModal
+                isOpen={deactivateModalOpen}
+                onClose={() => {
+                    setDeactivateModalOpen(false);
+                    setSelectedApplicant(null);
+                }}
+                onConfirm={handleDeactivateConfirm}
+                applicant={selectedApplicant}
+                isLoading={actionLoading === selectedApplicant?.id}
+            />
+
+            {/* Success Toast */}
+            <SuccessToast
+                isVisible={successToast.isVisible}
+                message={successToast.message}
+                onClose={() => setSuccessToast({ isVisible: false, message: '' })}
+            />
         </div>
     );
 }
