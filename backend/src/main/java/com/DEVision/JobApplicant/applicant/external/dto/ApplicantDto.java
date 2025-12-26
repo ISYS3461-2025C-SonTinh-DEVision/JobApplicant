@@ -1,7 +1,8 @@
 package com.DEVision.JobApplicant.applicant.external.dto;
 
-import com.DEVision.JobApplicant.common.model.Country;
 import java.time.LocalDateTime;
+
+import com.DEVision.JobApplicant.common.country.model.Country;
 
 /**
  * External DTO for applicant data

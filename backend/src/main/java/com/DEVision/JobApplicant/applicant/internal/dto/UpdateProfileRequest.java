@@ -1,6 +1,8 @@
 package com.DEVision.JobApplicant.applicant.internal.dto;
 
-import com.DEVision.JobApplicant.common.model.Country;
+import com.DEVision.JobApplicant.common.country.model.Country;
+
+import jakarta.validation.constraints.Size;
 
 /**
  * Internal DTO for updating applicant profile
@@ -14,6 +16,9 @@ public class UpdateProfileRequest {
     private String phoneNumber;
     private String address;
     private String city;
+
+    @Size(max = 500, message = "Objective summary cannot exceed 500 characters")
+    private String objectiveSummary;
 
     public UpdateProfileRequest() {}
 
@@ -64,5 +69,13 @@ public class UpdateProfileRequest {
 
     public void setCity(String city) {
         this.city = city;
+    }
+
+    public String getObjectiveSummary() {
+        return objectiveSummary;
+    }
+
+    public void setObjectiveSummary(String objectiveSummary) {
+        this.objectiveSummary = objectiveSummary;
     }
 }

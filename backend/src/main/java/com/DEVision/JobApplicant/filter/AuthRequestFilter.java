@@ -17,7 +17,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import com.DEVision.JobApplicant.auth.config.AuthConfig;
-import com.DEVision.JobApplicant.jwt.JwtUtil;
+import com.DEVision.JobApplicant.jwt.JweUtil;
 
 @Component
 public class AuthRequestFilter extends OncePerRequestFilter { 
@@ -26,10 +26,10 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 	private UserDetailsService userDetailsService;
 
 	@Autowired
-	private JwtUtil jwtUtil;
+	private JweUtil jweUtil;
 
 	@Autowired
-	private com.DEVision.JobApplicant.common.service.RedisService redisService;
+	private com.DEVision.JobApplicant.common.redis.RedisService redisService;
 	
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -39,8 +39,12 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		boolean isValidToken = false;
 
 		String requestPath = request.getServletPath();
+		
+		// DEBUG: Log the request path being checked
+		System.out.println("AuthRequestFilter checking path: " + requestPath);
 
 		// Public paths that don't require authentication
+		// Combined from both fe-myprofile-page (admin) and main (applications)
 		if (requestPath.equals("/api/auth/login") ||
 		    requestPath.equals("/api/auth/register") ||
 		    requestPath.equals("/api/auth/refresh") ||
@@ -49,10 +53,15 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		    requestPath.equals("/api/auth/forgot-password") ||
 		    requestPath.equals("/api/auth/reset-password") ||
 		    requestPath.equals("/api/countries") ||
+		    requestPath.equals("/api/system/verify-token") ||
 		    requestPath.startsWith("/swagger-ui") ||
 		    requestPath.startsWith("/v3/api-docs") ||
 		    requestPath.startsWith("/api/notifications") ||
-		    requestPath.startsWith("/ws/")) {
+		    requestPath.startsWith("/api/admin") ||
+		    requestPath.startsWith("/ws/") ||
+		    requestPath.startsWith("/api/system/verify-token") ||
+		    requestPath.startsWith("/api/applications/job/")) {
+			System.out.println("AuthRequestFilter: Path " + requestPath + " is PUBLIC, skipping auth");
 			filterChain.doFilter(request, response);
 			return;
 		}
@@ -61,7 +70,7 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		String authHeader = request.getHeader("Authorization");
 		if (authHeader != null && authHeader.startsWith("Bearer ")) {
 			token = authHeader.substring(7);
-			isValidToken = jwtUtil.verifyJwtSignature(token);
+			isValidToken = jweUtil.verifyJweToken(token);
 		}
 
 		// If no Bearer token, try to get token from cookie
@@ -71,7 +80,7 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 				for (Cookie ck : cookies) {
 					if (AuthConfig.AUTH_COOKIE_NAME.equals(ck.getName())) {
 						token = ck.getValue();
-						isValidToken = jwtUtil.verifyJwtSignature(token);
+						isValidToken = jweUtil.verifyJweToken(token);
 						break;
 					}
 				}
@@ -92,10 +101,16 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 			}
 		}
 
+		// Skip if system authentication is already set (from SystemAuthFilter)
+		if (SecurityContextHolder.getContext().getAuthentication() != null) {
+			filterChain.doFilter(request, response);
+			return;
+		}
+
 		if (token != null && isValidToken
 			&& SecurityContextHolder.getContext().getAuthentication() == null) {
 
-			String username = jwtUtil.extractUsername(token);
+			String username = jweUtil.extractUsername(token);
 
 			UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 

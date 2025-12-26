@@ -6,6 +6,7 @@
  * - Public routes (login, register)
  * - Protected routes (dashboard)
  * - Admin routes
+ * - Job routes
  */
 
 import React from 'react';
@@ -33,6 +34,14 @@ import ApplicationDetailPage from '../pages/dashboard/ApplicationDetailPage';
 import JobListPage from '../pages/job/JobListPage';
 import JobDetailPage from '../pages/job/JobDetailPage';
 
+// Admin Pages
+import AdminLoginPage from '../pages/admin/AdminLoginPage';
+import AdminLayout from '../components/layout/AdminLayout';
+import AdminDashboardPage from '../pages/admin/DashboardPage';
+import ApplicantListPage from '../pages/admin/ApplicantListPage';
+import CompanyListPage from '../pages/admin/CompanyListPage';
+import JobPostListPage from '../pages/admin/JobPostListPage';
+
 // Placeholder Pages
 import ComingSoon from '../pages/placeholder/ComingSoon';
 
@@ -41,6 +50,7 @@ import NotFound from '../pages/error/NotFound';
 
 // Protected Route Components
 import { ProtectedRoute, PublicOnlyRoute } from './ProtectedRoute';
+import { AdminProtectedRoute, AdminPublicRoute } from './AdminProtectedRoute';
 
 /**
  * Router configuration
@@ -95,7 +105,7 @@ const router = createBrowserRouter([
   },
 
   // =====================================
-  // Job Routes
+  // Public Job Routes
   // =====================================
   {
     path: '/jobs',
@@ -104,6 +114,48 @@ const router = createBrowserRouter([
   {
     path: '/jobs/:id',
     element: <JobDetailPage />,
+  },
+
+  // =====================================
+  // Admin Routes
+  // =====================================
+  {
+    path: '/admin/login',
+    element: (
+      <AdminPublicRoute>
+        <AdminLoginPage />
+      </AdminPublicRoute>
+    ),
+  },
+  {
+    path: '/admin',
+    element: (
+      <AdminProtectedRoute>
+        <AdminLayout />
+      </AdminProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/admin/dashboard" replace />,
+      },
+      {
+        path: 'dashboard',
+        element: <AdminDashboardPage />,
+      },
+      {
+        path: 'applicants',
+        element: <ApplicantListPage />,
+      },
+      {
+        path: 'companies',
+        element: <CompanyListPage />,
+      },
+      {
+        path: 'job-posts',
+        element: <JobPostListPage />,
+      },
+    ],
   },
 
   // =====================================

@@ -1,10 +1,17 @@
 package com.DEVision.JobApplicant.applicant.service;
 
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.DEVision.JobApplicant.applicant.entity.Applicant;
+import com.DEVision.JobApplicant.applicant.entity.Education;
+import com.DEVision.JobApplicant.applicant.entity.PortfolioItem;
+import com.DEVision.JobApplicant.applicant.entity.WorkExperience;
 import com.DEVision.JobApplicant.applicant.repository.ApplicantRepository;
+import com.DEVision.JobApplicant.common.storage.service.FileStorageService;
+import com.DEVision.JobApplicant.common.storage.dto.FileUploadResult;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -12,8 +19,22 @@ import java.util.Optional;
 @Service
 public class ApplicantService {
     
+    private static final int MAX_EDUCATION_ENTRIES = 20;
+    private static final int MAX_WORK_EXPERIENCE_ENTRIES = 20;
+    private static final int MAX_SKILLS_ENTRIES = 50;
+    private static final int MAX_PORTFOLIO_IMAGES = 20;
+    private static final int MAX_PORTFOLIO_VIDEOS = 5;
+    private static final String AVATAR_FOLDER = "applicant-avatars";
+    private static final String PORTFOLIO_IMAGES_FOLDER = "applicant-portfolio-images";
+    private static final String PORTFOLIO_VIDEOS_FOLDER = "applicant-portfolio-videos";
+    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for images
+    private static final long MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB for videos
+    
     @Autowired
     private ApplicantRepository applicantRepository;
+    
+    @Autowired
+    private FileStorageService fileStorageService;
     
     public Applicant createApplicant(Applicant applicant) {
         applicant.setCreatedAt(LocalDateTime.now());
@@ -54,7 +75,10 @@ public class ApplicantService {
             if (updatedApplicant.getCity() != null) {
                 applicant.setCity(updatedApplicant.getCity());
             }
-            
+            if (updatedApplicant.getObjectiveSummary() != null) {
+                applicant.setObjectiveSummary(updatedApplicant.getObjectiveSummary());
+            }
+
             applicant.setUpdatedAt(LocalDateTime.now());
             
             return applicantRepository.save(applicant);
@@ -63,12 +87,450 @@ public class ApplicantService {
         return null;
     }
     
+    // Education Management
+    public Applicant addEducation(String applicantId, Education education) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        if (applicant.getEducation().size() >= MAX_EDUCATION_ENTRIES) {
+            throw new IllegalStateException("Maximum " + MAX_EDUCATION_ENTRIES + " education entries allowed. Please delete an existing entry first.");
+        }
+        
+        education.setId(new ObjectId());
+        applicant.getEducation().add(education);
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    public Applicant updateEducation(String applicantId, String educationId, Education updatedEducation) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        ObjectId objId = new ObjectId(educationId);
+        
+        Optional<Education> existingEducation = applicant.getEducation().stream()
+                .filter(edu -> edu.getId().equals(objId))
+                .findFirst();
+        
+        if (existingEducation.isEmpty()) {
+            return null;
+        }
+        
+        Education edu = existingEducation.get();
+        edu.setInstitution(updatedEducation.getInstitution());
+        edu.setDegree(updatedEducation.getDegree());
+        edu.setFieldOfStudy(updatedEducation.getFieldOfStudy());
+        edu.setStartDate(updatedEducation.getStartDate());
+        edu.setEndDate(updatedEducation.getEndDate());
+        edu.setDescription(updatedEducation.getDescription());
+        edu.setCurrent(updatedEducation.isCurrent());
+        
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    public Applicant deleteEducation(String applicantId, String educationId) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        ObjectId objId = new ObjectId(educationId);
+        
+        boolean removed = applicant.getEducation().removeIf(edu -> edu.getId().equals(objId));
+        
+        if (!removed) {
+            return null;
+        }
+        
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    // Work Experience Management
+    public Applicant addWorkExperience(String applicantId, WorkExperience workExperience) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        if (applicant.getWorkExperience().size() >= MAX_WORK_EXPERIENCE_ENTRIES) {
+            throw new IllegalStateException("Maximum " + MAX_WORK_EXPERIENCE_ENTRIES + " work experience entries allowed. Please delete an existing entry first.");
+        }
+        
+        workExperience.setId(new ObjectId());
+        applicant.getWorkExperience().add(workExperience);
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    public Applicant updateWorkExperience(String applicantId, String workExperienceId, WorkExperience updatedWorkExperience) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        ObjectId objId = new ObjectId(workExperienceId);
+        
+        Optional<WorkExperience> existingWorkExperience = applicant.getWorkExperience().stream()
+                .filter(exp -> exp.getId().equals(objId))
+                .findFirst();
+        
+        if (existingWorkExperience.isEmpty()) {
+            return null;
+        }
+        
+        WorkExperience exp = existingWorkExperience.get();
+        exp.setCompany(updatedWorkExperience.getCompany());
+        exp.setPosition(updatedWorkExperience.getPosition());
+        exp.setDescription(updatedWorkExperience.getDescription());
+        exp.setStartDate(updatedWorkExperience.getStartDate());
+        exp.setEndDate(updatedWorkExperience.getEndDate());
+        exp.setCurrent(updatedWorkExperience.isCurrent());
+        
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    public Applicant deleteWorkExperience(String applicantId, String workExperienceId) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        ObjectId objId = new ObjectId(workExperienceId);
+        
+        boolean removed = applicant.getWorkExperience().removeIf(exp -> exp.getId().equals(objId));
+        
+        if (!removed) {
+            return null;
+        }
+        
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    // Avatar Upload
+    public Applicant uploadAvatar(String applicantId, MultipartFile file) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        // Validate file
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new IllegalArgumentException("File size exceeds maximum limit of 5MB");
+        }
+        
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Only image files (JPG, PNG, WEBP) are allowed");
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        // Delete old avatar if exists
+        if (applicant.getAvatarUrl() != null) {
+            // Extract publicId from URL if needed for deletion
+            // For now, just upload new one (Cloudinary will handle it)
+        }
+        
+        // Upload to Cloudinary
+        FileUploadResult result = fileStorageService.uploadFile(file, AVATAR_FOLDER);
+        applicant.setAvatarUrl(result.fileUrl());
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    // Skills Management
+    public Applicant addSkill(String applicantId, String skill) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        if (applicant.getSkills().size() >= MAX_SKILLS_ENTRIES) {
+            throw new IllegalStateException("Maximum " + MAX_SKILLS_ENTRIES + " skills allowed. Please delete an existing skill first.");
+        }
+        
+        // Case-insensitive duplicate check
+        String normalizedSkill = skill.trim();
+        boolean alreadyExists = applicant.getSkills().stream()
+                .anyMatch(s -> s.equalsIgnoreCase(normalizedSkill));
+        
+        if (alreadyExists) {
+            throw new IllegalArgumentException("Skill already exists in your profile");
+        }
+        
+        applicant.getSkills().add(normalizedSkill);
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    public Applicant addSkills(String applicantId, java.util.List<String> skills) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        int currentSize = applicant.getSkills().size();
+        int newSkillsCount = skills.size();
+        
+        if (currentSize + newSkillsCount > MAX_SKILLS_ENTRIES) {
+            throw new IllegalStateException("Adding " + newSkillsCount + " skills would exceed maximum of " + MAX_SKILLS_ENTRIES + ". Current: " + currentSize);
+        }
+        
+        for (String skill : skills) {
+            String normalizedSkill = skill.trim();
+            boolean alreadyExists = applicant.getSkills().stream()
+                    .anyMatch(s -> s.equalsIgnoreCase(normalizedSkill));
+            
+            if (!alreadyExists) {
+                applicant.getSkills().add(normalizedSkill);
+            }
+        }
+        
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    public Applicant deleteSkill(String applicantId, String skill) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        String normalizedSkill = skill.trim();
+        
+        // Case-insensitive removal
+        boolean removed = applicant.getSkills().removeIf(s -> s.equalsIgnoreCase(normalizedSkill));
+        
+        if (!removed) {
+            return null;
+        }
+        
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
     public boolean deleteApplicant(String id) {
         if (applicantRepository.existsById(id)) {
             applicantRepository.deleteById(id);
             return true;
         }
         return false;
+    }
+    
+    // Portfolio Image Management
+    public Applicant addPortfolioImage(String applicantId, MultipartFile file, String title) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        // Initialize list if null
+        if (applicant.getPortfolioImages() == null) {
+            applicant.setPortfolioImages(new java.util.ArrayList<>());
+        }
+        
+        if (applicant.getPortfolioImages().size() >= MAX_PORTFOLIO_IMAGES) {
+            throw new IllegalStateException("Maximum " + MAX_PORTFOLIO_IMAGES + " portfolio images allowed. Please delete an existing image first.");
+        }
+        
+        // Validate file
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new IllegalArgumentException("File size exceeds maximum limit of 5MB");
+        }
+        
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Only image files (JPG, PNG, WEBP, GIF) are allowed");
+        }
+        
+        // Upload to Cloudinary
+        FileUploadResult result = fileStorageService.uploadFile(file, PORTFOLIO_IMAGES_FOLDER);
+        
+        PortfolioItem portfolioItem = new PortfolioItem(
+            result.fileUrl(),
+            result.publicId(),
+            result.resourceType(),
+            title
+        );
+        
+        applicant.getPortfolioImages().add(portfolioItem);
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    public Applicant deletePortfolioImage(String applicantId, String portfolioItemId) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        if (applicant.getPortfolioImages() == null) {
+            return null;
+        }
+        
+        org.bson.types.ObjectId objId = new org.bson.types.ObjectId(portfolioItemId);
+        
+        // Find the item to delete (to get publicId for Cloudinary deletion)
+        Optional<PortfolioItem> itemToDelete = applicant.getPortfolioImages().stream()
+                .filter(item -> item.getId().equals(objId))
+                .findFirst();
+        
+        if (itemToDelete.isEmpty()) {
+            return null;
+        }
+        
+        // Delete from Cloudinary
+        try {
+            fileStorageService.deleteFile(itemToDelete.get().getPublicId(), itemToDelete.get().getResourceType());
+        } catch (Exception e) {
+            System.err.println("Warning: Failed to delete file from Cloudinary: " + e.getMessage());
+        }
+        
+        // Remove from list
+        applicant.getPortfolioImages().removeIf(item -> item.getId().equals(objId));
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    // Portfolio Video Management
+    public Applicant addPortfolioVideo(String applicantId, MultipartFile file, String title) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        // Initialize list if null
+        if (applicant.getPortfolioVideos() == null) {
+            applicant.setPortfolioVideos(new java.util.ArrayList<>());
+        }
+        
+        if (applicant.getPortfolioVideos().size() >= MAX_PORTFOLIO_VIDEOS) {
+            throw new IllegalStateException("Maximum " + MAX_PORTFOLIO_VIDEOS + " portfolio videos allowed. Please delete an existing video first.");
+        }
+        
+        // Validate file
+        if (file.getSize() > MAX_VIDEO_SIZE) {
+            throw new IllegalArgumentException("File size exceeds maximum limit of 100MB");
+        }
+        
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("video/")) {
+            throw new IllegalArgumentException("Only video files (MP4, MOV, AVI, WEBM) are allowed");
+        }
+        
+        // Upload to Cloudinary
+        FileUploadResult result = fileStorageService.uploadFile(file, PORTFOLIO_VIDEOS_FOLDER);
+        
+        PortfolioItem portfolioItem = new PortfolioItem(
+            result.fileUrl(),
+            result.publicId(),
+            result.resourceType(),
+            title
+        );
+        
+        applicant.getPortfolioVideos().add(portfolioItem);
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    public Applicant deletePortfolioVideo(String applicantId, String portfolioItemId) {
+        Optional<Applicant> applicantOpt = applicantRepository.findById(applicantId);
+        
+        if (applicantOpt.isEmpty()) {
+            return null;
+        }
+        
+        Applicant applicant = applicantOpt.get();
+        
+        if (applicant.getPortfolioVideos() == null) {
+            return null;
+        }
+        
+        org.bson.types.ObjectId objId = new org.bson.types.ObjectId(portfolioItemId);
+        
+        // Find the item to delete (to get publicId for Cloudinary deletion)
+        Optional<PortfolioItem> itemToDelete = applicant.getPortfolioVideos().stream()
+                .filter(item -> item.getId().equals(objId))
+                .findFirst();
+        
+        if (itemToDelete.isEmpty()) {
+            return null;
+        }
+        
+        // Delete from Cloudinary
+        try {
+            fileStorageService.deleteFile(itemToDelete.get().getPublicId(), itemToDelete.get().getResourceType());
+        } catch (Exception e) {
+            System.err.println("Warning: Failed to delete file from Cloudinary: " + e.getMessage());
+        }
+        
+        // Remove from list
+        applicant.getPortfolioVideos().removeIf(item -> item.getId().equals(objId));
+        applicant.setUpdatedAt(LocalDateTime.now());
+        
+        return applicantRepository.save(applicant);
+    }
+    
+    // Getters for max limits
+    public int getMaxPortfolioImages() {
+        return MAX_PORTFOLIO_IMAGES;
+    }
+    
+    public int getMaxPortfolioVideos() {
+        return MAX_PORTFOLIO_VIDEOS;
     }
 }
 

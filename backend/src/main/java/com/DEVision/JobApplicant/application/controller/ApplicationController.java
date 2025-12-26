@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.DEVision.JobApplicant.application.entity.Application;
 import com.DEVision.JobApplicant.application.external.dto.ApplicationResponse;
 import com.DEVision.JobApplicant.application.external.service.ApplicationExternalService;
+import com.DEVision.JobApplicant.application.internal.dto.ApplicationHistoryResponse;
 import com.DEVision.JobApplicant.application.internal.dto.ApplicationListResponse;
 import com.DEVision.JobApplicant.application.internal.dto.CreateApplicationRequest;
 import com.DEVision.JobApplicant.application.internal.service.ApplicationInternalService;
@@ -102,6 +103,37 @@ public class ApplicationController {
             e.printStackTrace();
             Map<String, String> error = new HashMap<>();
             error.put("error", "Failed to create application: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+    
+    @Operation(
+        summary = "Get application history",
+        description = "Retrieve complete application history with statistics. " +
+                      "Returns all applications sorted by date (most recent first) with status counts and statistics."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Application history retrieved successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @GetMapping("/history")
+    public ResponseEntity<?> getApplicationHistory(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            String applicantId = getUserIdFromUserDetails(userDetails);
+            if (applicantId == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "User not found");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
+            ApplicationHistoryResponse response = internalService.getApplicationHistory(applicantId);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
+            System.err.println("Error fetching application history: " + e.getMessage());
+            e.printStackTrace();
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to fetch application history");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }

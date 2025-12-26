@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import com.DEVision.JobApplicant.application.entity.Application;
 import com.DEVision.JobApplicant.application.external.dto.ApplicationResponse;
 import com.DEVision.JobApplicant.application.external.service.ApplicationExternalService;
+import com.DEVision.JobApplicant.application.internal.dto.ApplicationHistoryResponse;
 import com.DEVision.JobApplicant.application.internal.dto.ApplicationListResponse;
 import com.DEVision.JobApplicant.application.internal.dto.CreateApplicationRequest;
 import com.DEVision.JobApplicant.application.service.ApplicationService;
@@ -18,7 +19,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -215,6 +218,57 @@ public class ApplicationInternalService {
             return applicationService.deleteApplication(applicationId);
         }
         return false;
+    }
+    
+    /**
+     * Get application history with statistics
+     * Returns all applications sorted by date (most recent first) with statistics
+     */
+    public ApplicationHistoryResponse getApplicationHistory(String applicantId) {
+        // Get all applications for the applicant, sorted by applied date (most recent first)
+        List<Application> applications = applicationService.getApplicationsByApplicantId(applicantId);
+        
+        // Sort by appliedAt descending (most recent first)
+        applications.sort((a1, a2) -> {
+            if (a1.getAppliedAt() == null && a2.getAppliedAt() == null) return 0;
+            if (a1.getAppliedAt() == null) return 1;
+            if (a2.getAppliedAt() == null) return -1;
+            return a2.getAppliedAt().compareTo(a1.getAppliedAt());
+        });
+        
+        // Convert to response DTOs
+        List<ApplicationResponse> responseList = applications.stream()
+            .map(this::toResponse)
+            .collect(Collectors.toList());
+        
+        // Calculate statistics
+        long totalApplications = applications.size();
+        long pendingCount = applicationService.countApplicationsByApplicantIdAndStatus(applicantId, Application.ApplicationStatus.PENDING);
+        long reviewingCount = applicationService.countApplicationsByApplicantIdAndStatus(applicantId, Application.ApplicationStatus.REVIEWING);
+        long acceptedCount = applicationService.countApplicationsByApplicantIdAndStatus(applicantId, Application.ApplicationStatus.ACCEPTED);
+        long rejectedCount = applicationService.countApplicationsByApplicantIdAndStatus(applicantId, Application.ApplicationStatus.REJECTED);
+        long withdrawnCount = applicationService.countApplicationsByApplicantIdAndStatus(applicantId, Application.ApplicationStatus.WITHDRAWN);
+        
+        // Create status counts map
+        Map<Application.ApplicationStatus, Long> statusCounts = new HashMap<>();
+        statusCounts.put(Application.ApplicationStatus.PENDING, pendingCount);
+        statusCounts.put(Application.ApplicationStatus.REVIEWING, reviewingCount);
+        statusCounts.put(Application.ApplicationStatus.ACCEPTED, acceptedCount);
+        statusCounts.put(Application.ApplicationStatus.REJECTED, rejectedCount);
+        statusCounts.put(Application.ApplicationStatus.WITHDRAWN, withdrawnCount);
+        
+        ApplicationHistoryResponse.ApplicationHistoryStatistics statistics = 
+            new ApplicationHistoryResponse.ApplicationHistoryStatistics(
+                totalApplications,
+                pendingCount,
+                reviewingCount,
+                acceptedCount,
+                rejectedCount,
+                withdrawnCount
+            );
+        statistics.setStatusCounts(statusCounts);
+        
+        return new ApplicationHistoryResponse(responseList, statistics);
     }
     
     // Convert entity to response DTO

@@ -15,12 +15,15 @@ import com.DEVision.JobApplicant.applicant.external.service.ApplicantExternalSer
 import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.internal.dto.AuthResponse;
 import com.DEVision.JobApplicant.auth.internal.dto.LoginRequest;
+import com.DEVision.JobApplicant.auth.internal.dto.OAuth2LoginRequest;
+import com.DEVision.JobApplicant.auth.internal.dto.OAuth2UserInfo;
 import com.DEVision.JobApplicant.auth.internal.dto.RegisterRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.RegistrationResponse;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.auth.service.AuthService;
+import com.DEVision.JobApplicant.auth.service.OAuth2Service;
 import com.DEVision.JobApplicant.common.config.RoleConfig;
-import com.DEVision.JobApplicant.common.service.EmailService;
+import com.DEVision.JobApplicant.common.mail.EmailService;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -51,6 +54,9 @@ public class AuthInternalService {
     @Autowired
     private ApplicantExternalService applicantExternalService;
 
+    @Autowired
+    private OAuth2Service oauth2Service;
+
     /**
      * Register new user with applicant profile
      */
@@ -66,8 +72,8 @@ public class AuthInternalService {
             );
         }
 
-        // Generate activation token
-        String activationToken = UUID.randomUUID().toString();
+        // Generate activation token (valid for 15 minutes)
+		String activationToken = UUID.randomUUID().toString();
 
         // Create user
         User newUser = new User();
@@ -77,7 +83,7 @@ public class AuthInternalService {
         newUser.setEnabled(false);
         newUser.setActivated(false);
         newUser.setActivationToken(activationToken);
-        newUser.setActivationTokenExpiry(LocalDateTime.now().plusHours(24));
+		newUser.setActivationTokenExpiry(LocalDateTime.now().plusMinutes(15));
 
         User savedUser = authService.createUser(newUser);
 
@@ -93,12 +99,9 @@ public class AuthInternalService {
 
         ApplicantDto savedApplicant = applicantExternalService.createApplicant(applicantRequest);
 
-        // Send activation email
-        try {
-            emailService.sendActivationEmail(savedUser.getEmail(), activationToken);
-        } catch (Exception emailException) {
-            throw new RuntimeException("Failed to send activation email", emailException);
-        }
+        // Send activation email - if this fails, exception will propagate and @Transactional will rollback
+        // This ensures user and applicant are not created if email fails
+        emailService.sendActivationEmail(savedUser.getEmail(), activationToken);
 
         return new RegistrationResponse(
             savedUser.getId(),
@@ -124,6 +127,11 @@ public class AuthInternalService {
         }
 
         if (user.getActivationTokenExpiry().isBefore(LocalDateTime.now())) {
+            // Revoke expired token so it cannot be used anymore
+            user.setActivationToken(null);
+            user.setActivationTokenExpiry(null);
+            userRepository.save(user);
+
             return Map.of("message", "Activation token has expired. Please request a new activation email.", "success", false);
         }
 
@@ -152,11 +160,41 @@ public class AuthInternalService {
         User user = userRepository.findByEmail(request.getEmail());
 
         if (user == null) {
-            throw new RuntimeException("Invalid email or password");
+			throw new RuntimeException("Invalid email or password");
+        }
+
+        // SRS Requirement 1.3.2: SSO users cannot use password for direct login
+        if ("google".equals(user.getAuthProvider())) {
+            throw new RuntimeException("This account is registered with Google SSO. Please sign in with Google.");
         }
 
         if (!user.isActivated()) {
-            throw new RuntimeException("Account not activated. Please check your email for activation link.");
+			// If activation token is missing or expired, generate a new one and resend email
+			if (user.getActivationTokenExpiry() == null
+					|| user.getActivationTokenExpiry().isBefore(LocalDateTime.now())
+					|| user.getActivationToken() == null) {
+
+				String newActivationToken = UUID.randomUUID().toString();
+				
+				// Try to send email first - only save token if email succeeds
+				try {
+					emailService.sendActivationEmail(user.getEmail(), newActivationToken);
+					// Email sent successfully - now save the token
+					user.setActivationToken(newActivationToken);
+					// New activation link also valid for 15 minutes
+					user.setActivationTokenExpiry(LocalDateTime.now().plusMinutes(15));
+					userRepository.save(user);
+				} catch (Exception emailException) {
+					// Email failed - don't save token, throw error
+					throw new RuntimeException("Account not activated and failed to resend activation email. Please try again later.");
+				}
+
+				throw new RuntimeException(
+						"Your activation link has expired. A new activation email has been sent to your inbox.");
+			}
+
+			// Token still valid but account not activated yet
+			throw new RuntimeException("Account not activated. Please check your email for activation link.");
         }
 
         if (!user.isEnabled()) {
@@ -180,6 +218,97 @@ public class AuthInternalService {
     }
 
     /**
+     * OAuth2 login using ID Token Flow (Google SSO)
+     *
+     * This method handles both new user registration and existing user login for Google SSO.
+     *
+     * Flow:
+     * 1. Verify the Google ID token via OAuth2Service
+     * 2. Check if user exists in database by email
+     * 3. If new user: Create User entity + Applicant profile
+     * 4. If existing user: Validate account status
+     * 5. Generate JWT tokens (access + refresh)
+     *
+     * New users are automatically:
+     * - Activated (enabled=true, isActivated=true) - Google verified the email
+     * - Assigned authProvider="google" - enforces SSO-only authentication (SRS 1.3.2)
+     * - Given random password - never used, just satisfies entity constraints
+     *
+     * SRS Requirement 1.3.2: SSO users cannot use password authentication
+     * This is enforced in login() method by checking authProvider field
+     *
+     * @param request OAuth2LoginRequest containing Google ID token
+     * @return AuthResponse with JWT access and refresh tokens
+     * @throws RuntimeException if token verification fails or account is disabled
+     */
+    @Transactional
+    public AuthResponse oauth2Login(OAuth2LoginRequest request) {
+        try {
+            // Verify OAuth2 token and get user info (Google only)
+            OAuth2UserInfo oauth2UserInfo = oauth2Service.verifyToken(
+                request.getIdToken(),
+                "google"  // Provider hardcoded since we only support Google
+            );
+
+            if (!oauth2UserInfo.isEmailVerified()) {
+                throw new RuntimeException("Email not verified by OAuth2 provider");
+            }
+
+            // Check if user exists
+            User existingUser = userRepository.findByEmail(oauth2UserInfo.getEmail());
+
+            if (existingUser == null) {
+                // New user - create account and applicant profile
+                User newUser = new User();
+                newUser.setEmail(oauth2UserInfo.getEmail());
+                // Generate random password for OAuth2 users (won't be used for login)
+                newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+                newUser.setRole(RoleConfig.APPLICANT.getRoleName());
+                newUser.setEnabled(true); // OAuth2 users are auto-enabled
+                newUser.setActivated(true); // OAuth2 users are auto-activated (email verified by provider)
+                newUser.setAuthProvider("google"); // SRS 1.3.2: Mark as Google SSO user
+                newUser.setActivationToken(null);
+                newUser.setActivationTokenExpiry(null);
+
+                User savedUser = authService.createUser(newUser);
+
+                // Create applicant profile with OAuth2 info
+                CreateApplicantRequest applicantRequest = new CreateApplicantRequest();
+                applicantRequest.setUserId(savedUser.getId());
+                applicantRequest.setFirstName(oauth2UserInfo.getGivenName());
+                applicantRequest.setLastName(oauth2UserInfo.getFamilyName());
+                // Country will be null - user can update later
+                applicantRequest.setCountry(null);
+
+                applicantExternalService.createApplicant(applicantRequest);
+
+                // Optional: Upload avatar from OAuth2 provider
+                // This could be implemented later to fetch and upload the profile picture
+
+                existingUser = savedUser;
+            }
+
+            // Verify user is active
+            if (!existingUser.isActivated()) {
+                throw new RuntimeException("Account not activated");
+            }
+
+            if (!existingUser.isEnabled()) {
+                throw new RuntimeException("Account is disabled. Please contact support.");
+            }
+
+            // Generate JWT tokens
+            UserDetails userDetails = authService.loadUserByUsername(oauth2UserInfo.getEmail());
+            Map<String, String> tokens = authService.createAuthTokens(userDetails, true);
+
+            return new AuthResponse(tokens.get("accessToken"), tokens.get("refreshToken"));
+
+        } catch (Exception e) {
+            throw new RuntimeException("OAuth2 login failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Refresh access token
      */
     public AuthResponse refreshToken(String refreshToken) {
@@ -197,6 +326,14 @@ public class AuthInternalService {
             return Map.of(
                 "message", "If an account exists with this email, a password reset link will be sent.",
                 "success", true
+            );
+        }
+
+        // SRS Requirement 1.3.2: SSO users cannot reset password (they don't use passwords)
+        if ("google".equals(user.getAuthProvider())) {
+            return Map.of(
+                "message", "This account uses Google SSO. You cannot reset the password. Please sign in with Google.",
+                "success", false
             );
         }
 
@@ -231,6 +368,14 @@ public class AuthInternalService {
 
         if (user.getPasswordResetTokenExpiry().isBefore(LocalDateTime.now())) {
             return Map.of("message", "Password reset token has expired. Please request a new reset link.", "success", false);
+        }
+
+        // SRS Requirement 1.3.2: SSO users cannot reset password (they don't use passwords)
+        if ("google".equals(user.getAuthProvider())) {
+            return Map.of(
+                "message", "This account uses Google SSO. Password reset is not allowed. Please sign in with Google.",
+                "success", false
+            );
         }
 
         // Update password

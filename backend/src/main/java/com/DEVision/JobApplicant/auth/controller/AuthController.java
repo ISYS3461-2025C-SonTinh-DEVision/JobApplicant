@@ -25,6 +25,7 @@ import jakarta.validation.Valid;
 import com.DEVision.JobApplicant.auth.internal.dto.AuthResponse;
 import com.DEVision.JobApplicant.auth.internal.dto.ForgotPasswordRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.LoginRequest;
+import com.DEVision.JobApplicant.auth.internal.dto.OAuth2LoginRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.RegisterRequest;
 import com.DEVision.JobApplicant.auth.internal.dto.RegistrationResponse;
 import com.DEVision.JobApplicant.auth.internal.dto.ResendActivationRequest;
@@ -32,11 +33,16 @@ import com.DEVision.JobApplicant.auth.internal.dto.ResetPasswordRequest;
 import com.DEVision.JobApplicant.auth.internal.service.AuthInternalService;
 import com.DEVision.JobApplicant.auth.config.AuthConfig;
 import com.DEVision.JobApplicant.common.config.HttpOnlyCookieConfig;
-import com.DEVision.JobApplicant.common.service.RedisService;
-import com.DEVision.JobApplicant.jwt.JwtUtil;
+import com.DEVision.JobApplicant.common.redis.RedisService;
+import com.DEVision.JobApplicant.jwt.JweUtil;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import com.DEVision.JobApplicant.auth.entity.User;
+import com.DEVision.JobApplicant.auth.repository.AuthRepository;
+import com.DEVision.JobApplicant.applicant.entity.Applicant;
+import com.DEVision.JobApplicant.applicant.service.ApplicantService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -47,10 +53,16 @@ class AuthController {
     private AuthInternalService authInternalService;
 
     @Autowired
-    private JwtUtil jwtUtil;
+    private JweUtil jweUtil;
 
     @Autowired
     private RedisService redisService;
+
+    @Autowired
+    private AuthRepository userRepository;
+
+    @Autowired
+    private ApplicantService applicantService;
 
 @Operation(summary = "Register new user", description = "Create a new applicant account with email activation")
 @ApiResponses(value = {
@@ -194,6 +206,56 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
     }
 
     /**
+     * OAuth2 login endpoint (Google SSO) - ID Token Flow
+     *
+     * This endpoint implements the ID Token Flow (Client-Side Flow):
+     * 1. Frontend handles Google Sign-In using Google's JavaScript SDK
+     * 2. Google returns an ID token directly to the frontend
+     * 3. Frontend sends the ID token to this endpoint
+     * 4. Backend verifies the token with Google's tokeninfo endpoint
+     * 5. Backend creates/logs in the user and returns JWT tokens
+     *
+     * SRS Requirement 1.3.2: Users registered via SSO cannot use password authentication
+     *
+     * See: backend/OAUTH2_SSO_GUIDE.md for complete implementation details
+     */
+    @Operation(summary = "OAuth2 login (Google SSO)", description = "Authenticate user with Google ID token and return JWT tokens")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Login successful"),
+        @ApiResponse(responseCode = "401", description = "Invalid ID token or OAuth2 authentication failed")
+    })
+    @PostMapping("/oauth2/login")
+    public ResponseEntity<?> oauth2Login(
+            @Valid @RequestBody OAuth2LoginRequest oauth2LoginRequest,
+            HttpServletResponse response) {
+        try {
+            AuthResponse authResponse = authInternalService.oauth2Login(oauth2LoginRequest);
+
+            // Set HTTP-only cookie for access token (5 hours)
+            Cookie accessTokenCookie = HttpOnlyCookieConfig.createCookie(AuthConfig.AUTH_COOKIE_NAME, authResponse.getAccessToken());
+            response.addCookie(accessTokenCookie);
+
+            // Set HTTP-only cookie for refresh token (7 days)
+            Cookie refreshTokenCookie = HttpOnlyCookieConfig.createCookie(AuthConfig.REFRESH_COOKIE_NAME, authResponse.getRefreshToken());
+            refreshTokenCookie.setMaxAge(86400 * 7); // 7 days
+            response.addCookie(refreshTokenCookie);
+
+            // Return response with access token
+            Map<String, Object> responseBody = new HashMap<>();
+            responseBody.put("accessToken", authResponse.getAccessToken());
+            responseBody.put("message", "OAuth2 login successful");
+
+            return new ResponseEntity<>(responseBody, HttpStatus.OK);
+
+        } catch (Exception e) {
+            return new ResponseEntity<>(
+                Map.of("message", "OAuth2 login failed: " + e.getMessage()),
+                HttpStatus.UNAUTHORIZED
+            );
+        }
+    }
+
+    /**
      * Refresh token endpoint (placeholder - original implementation retained below)
      */
     @Operation(summary = "Refresh access token", description = "Get new access token using refresh token from cookie")
@@ -261,13 +323,28 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
         // (AuthRequestFilter already validated the token from cookie or Bearer header)
         if (userDetails != null) {
             try {
+                // Get user and applicant details for complete user info
+                User user = userRepository.findByEmail(userDetails.getUsername());
+                Applicant applicant = user != null ? applicantService.getApplicantByUserId(user.getId()) : null;
+
                 Map<String, Object> result = new HashMap<>();
                 result.put("authenticated", true);
                 result.put("username", userDetails.getUsername());
                 result.put("roles", userDetails.getAuthorities());
+                
+                // Add user and applicant IDs for profile lookup
+                if (user != null) {
+                    result.put("userId", user.getId());
+                    result.put("email", user.getEmail());
+                }
+                if (applicant != null) {
+                    result.put("applicantId", applicant.getId());
+                    result.put("firstName", applicant.getFirstName());
+                    result.put("lastName", applicant.getLastName());
+                }
 
                 // Optionally refresh the access token and update cookie
-                String newToken = jwtUtil.generateToken(userDetails);
+                String newToken = jweUtil.generateToken(userDetails);
                 Cookie newCookie = HttpOnlyCookieConfig.createCookie(
                     AuthConfig.AUTH_COOKIE_NAME, 
                     newToken

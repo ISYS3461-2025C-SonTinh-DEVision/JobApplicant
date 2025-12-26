@@ -42,11 +42,16 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await authService.checkSession();
-      
+
       if (response?.authenticated) {
         setUser({
           username: response.username,
           roles: response.roles,
+          userId: response.userId,
+          applicantId: response.applicantId,
+          firstName: response.firstName,
+          lastName: response.lastName,
+          email: response.email,
         });
         setStatus(AUTH_STATUS.AUTHENTICATED);
       } else {
@@ -71,10 +76,10 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await authService.login(credentials);
-      
+
       // After successful login, check session to get user details
       await checkAuth();
-      
+
       return { success: true, message: response.message };
     } catch (err) {
       setStatus(AUTH_STATUS.UNAUTHENTICATED);
@@ -93,7 +98,7 @@ export function AuthProvider({ children }) {
     try {
       const response = await authService.register(userData);
       setStatus(AUTH_STATUS.UNAUTHENTICATED); // User needs to verify email
-      
+
       return {
         success: response.success,
         message: response.message,
@@ -240,6 +245,7 @@ export function AuthProvider({ children }) {
   const value = {
     // State
     user,
+    currentUser: user, // Alias for components that use currentUser
     status,
     error,
     isInitialized,
@@ -273,11 +279,11 @@ export function AuthProvider({ children }) {
  */
 export function useAuth() {
   const context = useContext(AuthContext);
-  
+
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  
+
   return context;
 }
 

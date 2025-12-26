@@ -5,25 +5,32 @@
  * 
  * Architecture:
  * - A.3.a: Uses useHeadlessForm for form state management
- * - A.2.a: Uses reusable FormInput components
- * - Full client-side validation
+ * - A.2.a: Uses reusable FormInput, CountrySelect, PhoneInput components
+ * - Full client-side validation matching project requirements
+ * - Light/Dark mode support via ThemeContext
  * - Responsive layout
+ * 
+ * Validation Requirements:
+ * - Country: Required (1.1.1)
+ * - Phone: Optional, but if provided must be valid format (1.2.3)
+ * - Address, City: Optional text fields
  */
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Save, X, Loader2, AlertCircle, ArrowLeft,
-  User, Mail, Phone, MapPin, Building2
+  Save, X, Loader2, AlertCircle, ArrowLeft, CheckCircle,
+  User, Mail, Building2
 } from 'lucide-react';
 import ProfileService from '../../services/ProfileService';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../context/ThemeContext';
 import useHeadlessForm from '../../components/headless/HeadlessForm';
-import { FormInput, FormSelect, Card } from '../../components/reusable';
-import { validateEmail, validatePhone } from '../../utils/validators/authValidators';
+import { FormInput, Card, PhoneInput, CountrySelect } from '../../components/reusable';
 
 /**
  * Validation function for profile form
+ * Matches project requirements for profile management
  */
 const validateProfileForm = (values) => {
   const errors = {};
@@ -38,16 +45,25 @@ const validateProfileForm = (values) => {
     errors.lastName = 'Last name must be less than 50 characters';
   }
 
-  // Country validation (required)
+  // Country validation (required - Requirement 1.1.1)
   if (!values.country) {
     errors.country = 'Country is required';
   }
 
-  // Phone validation (optional, but if provided must be valid)
+  // Phone validation (optional, but if provided must be valid - Requirement 1.2.3)
   if (values.phoneNumber) {
-    const phoneErrors = validatePhone(values.phoneNumber);
-    if (phoneErrors.length > 0) {
-      errors.phoneNumber = phoneErrors[0].message;
+    // Must start with + and dial code
+    if (!values.phoneNumber.startsWith('+')) {
+      errors.phoneNumber = 'Phone number must include country dial code (e.g., +84)';
+    } else {
+      // Extract digits after +
+      const digits = values.phoneNumber.replace(/\D/g, '');
+      if (digits.length > 15) {
+        errors.phoneNumber = 'Phone number is too long (max 15 digits)';
+      }
+      if (digits.length < 7) {
+        errors.phoneNumber = 'Phone number is too short (min 7 digits)';
+      }
     }
   }
 
@@ -70,37 +86,63 @@ const validateProfileForm = (values) => {
 export default function EditProfile() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { isDark } = useTheme();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [countries, setCountries] = useState([]);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Fetch profile and countries on mount
+  // Fetch profile on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const profileService = new ProfileService();
-        const [profileData, countriesData] = await Promise.all([
-          profileService.getProfileByUserId(currentUser.userId),
-          fetch('http://localhost:8080/api/countries').then(res => res.json()).catch(() => [])
-        ]);
 
-        setProfile(profileData);
-        setCountries(countriesData.map(c => ({
-          value: c.code || c.name,
-          label: c.name
-        })));
+        // Try to fetch real profile using /api/applicants/me
+        if (currentUser) {
+          try {
+            const profileData = await ProfileService.getMyProfile();
+            console.log('[EditProfile] Loaded profile:', profileData);
+            setProfile(profileData);
+          } catch (apiError) {
+            console.warn('[EditProfile] API error, trying fallback:', apiError);
+            // Try legacy endpoint if /me fails
+            if (currentUser.userId) {
+              const profileData = await ProfileService.getProfileByUserId(currentUser.userId);
+              setProfile(ProfileService.normalizeProfile ? ProfileService.normalizeProfile(profileData) : profileData);
+            } else {
+              throw apiError;
+            }
+          }
+        } else {
+          // Mock profile for demo mode (no auth)
+          setProfile({
+            id: 'demo',
+            firstName: 'Demo',
+            lastName: 'User',
+            countryCode: 'VN',
+            phoneNumber: '+84123456789',
+            address: '702 Nguyễn Văn Linh',
+            city: 'Ho Chi Minh City',
+          });
+        }
       } catch (err) {
-        console.error('Error loading data:', err);
+        console.error('[EditProfile] Error loading data:', err);
+        // Fallback to mock profile
+        setProfile({
+          id: 'demo',
+          firstName: 'Demo',
+          lastName: 'User',
+          countryCode: 'VN',
+          phoneNumber: '',
+          address: '',
+          city: '',
+        });
       } finally {
         setLoading(false);
       }
     };
 
-    if (currentUser?.userId) {
-      fetchData();
-    }
+    fetchData();
   }, [currentUser]);
 
   // Headless form for profile editing
@@ -126,14 +168,20 @@ export default function EditProfile() {
     validate: validateProfileForm,
     onSubmit: async (formValues) => {
       try {
-        const profileService = new ProfileService();
-        await profileService.updateProfile(profile.id, formValues);
+        // Use /api/applicants/me for authenticated user
+        if (currentUser) {
+          await ProfileService.updateMyProfile(formValues);
+        } else {
+          // Fallback to legacy endpoint for demo
+          await ProfileService.updateProfile(profile.id, formValues);
+        }
         setSaveSuccess(true);
         setTimeout(() => {
           navigate('/dashboard/profile');
         }, 1500);
         return { success: true };
       } catch (err) {
+        console.error('[EditProfile] Save error:', err);
         throw new Error(err.message || 'Failed to update profile');
       }
     },
@@ -142,10 +190,17 @@ export default function EditProfile() {
   // Set form values when profile loads
   useEffect(() => {
     if (profile) {
+      // Use countryCode from normalized profile, fallback to extracting from country object
+      const countryValue = profile.countryCode
+        || (typeof profile.country === 'object' ? profile.country?.code : profile.country)
+        || '';
+
+      console.log('[EditProfile] Setting form values, country:', countryValue, 'phone:', profile.phoneNumber);
+
       setValues({
         firstName: profile.firstName || '',
         lastName: profile.lastName || '',
-        country: profile.country || '',
+        country: countryValue,
         phoneNumber: profile.phoneNumber || '',
         address: profile.address || '',
         city: profile.city || '',
@@ -158,7 +213,7 @@ export default function EditProfile() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-primary-500 animate-spin mx-auto mb-4" />
-          <p className="text-dark-400">Loading profile...</p>
+          <p className={isDark ? 'text-dark-400' : 'text-gray-500'}>Loading profile...</p>
         </div>
       </div>
     );
@@ -170,22 +225,29 @@ export default function EditProfile() {
       <div className="mb-6">
         <button
           onClick={() => navigate('/dashboard/profile')}
-          className="flex items-center gap-2 text-dark-400 hover:text-white transition-colors mb-4"
+          className={`flex items-center gap-2 transition-colors mb-4 ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+            }`}
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Profile</span>
         </button>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Edit Profile</h1>
-        <p className="text-dark-400 mt-2">Update your personal information</p>
+        <h1 className={`text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Edit Profile</h1>
+        <p className={`mt-2 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Update your personal information</p>
       </div>
 
       {/* Success Message */}
       {saveSuccess && (
-        <div className="mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 flex items-start gap-3 animate-fade-in">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+        <div className={`
+          mb-6 p-4 rounded-xl flex items-start gap-3 animate-fade-in
+          ${isDark
+            ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+            : 'bg-green-50 border border-green-200 text-green-700'
+          }
+        `}>
+          <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-medium">Profile updated successfully!</p>
-            <p className="text-sm text-green-400/70 mt-1">Redirecting to profile...</p>
+            <p className={`text-sm mt-1 ${isDark ? 'text-green-400/70' : 'text-green-600'}`}>Redirecting to profile...</p>
           </div>
         </div>
       )}
@@ -193,8 +255,11 @@ export default function EditProfile() {
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Information */}
-        <Card variant="dark" className="p-6">
-          <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+        <div className={`
+          p-6 rounded-2xl border
+          ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'}
+        `}>
+          <h2 className={`text-lg font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             <User className="w-5 h-5 text-primary-400" />
             Basic Information
           </h2>
@@ -211,8 +276,8 @@ export default function EditProfile() {
                 onBlur={handleBlur}
                 error={touched.firstName && errors.firstName}
                 icon={User}
-                placeholder="Trường"
-                variant="dark"
+                placeholder="Your first name"
+                variant={isDark ? 'dark' : 'light'}
               />
               <FormInput
                 label="Last Name"
@@ -222,8 +287,8 @@ export default function EditProfile() {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 error={touched.lastName && errors.lastName}
-                placeholder="Trần"
-                variant="dark"
+                placeholder="Your last name"
+                variant={isDark ? 'dark' : 'light'}
               />
             </div>
 
@@ -235,63 +300,62 @@ export default function EditProfile() {
               value={currentUser?.email || ''}
               icon={Mail}
               disabled
-              variant="dark"
+              variant={isDark ? 'dark' : 'light'}
             />
-            <p className="text-xs text-dark-500 -mt-2">
+            <p className={`text-xs -mt-2 ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>
               Email cannot be changed. Contact support if you need to update it.
             </p>
 
-            {/* Country */}
-            <FormSelect
+            {/* Country - Using new CountrySelect component */}
+            <CountrySelect
               label="Country"
               name="country"
               value={values.country}
               onChange={handleChange}
               onBlur={handleBlur}
               error={touched.country && errors.country}
-              options={countries}
-              icon={MapPin}
               placeholder="Select your country"
               required
-              variant="dark"
+              variant={isDark ? 'dark' : 'light'}
             />
           </div>
-        </Card>
+        </div>
 
         {/* Contact Information */}
-        <Card variant="dark" className="p-6">
-          <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-            <Phone className="w-5 h-5 text-primary-400" />
+        <div className={`
+          p-6 rounded-2xl border
+          ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'}
+        `}>
+          <h2 className={`text-lg font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <Building2 className="w-5 h-5 text-primary-400" />
             Contact Information
           </h2>
 
           <div className="space-y-4">
-            {/* Phone */}
-            <FormInput
+            {/* Phone - Using new PhoneInput component */}
+            <PhoneInput
               label="Phone Number"
               name="phoneNumber"
-              type="tel"
               value={values.phoneNumber}
               onChange={handleChange}
               onBlur={handleBlur}
               error={touched.phoneNumber && errors.phoneNumber}
-              icon={Phone}
-              placeholder="+84 123 456 789"
-              variant="dark"
+              placeholder="Enter phone number"
+              defaultCountry="VN"
+              variant={isDark ? 'dark' : 'light'}
             />
 
             {/* Address */}
             <FormInput
-              label="Address"
+              label="Street Address"
               name="address"
               type="text"
               value={values.address}
               onChange={handleChange}
               onBlur={handleBlur}
               error={touched.address && errors.address}
-              icon={MapPin}
-              placeholder="123 Đường Lê Lợi"
-              variant="dark"
+              placeholder="Your street address"
+              variant={isDark ? 'dark' : 'light'}
             />
 
             {/* City */}
@@ -304,15 +368,21 @@ export default function EditProfile() {
               onBlur={handleBlur}
               error={touched.city && errors.city}
               icon={Building2}
-              placeholder="Hồ Chí Minh"
-              variant="dark"
+              placeholder="Your city"
+              variant={isDark ? 'dark' : 'light'}
             />
           </div>
-        </Card>
+        </div>
 
         {/* Submit Error */}
         {submitError && (
-          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-start gap-3 animate-shake">
+          <div className={`
+            p-4 rounded-xl flex items-start gap-3 animate-shake
+            ${isDark
+              ? 'bg-red-500/10 border border-red-500/20 text-red-400'
+              : 'bg-red-50 border border-red-200 text-red-700'
+            }
+          `}>
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <p className="text-sm">{submitError}</p>
           </div>
@@ -323,7 +393,13 @@ export default function EditProfile() {
           <button
             type="button"
             onClick={() => navigate('/dashboard/profile')}
-            className="btn-secondary"
+            className={`
+              inline-flex items-center px-6 py-3 rounded-xl font-medium transition-colors
+              ${isDark
+                ? 'bg-dark-700 text-white hover:bg-dark-600 border border-dark-600'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+              }
+            `}
             disabled={isSubmitting}
           >
             <X className="w-4 h-4 mr-2" />
@@ -351,4 +427,3 @@ export default function EditProfile() {
     </div>
   );
 }
-

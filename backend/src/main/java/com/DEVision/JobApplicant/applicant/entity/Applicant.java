@@ -3,12 +3,15 @@ package com.DEVision.JobApplicant.applicant.entity;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import com.DEVision.JobApplicant.common.model.Country;
+import com.DEVision.JobApplicant.common.country.model.Country;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Document(collection = "applicants")
 public class Applicant {
@@ -17,9 +20,8 @@ public class Applicant {
     private String id;
 
     @NotBlank(message = "User ID is required")
-    private String userId; // Reference to AuthModel
+    private String userId;
 
-    // Core fields
     private String firstName;
     private String lastName;
 
@@ -30,10 +32,35 @@ public class Applicant {
     private String address;
     private String city;
 
+    @Size(max = 20, message = "Maximum 20 education entries allowed")
+    private List<Education> education;
+
+    @Size(max = 20, message = "Maximum 20 work experience entries allowed")
+    private List<WorkExperience> workExperience;
+
+    @Size(max = 50, message = "Maximum 50 skills allowed")
+    private List<String> skills;
+
+    @Size(max = 500, message = "Objective summary cannot exceed 500 characters")
+    private String objectiveSummary;
+
+    private String avatarUrl;
+
+    @Size(max = 20, message = "Maximum 20 portfolio images allowed")
+    private List<PortfolioItem> portfolioImages;
+
+    @Size(max = 5, message = "Maximum 5 portfolio videos allowed")
+    private List<PortfolioItem> portfolioVideos;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public Applicant() {
+        this.education = new ArrayList<>();
+        this.workExperience = new ArrayList<>();
+        this.skills = new ArrayList<>();
+        this.portfolioImages = new ArrayList<>();
+        this.portfolioVideos = new ArrayList<>();
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -41,6 +68,11 @@ public class Applicant {
     public Applicant(String userId, Country country) {
         this.userId = userId;
         this.country = country;
+        this.education = new ArrayList<>();
+        this.workExperience = new ArrayList<>();
+        this.skills = new ArrayList<>();
+        this.portfolioImages = new ArrayList<>();
+        this.portfolioVideos = new ArrayList<>();
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -110,6 +142,46 @@ public class Applicant {
         this.city = city;
     }
 
+    public List<Education> getEducation() {
+        return education;
+    }
+
+    public void setEducation(List<Education> education) {
+        this.education = education;
+    }
+
+    public List<WorkExperience> getWorkExperience() {
+        return workExperience;
+    }
+
+    public void setWorkExperience(List<WorkExperience> workExperience) {
+        this.workExperience = workExperience;
+    }
+
+    public List<String> getSkills() {
+        return skills;
+    }
+
+    public void setSkills(List<String> skills) {
+        this.skills = skills;
+    }
+
+    public String getObjectiveSummary() {
+        return objectiveSummary;
+    }
+
+    public void setObjectiveSummary(String objectiveSummary) {
+        this.objectiveSummary = objectiveSummary;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -124,5 +196,21 @@ public class Applicant {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public List<PortfolioItem> getPortfolioImages() {
+        return portfolioImages;
+    }
+
+    public void setPortfolioImages(List<PortfolioItem> portfolioImages) {
+        this.portfolioImages = portfolioImages;
+    }
+
+    public List<PortfolioItem> getPortfolioVideos() {
+        return portfolioVideos;
+    }
+
+    public void setPortfolioVideos(List<PortfolioItem> portfolioVideos) {
+        this.portfolioVideos = portfolioVideos;
     }
 }

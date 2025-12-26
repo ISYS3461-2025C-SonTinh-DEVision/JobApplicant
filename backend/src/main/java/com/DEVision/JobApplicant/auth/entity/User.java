@@ -4,6 +4,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import com.DEVision.JobApplicant.common.model.PlanType;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -36,6 +38,9 @@ public class User {
     @NotBlank(message = "Role cannot be blank, either registered users or non-registered users")
     private String role;
 
+    @NotNull(message = "Plan type is required")
+    private PlanType planType;
+
     // Account activation fields
     private boolean isActivated;
     private String activationToken;
@@ -45,16 +50,24 @@ public class User {
     private String passwordResetToken;
     private LocalDateTime passwordResetTokenExpiry;
 
+    // Authentication provider: "local" for email/password, "google" for Google SSO
+    // SRS Requirement 1.3.2: SSO users cannot use password for direct login
+    private String authProvider;
+
     public User(String username, String password, String role, boolean enabled) {
         this.email = username;
         this.password = password;
         this.enabled = enabled;
         this.role = role;
+        this.planType = PlanType.FREEMIUM;
         this.isActivated = false;
+        this.authProvider = "local"; // Default to local authentication
     }
 
     public User() {
+        this.planType = PlanType.FREEMIUM;
         this.isActivated = false;
+        this.authProvider = "local"; // Default to local authentication
     }
 
     public String getId() {
@@ -91,6 +104,14 @@ public class User {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public PlanType getPlanType() {
+        return planType;
+    }
+
+    public void setPlanType(PlanType planType) {
+        this.planType = planType;
     }
 
     public boolean isActivated() {
@@ -131,5 +152,13 @@ public class User {
 
     public void setPasswordResetTokenExpiry(LocalDateTime passwordResetTokenExpiry) {
         this.passwordResetTokenExpiry = passwordResetTokenExpiry;
+    }
+
+    public String getAuthProvider() {
+        return authProvider;
+    }
+
+    public void setAuthProvider(String authProvider) {
+        this.authProvider = authProvider;
     }
 }
