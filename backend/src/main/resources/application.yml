@@ -56,6 +56,14 @@ spring:
           min-idle: 0
           max-wait: -1
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
   # SMTP configuration removed - using Resend HTTP API instead
   # This avoids SMTP port blocking issues on Railway and other cloud platforms
   # mail:

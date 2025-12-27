@@ -2,6 +2,7 @@ package com.DEVision.JobApplicant.applicant.service;
 
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -9,6 +10,10 @@ import com.DEVision.JobApplicant.applicant.entity.Applicant;
 import com.DEVision.JobApplicant.applicant.entity.Education;
 import com.DEVision.JobApplicant.applicant.entity.PortfolioItem;
 import com.DEVision.JobApplicant.applicant.entity.WorkExperience;
+import com.DEVision.JobApplicant.applicant.external.dto.ApplicantProfileEvent;
+import com.DEVision.JobApplicant.applicant.external.service.ApplicantProfileEventProducer;
+import com.DEVision.JobApplicant.applicant.internal.dto.ProfileResponse;
+import com.DEVision.JobApplicant.applicant.internal.service.ApplicantInternalService;
 import com.DEVision.JobApplicant.applicant.repository.ApplicantRepository;
 import com.DEVision.JobApplicant.common.storage.service.FileStorageService;
 import com.DEVision.JobApplicant.common.storage.dto.FileUploadResult;
@@ -35,6 +40,13 @@ public class ApplicantService {
     
     @Autowired
     private FileStorageService fileStorageService;
+    
+    @Autowired
+    private ApplicantProfileEventProducer profileEventProducer;
+    
+    @Autowired
+    @Lazy
+    private ApplicantInternalService applicantInternalService;
     
     public Applicant createApplicant(Applicant applicant) {
         applicant.setCreatedAt(LocalDateTime.now());
@@ -63,8 +75,10 @@ public class ApplicantService {
             if (updatedApplicant.getLastName() != null) {
                 applicant.setLastName(updatedApplicant.getLastName());
             }
+            boolean countryUpdated = false;
             if (updatedApplicant.getCountry() != null) {
                 applicant.setCountry(updatedApplicant.getCountry());
+                countryUpdated = true;
             }
             if (updatedApplicant.getPhoneNumber() != null) {
                 applicant.setPhoneNumber(updatedApplicant.getPhoneNumber());
@@ -81,7 +95,14 @@ public class ApplicantService {
 
             applicant.setUpdatedAt(LocalDateTime.now());
             
-            return applicantRepository.save(applicant);
+            Applicant saved = applicantRepository.save(applicant);
+            
+            // Send Kafka event if country was updated
+            if (countryUpdated) {
+                sendProfileEvent(saved, "COUNTRY_UPDATED");
+            }
+            
+            return saved;
         }
         
         return null;
@@ -294,7 +315,12 @@ public class ApplicantService {
         applicant.getSkills().add(normalizedSkill);
         applicant.setUpdatedAt(LocalDateTime.now());
         
-        return applicantRepository.save(applicant);
+        Applicant saved = applicantRepository.save(applicant);
+        
+        // Send Kafka event for skills update
+        sendProfileEvent(saved, "SKILLS_UPDATED");
+        
+        return saved;
     }
     
     public Applicant addSkills(String applicantId, java.util.List<String> skills) {
@@ -325,7 +351,12 @@ public class ApplicantService {
         
         applicant.setUpdatedAt(LocalDateTime.now());
         
-        return applicantRepository.save(applicant);
+        Applicant saved = applicantRepository.save(applicant);
+        
+        // Send Kafka event for skills update
+        sendProfileEvent(saved, "SKILLS_UPDATED");
+        
+        return saved;
     }
     
     public Applicant deleteSkill(String applicantId, String skill) {
@@ -347,7 +378,12 @@ public class ApplicantService {
         
         applicant.setUpdatedAt(LocalDateTime.now());
         
-        return applicantRepository.save(applicant);
+        Applicant saved = applicantRepository.save(applicant);
+        
+        // Send Kafka event for skills update
+        sendProfileEvent(saved, "SKILLS_UPDATED");
+        
+        return saved;
     }
     
     public boolean deleteApplicant(String id) {
@@ -531,6 +567,49 @@ public class ApplicantService {
     
     public int getMaxPortfolioVideos() {
         return MAX_PORTFOLIO_VIDEOS;
+    }
+    
+    /**
+     * Helper method to send applicant profile event to Kafka
+     * Converts Applicant entity to ProfileResponse, then to ApplicantProfileEvent
+     */
+    private void sendProfileEvent(Applicant applicant, String eventType) {
+        try {
+            ProfileResponse profileResponse = applicantInternalService.getProfileById(applicant.getId());
+            if (profileResponse != null) {
+                ApplicantProfileEvent event = convertToEvent(profileResponse, eventType);
+                profileEventProducer.sendProfileEvent(event);
+            }
+        } catch (Exception e) {
+            // Log error but don't fail the main operation
+            System.err.println("Failed to send profile event to Kafka: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Convert ProfileResponse to ApplicantProfileEvent
+     */
+    private ApplicantProfileEvent convertToEvent(ProfileResponse profile, String eventType) {
+        ApplicantProfileEvent event = new ApplicantProfileEvent(eventType);
+        event.setId(profile.getId());
+        event.setUserId(profile.getUserId());
+        event.setFirstName(profile.getFirstName());
+        event.setLastName(profile.getLastName());
+        event.setCountry(profile.getCountry());
+        event.setPhoneNumber(profile.getPhoneNumber());
+        event.setAddress(profile.getAddress());
+        event.setCity(profile.getCity());
+        event.setEducation(profile.getEducation());
+        event.setWorkExperience(profile.getWorkExperience());
+        event.setSkills(profile.getSkills());
+        event.setObjectiveSummary(profile.getObjectiveSummary());
+        event.setPlanType(profile.getPlanType());
+        event.setAvatarUrl(profile.getAvatarUrl());
+        event.setPortfolioImages(profile.getPortfolioImages());
+        event.setPortfolioVideos(profile.getPortfolioVideos());
+        event.setCreatedAt(profile.getCreatedAt());
+        event.setUpdatedAt(profile.getUpdatedAt());
+        return event;
     }
 }
 
