@@ -991,12 +991,22 @@ export default function ProfileDashboard() {
     onSubmit: async (values) => {
       try {
         // Map form values to API format
-        // DatePicker outputs YYYY-MM-DD format directly - no need to append -01
+        // DatePicker with showDayPicker={false} outputs YYYY-MM format
+        // Backend expects YYYY-MM-DD format for LocalDate, so append '-01'
+        const formatDateForApi = (dateStr) => {
+          if (!dateStr) return null;
+          // If already in YYYY-MM-DD format, return as is
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+          // If in YYYY-MM format, append '-01'
+          if (/^\d{4}-\d{2}$/.test(dateStr)) return `${dateStr}-01`;
+          return dateStr;
+        };
+
         const apiData = {
           position: values.title,
           company: values.company,
-          startDate: values.startDate || null,
-          endDate: values.isCurrentlyWorking ? null : (values.endDate || null),
+          startDate: formatDateForApi(values.startDate),
+          endDate: values.isCurrentlyWorking ? null : formatDateForApi(values.endDate),
           current: values.isCurrentlyWorking,
           description: values.description || ''
         };
