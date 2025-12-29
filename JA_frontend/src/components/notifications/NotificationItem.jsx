@@ -34,27 +34,55 @@ const formatTimeAgo = (dateString) => {
     return date.toLocaleDateString();
 };
 
-const NotificationItem = ({ notification, onRead, onDelete }) => {
+const NotificationItem = ({ notification, isSelectionMode, isSelected, onSelect }) => {
     const { isDark } = useTheme();
 
     // Format timestamp
     const timeAgo = formatTimeAgo(notification.timestamp);
 
+    const handleClick = () => {
+        if (isSelectionMode) {
+            onSelect(notification.id);
+        }
+    };
+
     return (
         <div
             className={`
         relative p-4 rounded-xl border transition-all duration-200 group
-        ${notification.isRead
-                    ? isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-100'
-                    : isDark
-                        ? 'bg-dark-700/50 border-primary-500/20'
-                        : 'bg-blue-50 border-blue-100'
+        ${isSelected
+                    ? isDark ? 'bg-primary-900/20 border-primary-500/50' : 'bg-primary-50 border-primary-200'
+                    : notification.isRead
+                        ? isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-100'
+                        : isDark
+                            ? 'bg-dark-700/50 border-primary-500/20'
+                            : 'bg-blue-50 border-blue-100'
                 }
+        ${isSelectionMode ? 'cursor-pointer hover:border-primary-500' : ''}
         hover:shadow-md
       `}
-            onClick={() => !notification.isRead && onRead(notification.id)}
+            onClick={handleClick}
         >
             <div className="flex items-start gap-4">
+                {/* Selection Checkbox */}
+                {isSelectionMode && (
+                    <div className="flex-shrink-0 pt-1">
+                        <div className={`
+                            w-5 h-5 rounded border flex items-center justify-center transition-all
+                            ${isSelected
+                                ? 'bg-primary-500 border-primary-500'
+                                : isDark ? 'border-dark-600 bg-dark-700' : 'border-gray-300 bg-white'
+                            }
+                        `}>
+                            {isSelected && (
+                                <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* Icon */}
                 <div className={`
                     relative p-2.5 rounded-full flex-shrink-0
