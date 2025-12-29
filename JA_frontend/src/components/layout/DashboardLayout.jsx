@@ -17,11 +17,12 @@ import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, User, Briefcase, Search, Bell, Settings,
-  LogOut, Menu, X, ChevronDown, Crown, ChevronLeft, ChevronRight,
+  LogOut, Menu, X, ChevronDown, Crown,
   FileText, TrendingUp, Sun, Moon, PanelLeftClose, PanelLeft
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { useHeadlessModal, useHeadlessToggle } from '../../components/headless';
 
 /**
@@ -99,7 +100,7 @@ function NavItem({ to, icon: Icon, label, badge, isActive, onClick, className = 
  */
 function UserDropdown({ user, onLogout, isDark }) {
   const navigate = useNavigate();
-  const { isOpen, open, close, toggle } = useHeadlessModal();
+  const { isOpen, close, toggle } = useHeadlessModal();
 
   return (
     <div className="relative">
@@ -220,13 +221,14 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
   const { isDark } = useTheme();
+  const { unreadCount } = useNotifications();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [notificationCount] = useState(3); // TODO: Get from notifications context
 
   // Navigation items
   const navigationItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard', exact: true },
     { to: '/dashboard/profile', icon: User, label: 'My Profile' },
+    { to: '/dashboard/notifications', icon: Bell, label: 'Notifications', badge: unreadCount > 0 ? unreadCount : undefined },
     { to: '/dashboard/applications', icon: FileText, label: 'Applications', badge: '2' },
     { to: '/dashboard/jobs', icon: Search, label: 'Find Jobs' },
     { to: '/dashboard/subscription', icon: Crown, label: 'Premium', highlight: true },
@@ -465,16 +467,19 @@ export default function DashboardLayout() {
                 <ThemeToggle />
 
                 {/* Notifications */}
-                <button className={`
-                  relative p-2 rounded-lg transition-colors
-                  ${isDark
-                    ? 'text-dark-400 hover:text-white hover:bg-dark-700'
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                  }
-                `}>
+                <button
+                  onClick={() => navigate('/dashboard/notifications')}
+                  className={`
+                    relative p-2 rounded-lg transition-colors
+                    ${isDark
+                      ? 'text-dark-400 hover:text-white hover:bg-dark-700'
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                    }
+                  `}
+                >
                   <Bell className="w-5 h-5" />
-                  {notificationCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-accent-500 rounded-full" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-accent-500 rounded-full animate-pulse" />
                   )}
                 </button>
 
