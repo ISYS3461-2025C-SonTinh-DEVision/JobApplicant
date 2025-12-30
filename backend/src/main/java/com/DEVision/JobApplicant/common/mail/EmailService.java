@@ -450,5 +450,55 @@ public class EmailService {
             System.err.println("Failed to send email change notification: " + e.getMessage());
         }
     }
+
+    /**
+     * Send OTP verification email
+     * Used for email change verification flow
+     * @param email Target email address
+     * @param otp 6-digit OTP code
+     */
+    public void sendOtpEmail(String email, String otp) {
+        try {
+            if (resendApiKey == null || resendApiKey.isEmpty()) {
+                throw new RuntimeException("Resend API key not configured");
+            }
+
+            String htmlContent = "<html><body style='font-family:sans-serif;background:#0F172A;padding:40px;'>" +
+                "<div style='max-width:600px;margin:0 auto;background:#1E293B;border-radius:16px;padding:40px;'>" +
+                "<h1 style='color:#F1F5F9;text-align:center;margin-bottom:10px;'>🔐 Email Verification</h1>" +
+                "<p style='color:#94A3B8;text-align:center;margin-bottom:30px;'>Use this code to verify your email address</p>" +
+                "<div style='background:linear-gradient(135deg,rgba(37,99,235,0.2),rgba(20,184,166,0.2));border:2px dashed rgba(37,99,235,0.4);border-radius:16px;padding:30px;text-align:center;margin:20px 0;'>" +
+                "<p style='margin:0 0 10px;color:#94A3B8;font-size:14px;'>Your verification code</p>" +
+                "<p style='margin:0;color:#F1F5F9;font-size:42px;font-weight:bold;letter-spacing:8px;font-family:monospace;'>" + otp + "</p>" +
+                "</div>" +
+                "<div style='background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);border-radius:12px;padding:16px;margin:20px 0;'>" +
+                "<p style='color:#FCD34D;margin:0;font-size:14px;'>⏱️ This code expires in <strong>5 minutes</strong></p>" +
+                "</div>" +
+                "<p style='color:#64748B;font-size:12px;text-align:center;margin-top:30px;'>" +
+                "If you didn't request this code, please ignore this email.<br>" +
+                "© 2025 DEVision Job Applicant</p>" +
+                "</div></body></html>";
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("from", fromName + " <" + fromEmail + ">");
+            requestBody.put("to", email);
+            requestBody.put("subject", "🔐 Your Verification Code - DEVision");
+            requestBody.put("html", htmlContent);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(resendApiKey);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            ResponseEntity<?> response = getRestTemplate().postForEntity(RESEND_API_URL, request, Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                System.out.println("OTP email sent to: " + email);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to send OTP email: " + e.getMessage());
+            throw new RuntimeException("Failed to send verification code: " + e.getMessage(), e);
+        }
+    }
 }
 

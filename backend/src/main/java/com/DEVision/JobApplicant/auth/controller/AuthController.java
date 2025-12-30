@@ -606,5 +606,86 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
             );
         }
     }
+
+    /**
+     * Send OTP to email for verification
+     * Used in email change flow
+     */
+    @Operation(summary = "Send OTP", description = "Send OTP verification code to email")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "OTP sent successfully"),
+        @ApiResponse(responseCode = "429", description = "Rate limit exceeded"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated")
+    })
+    @PostMapping("/send-otp")
+    public ResponseEntity<?> sendOtp(
+            @Valid @RequestBody com.DEVision.JobApplicant.auth.internal.dto.SendOtpRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (userDetails == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Authentication required", "success", false),
+                    HttpStatus.UNAUTHORIZED
+                );
+            }
+
+            Map<String, Object> response = authInternalService.sendOtp(request.getEmail());
+
+            boolean success = (boolean) response.get("success");
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                if (response.containsKey("rateLimited") && (boolean) response.get("rateLimited")) {
+                    return new ResponseEntity<>(response, HttpStatus.TOO_MANY_REQUESTS);
+                }
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            System.err.println("Error sending OTP: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to send OTP: " + e.getMessage(), "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Verify OTP code
+     * Used in email change flow
+     */
+    @Operation(summary = "Verify OTP", description = "Verify OTP code for email")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "OTP verified successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid or expired OTP"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated")
+    })
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(
+            @Valid @RequestBody com.DEVision.JobApplicant.auth.internal.dto.VerifyOtpRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (userDetails == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Authentication required", "success", false),
+                    HttpStatus.UNAUTHORIZED
+                );
+            }
+
+            Map<String, Object> response = authInternalService.verifyOtp(request.getEmail(), request.getOtp());
+
+            boolean success = (boolean) response.get("success");
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            System.err.println("Error verifying OTP: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to verify OTP: " + e.getMessage(), "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
 }
 

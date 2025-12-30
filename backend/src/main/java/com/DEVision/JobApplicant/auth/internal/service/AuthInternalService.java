@@ -24,9 +24,11 @@ import com.DEVision.JobApplicant.auth.service.AuthService;
 import com.DEVision.JobApplicant.auth.service.OAuth2Service;
 import com.DEVision.JobApplicant.common.config.RoleConfig;
 import com.DEVision.JobApplicant.common.mail.EmailService;
+import com.DEVision.JobApplicant.common.redis.RedisService;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 /**
@@ -56,6 +58,9 @@ public class AuthInternalService {
 
     @Autowired
     private OAuth2Service oauth2Service;
+
+    @Autowired
+    private RedisService redisService;
 
     /**
      * Register new user with applicant profile
@@ -543,6 +548,71 @@ public class AuthInternalService {
             "message", "Email changed successfully",
             "success", true,
             "newEmail", newEmail
+        );
+    }
+
+    // ==================== OTP OPERATIONS ====================
+
+    /**
+     * Generate and send OTP to email
+     * Used for email change verification flow
+     * @param email Target email address
+     * @return Response with success status
+     */
+    public Map<String, Object> sendOtp(String email) {
+        // Check rate limit
+        if (!redisService.allowOtpSend(email)) {
+            long remaining = redisService.getRemainingOtpCooldown(email);
+            return Map.of(
+                "message", "Please wait before requesting another code",
+                "success", false,
+                "rateLimited", true,
+                "retryAfter", remaining
+            );
+        }
+
+        // Generate 6-digit OTP
+        String otp = String.format("%06d", new Random().nextInt(999999));
+        
+        // Store OTP in Redis (5 minute expiry)
+        redisService.storeOtp(email, otp, 5);
+        
+        // Send OTP email
+        try {
+            emailService.sendOtpEmail(email, otp);
+            return Map.of(
+                "message", "Verification code sent to " + email,
+                "success", true
+            );
+        } catch (Exception e) {
+            return Map.of(
+                "message", "Failed to send verification code: " + e.getMessage(),
+                "success", false
+            );
+        }
+    }
+
+    /**
+     * Verify OTP for email
+     * @param email Email address
+     * @param otp OTP code to verify
+     * @return Response with success status
+     */
+    public Map<String, Object> verifyOtp(String email, String otp) {
+        if (!redisService.verifyOtp(email, otp)) {
+            return Map.of(
+                "message", "Invalid or expired verification code",
+                "success", false
+            );
+        }
+
+        // Delete OTP after successful verification
+        redisService.deleteOtp(email);
+        
+        return Map.of(
+            "message", "Email verified successfully",
+            "success", true,
+            "verified", true
         );
     }
 }

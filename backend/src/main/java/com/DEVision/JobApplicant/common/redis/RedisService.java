@@ -162,4 +162,75 @@ public class RedisService {
         Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
         return ttl != null && ttl > 0 ? ttl : 0;
     }
+
+    // ==================== OTP OPERATIONS ====================
+
+    /**
+     * Store OTP for email verification
+     * @param email Email address
+     * @param otp 6-digit OTP code
+     * @param expirationMinutes Time to live in minutes (default 5)
+     */
+    public void storeOtp(String email, String otp, long expirationMinutes) {
+        String key = "otp:" + email.toLowerCase();
+        redisTemplate.opsForValue().set(key, otp, expirationMinutes, TimeUnit.MINUTES);
+    }
+
+    /**
+     * Get stored OTP for email
+     * @param email Email address
+     * @return OTP code or null if not found/expired
+     */
+    public String getOtp(String email) {
+        String key = "otp:" + email.toLowerCase();
+        return redisTemplate.opsForValue().get(key);
+    }
+
+    /**
+     * Verify OTP for email
+     * @param email Email address
+     * @param otp OTP code to verify
+     * @return true if OTP matches, false otherwise
+     */
+    public boolean verifyOtp(String email, String otp) {
+        String storedOtp = getOtp(email);
+        return storedOtp != null && storedOtp.equals(otp);
+    }
+
+    /**
+     * Delete OTP after successful verification
+     * @param email Email address
+     */
+    public void deleteOtp(String email) {
+        String key = "otp:" + email.toLowerCase();
+        redisTemplate.delete(key);
+    }
+
+    /**
+     * Check if OTP rate limit is exceeded (1 OTP per 60 seconds)
+     * @param email Email address
+     * @return true if allowed, false if rate limit exceeded
+     */
+    public boolean allowOtpSend(String email) {
+        String key = "otp_rate:" + email.toLowerCase();
+        
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+            return false;
+        }
+        
+        redisTemplate.opsForValue().set(key, String.valueOf(System.currentTimeMillis()), 60, TimeUnit.SECONDS);
+        return true;
+    }
+
+    /**
+     * Get remaining cooldown for OTP send
+     * @param email Email address
+     * @return Remaining seconds until next OTP can be sent
+     */
+    public long getRemainingOtpCooldown(String email) {
+        String key = "otp_rate:" + email.toLowerCase();
+        Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        return ttl != null && ttl > 0 ? ttl : 0;
+    }
 }
+

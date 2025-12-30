@@ -83,6 +83,8 @@ public class SecurityConfig {
 						.requestMatchers("/api/auth/check-session").authenticated()
 						.requestMatchers("/api/auth/change-password").authenticated()
 						.requestMatchers("/api/auth/change-email").authenticated()
+						.requestMatchers("/api/auth/send-otp").authenticated()
+						.requestMatchers("/api/auth/verify-otp").authenticated()
 						.anyRequest().authenticated())
 				.logout(logout -> logout
 						.logoutUrl("/api/auth/logout")

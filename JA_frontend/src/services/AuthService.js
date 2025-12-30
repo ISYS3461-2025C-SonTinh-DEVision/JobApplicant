@@ -262,6 +262,41 @@ class AuthService {
     });
     return response;
   }
+
+  /**
+   * Send OTP to email for verification
+   * Used in email change flow
+   * @param {string} email - Email address to send OTP to
+   * @returns {Promise<Object>} Result with success status
+   */
+  async sendOtp(email) {
+    try {
+      const response = await httpUtil.post(API_ENDPOINTS.AUTH.SEND_OTP, { email });
+      return response;
+    } catch (error) {
+      if (error.status === 429) {
+        return {
+          success: false,
+          rateLimited: true,
+          retryAfter: error.data?.retryAfter || 60,
+          message: error.data?.message || 'Please wait before requesting another code.'
+        };
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Verify OTP code for email
+   * Used in email change flow
+   * @param {string} email - Email address
+   * @param {string} otp - OTP code to verify
+   * @returns {Promise<Object>} Result with success status
+   */
+  async verifyOtp(email, otp) {
+    const response = await httpUtil.post(API_ENDPOINTS.AUTH.VERIFY_OTP, { email, otp });
+    return response;
+  }
 }
 
 // Export singleton instance
