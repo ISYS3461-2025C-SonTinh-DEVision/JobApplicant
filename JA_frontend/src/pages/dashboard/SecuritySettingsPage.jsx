@@ -16,12 +16,12 @@
  * - Multi-step OTP verification flow for email change
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Lock, Mail, Shield, Eye, EyeOff, Loader2,
     CheckCircle, AlertCircle, AlertTriangle, Info, Unlock,
-    Send, KeyRound, ArrowRight, PartyPopper
+    Send, KeyRound, ArrowRight, PartyPopper, Clipboard
 } from 'lucide-react';
 import AuthService from '../../services/AuthService';
 import { useAuth } from '../../hooks/useAuth';
@@ -127,32 +127,98 @@ const LockedOverlay = ({ icon: Icon, title, description, onUnlock, isDark }) => 
     </div>
 );
 
-const OtpInput = ({ value, onChange, disabled, isDark }) => {
+/**
+ * Enhanced OTP Input with Paste Button and Auto-Verify
+ */
+const OtpInputField = ({ value, onChange, onVerify, isVerifying, disabled, isDark }) => {
+    const inputRef = useRef(null);
+    const [pasting, setPasting] = useState(false);
+
     const handleChange = (e) => {
         const val = e.target.value.replace(/\D/g, '').slice(0, 6);
         onChange(val);
+        // Auto-verify when 6 digits entered
+        if (val.length === 6 && onVerify) {
+            setTimeout(() => onVerify(val), 100);
+        }
     };
+
+    const handlePaste = async () => {
+        try {
+            setPasting(true);
+            const text = await navigator.clipboard.readText();
+            const digits = text.replace(/\D/g, '').slice(0, 6);
+            if (digits.length > 0) {
+                onChange(digits);
+                // Auto-verify when 6 digits pasted
+                if (digits.length === 6 && onVerify) {
+                    setTimeout(() => onVerify(digits), 100);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to paste:', err);
+        } finally {
+            setPasting(false);
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        // Handle Ctrl+V / Cmd+V paste
+        if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+            // Let the browser handle paste, then check value
+        }
+    };
+
     return (
-        <div className="flex justify-center gap-2">
-            {[...Array(6)].map((_, i) => (
-                <div
-                    key={i}
-                    className={`w-12 h-14 flex items-center justify-center rounded-xl text-2xl font-bold border-2 transition-all ${value[i] ? (isDark ? 'border-primary-500 bg-primary-500/10 text-primary-400' : 'border-primary-500 bg-primary-50 text-primary-600')
-                        : (isDark ? 'border-dark-600 bg-dark-800 text-dark-300' : 'border-gray-300 bg-white text-gray-400')
-                        }`}
-                >
-                    {value[i] || '•'}
-                </div>
-            ))}
+        <div className="space-y-3">
+            <label className={`block text-sm font-medium mb-2 text-center ${isDark ? 'text-dark-300' : 'text-gray-700'}`}>
+                Enter 6-digit code
+            </label>
+
+            {/* OTP Display */}
+            <div className="flex justify-center gap-2">
+                {[...Array(6)].map((_, i) => (
+                    <div
+                        key={i}
+                        className={`w-11 h-14 flex items-center justify-center rounded-xl text-2xl font-bold border-2 transition-all ${value[i]
+                                ? (isDark ? 'border-primary-500 bg-primary-500/10 text-primary-400' : 'border-primary-500 bg-primary-50 text-primary-600')
+                                : (isDark ? 'border-dark-600 bg-dark-800 text-dark-300' : 'border-gray-300 bg-white text-gray-400')
+                            }`}
+                    >
+                        {value[i] || '•'}
+                    </div>
+                ))}
+            </div>
+
+            {/* Hidden Input */}
             <input
+                ref={inputRef}
                 type="text"
                 inputMode="numeric"
+                maxLength={6}
                 value={value}
                 onChange={handleChange}
-                disabled={disabled}
-                className="absolute opacity-0 w-0 h-0"
+                onKeyDown={handleKeyDown}
+                disabled={disabled || isVerifying}
+                className={`w-full text-center text-2xl tracking-[0.5em] font-mono py-3 rounded-xl border-2 ${isDark ? 'bg-dark-800 border-dark-600 text-white focus:border-primary-500' : 'bg-white border-gray-300 text-gray-900 focus:border-primary-500'
+                    } outline-none`}
+                placeholder="000000"
                 autoFocus
             />
+
+            {/* Paste Button */}
+            <button
+                type="button"
+                onClick={handlePaste}
+                disabled={disabled || isVerifying || pasting}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isDark
+                        ? 'bg-dark-700 text-dark-300 hover:bg-dark-600 hover:text-white border border-dark-600'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                    } ${(disabled || isVerifying) ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+                {pasting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clipboard className="w-4 h-4" />}
+                Paste from Clipboard
+            </button>
         </div>
     );
 };
@@ -198,7 +264,7 @@ export default function SecuritySettingsPage() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Email change OTP flow states
-    const [emailStep, setEmailStep] = useState(1); // 1: verify current, 2: enter new, 3: verify new, 4: submit
+    const [emailStep, setEmailStep] = useState(1);
     const [currentEmailOtp, setCurrentEmailOtp] = useState('');
     const [newEmailOtp, setNewEmailOtp] = useState('');
     const [currentEmailVerified, setCurrentEmailVerified] = useState(false);
@@ -215,10 +281,14 @@ export default function SecuritySettingsPage() {
     const [countdown, setCountdown] = useState(5);
 
     const [isSsoUser, setIsSsoUser] = useState(false);
+    const [isGoogleUser, setIsGoogleUser] = useState(false);
 
     // Check if SSO user
     useEffect(() => {
-        if (currentUser?.authProvider === 'google') setIsSsoUser(true);
+        if (currentUser?.authProvider === 'google') {
+            setIsSsoUser(true);
+            setIsGoogleUser(true);
+        }
     }, [currentUser]);
 
     // Countdown timer for success modal
@@ -307,12 +377,12 @@ export default function SecuritySettingsPage() {
         }
     };
 
-    const handleVerifyCurrentEmailOtp = async () => {
-        if (currentEmailOtp.length !== 6) return;
+    const handleVerifyCurrentEmailOtp = async (otp = currentEmailOtp) => {
+        if (otp.length !== 6) return;
         setOtpVerifying(true);
         setOtpError('');
         try {
-            const response = await AuthService.verifyOtp(currentUser.email, currentEmailOtp);
+            const response = await AuthService.verifyOtp(currentUser.email, otp);
             if (response.success) {
                 setCurrentEmailVerified(true);
                 setEmailStep(2);
@@ -344,12 +414,12 @@ export default function SecuritySettingsPage() {
         }
     };
 
-    const handleVerifyNewEmailOtp = async () => {
-        if (newEmailOtp.length !== 6) return;
+    const handleVerifyNewEmailOtp = async (otp = newEmailOtp) => {
+        if (otp.length !== 6) return;
         setOtpVerifying(true);
         setOtpError('');
         try {
-            const response = await AuthService.verifyOtp(emailForm.values.newEmail, newEmailOtp);
+            const response = await AuthService.verifyOtp(emailForm.values.newEmail, otp);
             if (response.success) {
                 setNewEmailVerified(true);
                 setEmailStep(4);
@@ -365,7 +435,6 @@ export default function SecuritySettingsPage() {
 
     const handleUnlockPassword = () => { setPasswordLocked(false); setEmailLocked(true); passwordForm.resetForm(); };
     const handleUnlockEmail = () => {
-        // Reset email flow state without re-locking
         setEmailStep(1);
         setCurrentEmailOtp('');
         setNewEmailOtp('');
@@ -373,7 +442,6 @@ export default function SecuritySettingsPage() {
         setNewEmailVerified(false);
         setOtpError('');
         emailForm.resetForm();
-        // Set lock states
         setEmailLocked(false);
         setPasswordLocked(true);
     };
@@ -477,6 +545,22 @@ export default function SecuritySettingsPage() {
                                 ))}
                             </div>
 
+                            {/* Google Login Warning - Show at Step 1 before email change */}
+                            {emailStep === 1 && isGoogleUser && (
+                                <div className={`p-4 rounded-xl flex items-start gap-3 ${isDark ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-orange-50 border border-orange-200'}`}>
+                                    <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-orange-400' : 'text-orange-500'}`} />
+                                    <div>
+                                        <p className={`font-medium text-sm ${isDark ? 'text-orange-300' : 'text-orange-700'}`}>
+                                            ⚠️ Google Login Will Be Disabled
+                                        </p>
+                                        <p className={`text-xs mt-1 ${isDark ? 'text-orange-400/70' : 'text-orange-600'}`}>
+                                            After changing your email, you will <strong>no longer be able to use Google Login</strong>.
+                                            You must login manually using your new email and password on our website.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Current Email Display */}
                             <div>
                                 <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-dark-300' : 'text-gray-700'}`}>Current Email</label>
@@ -498,15 +582,21 @@ export default function SecuritySettingsPage() {
                                             {otpSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send OTP to Current Email
                                         </button>
                                     </div>
-                                    {currentEmailOtp.length > 0 || !otpSending && otpError === '' ? (
-                                        <div className="mt-4">
-                                            <label className={`block text-sm font-medium mb-2 text-center ${isDark ? 'text-dark-300' : 'text-gray-700'}`}>Enter 6-digit code</label>
-                                            <input type="text" inputMode="numeric" maxLength={6} value={currentEmailOtp} onChange={(e) => setCurrentEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} className={`w-full text-center text-2xl tracking-[0.5em] font-mono py-3 rounded-xl border-2 ${isDark ? 'bg-dark-800 border-dark-600 text-white focus:border-primary-500' : 'bg-white border-gray-300 text-gray-900 focus:border-primary-500'} outline-none`} placeholder="000000" />
-                                            <button onClick={handleVerifyCurrentEmailOtp} disabled={currentEmailOtp.length !== 6 || otpVerifying} className="btn-primary w-full mt-4">
-                                                {otpVerifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying...</> : <>Verify & Continue <ArrowRight className="w-4 h-4 ml-2" /></>}
-                                            </button>
-                                        </div>
-                                    ) : null}
+
+                                    <div className="mt-4">
+                                        <OtpInputField
+                                            value={currentEmailOtp}
+                                            onChange={setCurrentEmailOtp}
+                                            onVerify={(otp) => handleVerifyCurrentEmailOtp(otp)}
+                                            isVerifying={otpVerifying}
+                                            disabled={otpSending}
+                                            isDark={isDark}
+                                        />
+                                        <button onClick={() => handleVerifyCurrentEmailOtp()} disabled={currentEmailOtp.length !== 6 || otpVerifying} className="btn-primary w-full mt-4">
+                                            {otpVerifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying...</> : <>Verify & Continue <ArrowRight className="w-4 h-4 ml-2" /></>}
+                                        </button>
+                                    </div>
+
                                     {otpError && <p className="text-red-400 text-sm mt-2 text-center">{otpError}</p>}
                                 </div>
                             )}
@@ -532,10 +622,19 @@ export default function SecuritySettingsPage() {
                                         <KeyRound className="w-4 h-4 inline mr-2 text-primary-400" />
                                         Enter the OTP sent to <strong className="text-primary-400">{emailForm.values.newEmail}</strong>
                                     </p>
-                                    <input type="text" inputMode="numeric" maxLength={6} value={newEmailOtp} onChange={(e) => setNewEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} className={`w-full text-center text-2xl tracking-[0.5em] font-mono py-3 rounded-xl border-2 ${isDark ? 'bg-dark-800 border-dark-600 text-white focus:border-primary-500' : 'bg-white border-gray-300 text-gray-900 focus:border-primary-500'} outline-none`} placeholder="000000" />
-                                    <button onClick={handleVerifyNewEmailOtp} disabled={newEmailOtp.length !== 6 || otpVerifying} className="btn-primary w-full mt-4">
+
+                                    <OtpInputField
+                                        value={newEmailOtp}
+                                        onChange={setNewEmailOtp}
+                                        onVerify={(otp) => handleVerifyNewEmailOtp(otp)}
+                                        isVerifying={otpVerifying}
+                                        disabled={otpSending}
+                                        isDark={isDark}
+                                    />
+                                    <button onClick={() => handleVerifyNewEmailOtp()} disabled={newEmailOtp.length !== 6 || otpVerifying} className="btn-primary w-full mt-4">
                                         {otpVerifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying...</> : <>Verify & Continue <ArrowRight className="w-4 h-4 ml-2" /></>}
                                     </button>
+
                                     {otpError && <p className="text-red-400 text-sm mt-2 text-center">{otpError}</p>}
                                 </div>
                             )}
