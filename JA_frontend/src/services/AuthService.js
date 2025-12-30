@@ -155,10 +155,32 @@ class AuthService {
   }
 
   /**
-   * Initiate Google SSO login
+   * Login with Google ID Token (GIS - Google Identity Services)
+   * 
+   * This is the primary method for Google SSO login using ID Token Flow.
+   * The ID token is obtained from Google Identity Services SDK on the client
+   * and verified by the backend.
+   * 
+   * @param {string} idToken - Google ID token from GIS
+   * @returns {Promise<Object>} Login response with access token
+   */
+  async loginWithGoogleIdToken(idToken) {
+    const response = await httpUtil.post('/api/auth/oauth2/login', { idToken });
+
+    if (response?.accessToken) {
+      httpUtil.setAuthToken(response.accessToken);
+    }
+
+    return response;
+  }
+
+  /**
+   * @deprecated Use loginWithGoogleIdToken instead with Google Identity Services
+   * Initiate Google SSO login (Authorization Code Flow - Legacy)
    * Redirects user to Google OAuth consent screen
    */
   initiateGoogleLogin() {
+    console.warn('initiateGoogleLogin is deprecated. Use Google Identity Services with loginWithGoogleIdToken instead.');
     // Google OAuth configuration
     const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
     const redirectUri = `${window.location.origin}/auth/callback/google`;
@@ -177,11 +199,13 @@ class AuthService {
   }
 
   /**
-   * Handle Google OAuth callback
+   * @deprecated Use loginWithGoogleIdToken instead with Google Identity Services
+   * Handle Google OAuth callback (Authorization Code Flow - Legacy)
    * @param {string} code - Authorization code from Google
    * @returns {Promise<Object>} Login response
    */
   async handleGoogleCallback(code) {
+    console.warn('handleGoogleCallback is deprecated. Use Google Identity Services with loginWithGoogleIdToken instead.');
     const response = await httpUtil.post(API_ENDPOINTS.AUTH.GOOGLE_CALLBACK, { code });
 
     if (response?.accessToken) {

@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
  * Login Form
  */
 export default function LoginForm({ onSuccess, onRegisterClick, onForgotPasswordClick }) {
-  const { login, loginWithGoogle } = useAuth();
+  const { login } = useAuth();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -33,7 +33,6 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
   const [submitError, setSubmitError] = useState('');
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockCountdown, setBlockCountdown] = useState(0);
-  const [ssoLoading, setSsoLoading] = useState(null);
 
   // Handle input change
   const handleChange = useCallback((e) => {
@@ -42,7 +41,7 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
@@ -54,10 +53,10 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
   const handleBlur = useCallback((e) => {
     const { name } = e.target;
     setTouched((prev) => ({ ...prev, [name]: true }));
-    
+
     // Validate single field
     let fieldErrors = [];
-    
+
     switch (name) {
       case 'email':
         fieldErrors = validateEmail(formData.email);
@@ -70,7 +69,7 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
       default:
         break;
     }
-    
+
     if (fieldErrors.length > 0) {
       setErrors((prev) => ({ ...prev, [name]: fieldErrors[0].message }));
     }
@@ -80,15 +79,15 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
   const validateForm = useCallback(() => {
     const emailErrors = validateEmail(formData.email);
     const errorMap = {};
-    
+
     emailErrors.forEach(({ field, message }) => {
       errorMap[field] = message;
     });
-    
+
     if (!formData.password) {
       errorMap.password = 'Password is required';
     }
-    
+
     setErrors(errorMap);
     return Object.keys(errorMap).length === 0;
   }, [formData]);
@@ -97,7 +96,7 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
   const startBlockCountdown = useCallback((seconds) => {
     setIsBlocked(true);
     setBlockCountdown(seconds);
-    
+
     const interval = setInterval(() => {
       setBlockCountdown((prev) => {
         if (prev <= 1) {
@@ -113,30 +112,30 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (isBlocked) {
       return;
     }
-    
+
     // Mark all fields as touched
     setTouched({
       email: true,
       password: true,
     });
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSubmitting(true);
     setSubmitError('');
-    
+
     try {
       const result = await login({
         email: formData.email,
         password: formData.password,
       });
-      
+
       if (result.success) {
         if (onSuccess) {
           onSuccess(result);
@@ -163,30 +162,35 @@ export default function LoginForm({ onSuccess, onRegisterClick, onForgotPassword
     }
   };
 
-  // Handle Google SSO
-  const handleGoogleLogin = () => {
-    setSsoLoading('google');
-    loginWithGoogle();
+  // Handle SSO success - navigate to dashboard
+  const handleSSOSuccess = (result) => {
+    if (onSuccess) {
+      onSuccess(result);
+    }
+  };
+
+  // Handle SSO error
+  const handleSSOError = (error) => {
+    setSubmitError(error.message || 'Google login failed');
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-      {/* SSO Buttons */}
+      {/* SSO Buttons - Using Google Identity Services */}
       <SSOButtonsGroup
-        onGoogleClick={handleGoogleLogin}
+        onSuccess={handleSSOSuccess}
+        onError={handleSSOError}
         disabled={isSubmitting || isBlocked}
-        loading={ssoLoading}
       />
 
       <OrDivider />
 
       {/* Submit Error */}
       {submitError && (
-        <div className={`p-4 rounded-xl flex items-start gap-3 animate-shake ${
-          isBlocked 
+        <div className={`p-4 rounded-xl flex items-start gap-3 animate-shake ${isBlocked
             ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400'
             : 'bg-red-500/10 border border-red-500/20 text-red-400'
-        }`}>
+          }`}>
           {isBlocked ? (
             <ShieldAlert className="w-5 h-5 flex-shrink-0 mt-0.5" />
           ) : (
