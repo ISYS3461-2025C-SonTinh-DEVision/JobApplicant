@@ -79,8 +79,10 @@ public class SecurityConfig {
 							RoleConfig.ADMIN.getRoleName())
 						// Admin endpoints - permit all for now (can add ADMIN role check later)
 						.requestMatchers("/api/admin/**").permitAll()
-						// Protected endpoints
+						// Protected auth endpoints - require authentication
 						.requestMatchers("/api/auth/check-session").authenticated()
+						.requestMatchers("/api/auth/change-password").authenticated()
+						.requestMatchers("/api/auth/change-email").authenticated()
 						.anyRequest().authenticated())
 				.logout(logout -> logout
 						.logoutUrl("/api/auth/logout")

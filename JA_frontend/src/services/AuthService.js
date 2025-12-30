@@ -230,6 +230,38 @@ class AuthService {
   getToken() {
     return httpUtil.getAuthToken();
   }
+
+  /**
+   * Change password for authenticated user
+   * Requirement 3.1.1: Job Applicants shall be able to edit their Password
+   * @param {string} currentPassword - Current password for verification
+   * @param {string} newPassword - New password to set
+   * @param {string} confirmPassword - Confirm new password
+   * @returns {Promise<Object>} Result with success status and message
+   */
+  async changePassword(currentPassword, newPassword, confirmPassword) {
+    const response = await httpUtil.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    });
+    return response;
+  }
+
+  /**
+   * Change email for authenticated user
+   * Requirement 3.1.1: Job Applicants shall be able to edit their Email
+   * @param {string} newEmail - New email address
+   * @param {string} currentPassword - Current password for verification
+   * @returns {Promise<Object>} Result with success status and message
+   */
+  async changeEmail(newEmail, currentPassword) {
+    const response = await httpUtil.post(API_ENDPOINTS.AUTH.CHANGE_EMAIL, {
+      newEmail,
+      currentPassword,
+    });
+    return response;
+  }
 }
 
 // Export singleton instance

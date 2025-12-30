@@ -15,11 +15,12 @@ import {
   Bell,
   LogOut,
   Home,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 // Navigation items configuration
-  const navItems = [
+const navItems = [
   { label: 'Dashboard', icon: Home, path: '/' },
   { label: 'Jobs', icon: Search, path: '/jobs' },
   { label: 'Applications', icon: FileText, path: '/applications' },
@@ -29,6 +30,7 @@ import { useAuth } from '../../context/AuthContext';
 ];
 
 const bottomItems = [
+  { label: 'Security', icon: Shield, path: '/security' },
   { label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
@@ -94,11 +96,11 @@ function LogoutButton({ collapsed, onClick }) {
         text-dark-400 hover:text-red-400 hover:bg-red-500/10
         transition-all duration-200
   "
->
+    >
       <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
         <LogOut className="w-5 h-5" />
-  </div>
-  <span
+      </div>
+      <span
         className={`
       text-sm font-medium whitespace-nowrap
           transition-all duration-300
@@ -118,8 +120,8 @@ function UserInfo({ collapsed, user }) {
       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-accent-400 flex items-center justify-center flex-shrink-0">
         <span className="text-white font-semibold text-sm">
           {user?.username?.[0]?.toUpperCase() || 'U'}
-  </span>
-</div>
+        </span>
+      </div>
       <div
         className={`
           transition-all duration-300 overflow-hidden
@@ -172,11 +174,11 @@ export default function Sidebar() {
       {/* Bottom Section */}
       <div className="py-2 flex flex-col gap-1">
         <div className="h-px bg-white/5 mx-4 mb-2" />
-        
+
         {bottomItems.map((item) => (
           <NavItem key={item.path} item={item} collapsed={collapsed} />
         ))}
-        
+
         <LogoutButton collapsed={collapsed} onClick={handleLogout} />
       </div>
 

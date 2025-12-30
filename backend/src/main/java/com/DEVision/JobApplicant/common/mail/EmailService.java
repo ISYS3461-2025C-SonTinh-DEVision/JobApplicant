@@ -403,4 +403,52 @@ public class EmailService {
             </html>
             """.formatted(resetLink, resetLink);
     }
+
+    /**
+     * Send email change notification to old email address
+     * Requirement 3.1.1: Notify user when email is changed for security
+     * @param oldEmail Previous email address
+     * @param newEmail New email address
+     */
+    public void sendEmailChangeNotification(String oldEmail, String newEmail) {
+        try {
+            if (resendApiKey == null || resendApiKey.isEmpty()) {
+                throw new RuntimeException("Resend API key not configured");
+            }
+
+            String htmlContent = "<html><body style='font-family:sans-serif;background:#0F172A;padding:40px;'>" +
+                "<div style='max-width:600px;margin:0 auto;background:#1E293B;border-radius:16px;padding:40px;'>" +
+                "<h1 style='color:#F1F5F9;text-align:center;'>📧 Email Address Changed</h1>" +
+                "<p style='color:#94A3B8;text-align:center;'>Your DEVision account email has been changed.</p>" +
+                "<div style='background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:20px;margin:20px 0;'>" +
+                "<p style='color:#94A3B8;margin:0 0 12px;'><strong style='color:#F1F5F9;'>Previous:</strong> " + oldEmail + "</p>" +
+                "<p style='color:#94A3B8;margin:0;'><strong style='color:#F1F5F9;'>New:</strong> " + newEmail + "</p>" +
+                "</div>" +
+                "<div style='background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:20px;'>" +
+                "<p style='color:#94A3B8;margin:0;'>⚠️ <strong style='color:#F1F5F9;'>Didn't make this change?</strong><br>Contact support immediately.</p>" +
+                "</div>" +
+                "<p style='color:#475569;font-size:12px;text-align:center;margin-top:30px;'>© 2025 DEVision Job Applicant</p>" +
+                "</div></body></html>";
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("from", fromName + " <" + fromEmail + ">");
+            requestBody.put("to", oldEmail);
+            requestBody.put("subject", "📧 Your Email Address Has Been Changed - DEVision");
+            requestBody.put("html", htmlContent);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(resendApiKey);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            ResponseEntity<?> response = getRestTemplate().postForEntity(RESEND_API_URL, request, Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                System.out.println("Email change notification sent to: " + oldEmail);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to send email change notification: " + e.getMessage());
+        }
+    }
 }
+

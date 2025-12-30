@@ -22,6 +22,8 @@ export const API_ENDPOINTS = {
     RESEND_ACTIVATION: '/api/auth/resend-activation',
     FORGOT_PASSWORD: '/api/auth/forgot-password',
     RESET_PASSWORD: '/api/auth/reset-password',
+    CHANGE_PASSWORD: '/api/auth/change-password',
+    CHANGE_EMAIL: '/api/auth/change-email',
     // SSO
     GOOGLE_LOGIN: '/api/auth/oauth2/google',
     GOOGLE_CALLBACK: '/api/auth/oauth2/callback/google',

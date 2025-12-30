@@ -484,4 +484,127 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
             );
         }
     }
+
+    /**
+     * Change password for authenticated user
+     * Requirement 3.1.1: Job Applicants shall be able to edit their Password
+     */
+    @Operation(summary = "Change password", description = "Change password for authenticated user")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Password changed successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid current password or validation error"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "403", description = "SSO users cannot change password")
+    })
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(
+            @Valid @RequestBody com.DEVision.JobApplicant.auth.internal.dto.ChangePasswordRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (userDetails == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Authentication required", "success", false),
+                    HttpStatus.UNAUTHORIZED
+                );
+            }
+
+            // Validate password confirmation
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                return new ResponseEntity<>(
+                    Map.of("message", "New password and confirmation do not match", "success", false),
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+
+            // Get user ID from authenticated user
+            User user = userRepository.findByEmail(userDetails.getUsername());
+            if (user == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "User not found", "success", false),
+                    HttpStatus.NOT_FOUND
+                );
+            }
+
+            Map<String, Object> response = authInternalService.changePassword(
+                user.getId(),
+                request.getCurrentPassword(),
+                request.getNewPassword()
+            );
+
+            boolean success = (boolean) response.get("success");
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                // Check if SSO user
+                if (response.containsKey("isSsoUser") && (boolean) response.get("isSsoUser")) {
+                    return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+                }
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            System.err.println("Error changing password: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to change password: " + e.getMessage(), "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Change email for authenticated user
+     * Requirement 3.1.1: Job Applicants shall be able to edit their Email
+     */
+    @Operation(summary = "Change email", description = "Change email address for authenticated user")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Email changed successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid password or email already in use"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "403", description = "SSO users cannot change email")
+    })
+    @PostMapping("/change-email")
+    public ResponseEntity<?> changeEmail(
+            @Valid @RequestBody com.DEVision.JobApplicant.auth.internal.dto.ChangeEmailRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (userDetails == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Authentication required", "success", false),
+                    HttpStatus.UNAUTHORIZED
+                );
+            }
+
+            // Get user ID from authenticated user
+            User user = userRepository.findByEmail(userDetails.getUsername());
+            if (user == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "User not found", "success", false),
+                    HttpStatus.NOT_FOUND
+                );
+            }
+
+            Map<String, Object> response = authInternalService.changeEmail(
+                user.getId(),
+                request.getNewEmail(),
+                request.getCurrentPassword()
+            );
+
+            boolean success = (boolean) response.get("success");
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                // Check if SSO user
+                if (response.containsKey("isSsoUser") && (boolean) response.get("isSsoUser")) {
+                    return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+                }
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            System.err.println("Error changing email: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to change email: " + e.getMessage(), "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
 }
+
