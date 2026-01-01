@@ -1,16 +1,17 @@
 package com.DEVision.JobApplicant.search_profile.service;
 
-import com.DEVision.JobApplicant.applicant.entity.Applicant;
-import com.DEVision.JobApplicant.applicant.repository.ApplicantRepository;
-import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.search_profile.dto.JobPostEvent;
 import com.DEVision.JobApplicant.search_profile.entity.MatchedJobPost;
+import com.DEVision.JobApplicant.search_profile.entity.SearchProfile;
+import com.DEVision.JobApplicant.search_profile.EmploymentType;
 import com.DEVision.JobApplicant.search_profile.repository.MatchedJobPostRepository;
+import com.DEVision.JobApplicant.search_profile.repository.SearchProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +19,7 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
- * Service to match job posts with applicant profiles
+ * Service to match job posts with search profiles (user's job search preferences)
  */
 @Service
 public class JobMatchingService {
@@ -27,16 +28,16 @@ public class JobMatchingService {
     private static final double MIN_MATCH_SCORE = 30.0; // Minimum 30% match to save
 
     @Autowired
-    private ApplicantRepository applicantRepository;
+    private SearchProfileRepository searchProfileRepository;
 
     @Autowired
     private MatchedJobPostRepository matchedJobPostRepository;
 
     /**
-     * Match a job post with all applicant profiles
+     * Match a job post with all search profiles (user's job search preferences)
      * Only processes published job posts
      */
-    public void matchJobPostWithApplicants(JobPostEvent jobPost) {
+    public void matchJobPostWithSearchProfiles(JobPostEvent jobPost) {
         // Only process published job posts
         if (!"published".equalsIgnoreCase(jobPost.getStatus())) {
             logger.debug("Skipping job post {} - status is not published: {}", jobPost.getId(), jobPost.getStatus());
@@ -49,81 +50,86 @@ public class JobMatchingService {
             return;
         }
 
-        logger.info("Matching job post {} with applicant profiles", jobPost.getId());
+        logger.info("Matching job post {} with search profiles", jobPost.getId());
 
-        // Get all applicants
-        List<Applicant> applicants = applicantRepository.findAll();
+        // Get all search profiles
+        List<SearchProfile> searchProfiles = searchProfileRepository.findAll();
 
-        for (Applicant applicant : applicants) {
+        for (SearchProfile searchProfile : searchProfiles) {
             try {
-                double matchScore = calculateMatchScore(applicant, jobPost);
+                double matchScore = calculateMatchScore(searchProfile, jobPost);
 
                 if (matchScore >= MIN_MATCH_SCORE) {
                     // Check if already matched
-                    if (!matchedJobPostRepository.existsByUserIdAndJobPostId(applicant.getUserId(), jobPost.getId())) {
-                        saveMatchedJobPost(applicant, jobPost, matchScore);
-                        logger.info("Matched job post {} with applicant {} (score: {}%)",
-                                jobPost.getId(), applicant.getUserId(), matchScore);
+                    if (!matchedJobPostRepository.existsByUserIdAndJobPostId(searchProfile.getUserId(), jobPost.getId())) {
+                        saveMatchedJobPost(searchProfile, jobPost, matchScore);
+                        logger.info("Matched job post {} with search profile {} (userId: {}, score: {}%)",
+                                jobPost.getId(), searchProfile.getId(), searchProfile.getUserId(), matchScore);
                     } else {
-                        logger.debug("Job post {} already matched for applicant {}", jobPost.getId(),
-                                applicant.getUserId());
+                        logger.debug("Job post {} already matched for user {}", jobPost.getId(),
+                                searchProfile.getUserId());
                     }
                 } else {
-                    logger.debug("Job post {} does not match applicant {} (score: {}%)",
-                            jobPost.getId(), applicant.getUserId(), matchScore);
+                    logger.debug("Job post {} does not match search profile {} (score: {}%)",
+                            jobPost.getId(), searchProfile.getId(), matchScore);
                 }
             } catch (Exception e) {
-                logger.error("Error matching job post {} with applicant {}: {}",
-                        jobPost.getId(), applicant.getUserId(), e.getMessage(), e);
+                logger.error("Error matching job post {} with search profile {}: {}",
+                        jobPost.getId(), searchProfile.getId(), e.getMessage(), e);
             }
         }
     }
 
     /**
-     * Calculate match score between applicant and job post (0-100)
+     * Calculate match score between search profile and job post (0-100)
      */
-    private double calculateMatchScore(Applicant applicant, JobPostEvent jobPost) {
+    private double calculateMatchScore(SearchProfile searchProfile, JobPostEvent jobPost) {
         double totalScore = 0.0;
         double maxScore = 0.0;
 
-        // Skills matching (40% weight)
-        double skillsScore = matchSkills(applicant.getSkills(), jobPost.getSkills());
-        totalScore += skillsScore * 0.4;
-        maxScore += 40.0;
+        // Skills matching (30% weight)
+        double skillsScore = matchSkills(searchProfile.getDesiredSkills(), jobPost.getSkills());
+        totalScore += skillsScore * 0.3;
+        maxScore += 30.0;
 
         // Location matching (20% weight)
-        double locationScore = matchLocation(applicant.getCountry(), jobPost.getLocation());
+        double locationScore = matchLocation(searchProfile.getDesiredCountry(), jobPost.getLocation());
         totalScore += locationScore * 0.2;
         maxScore += 20.0;
 
-        // Salary matching (20% weight) - if applicant has salary expectations
-        double salaryScore = matchSalary(applicant, jobPost);
-        totalScore += salaryScore * 0.2;
-        maxScore += 20.0;
+        // Salary matching (25% weight)
+        double salaryScore = matchSalary(searchProfile, jobPost);
+        totalScore += salaryScore * 0.25;
+        maxScore += 25.0;
 
-        // Employment type matching (20% weight) - if applicant has preferences
-        double employmentScore = matchEmploymentType(jobPost.getEmploymentType());
-        totalScore += employmentScore * 0.2;
-        maxScore += 20.0;
+        // Employment type matching (15% weight)
+        double employmentScore = matchEmploymentType(searchProfile.getEmploymentTypes(), jobPost.getEmploymentType());
+        totalScore += employmentScore * 0.15;
+        maxScore += 15.0;
+
+        // Job title matching (10% weight)
+        double jobTitleScore = matchJobTitle(searchProfile.getJobTitles(), jobPost.getTitle());
+        totalScore += jobTitleScore * 0.1;
+        maxScore += 10.0;
 
         // Normalize to 0-100
         return maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
     }
 
     /**
-     * Match skills between applicant and job post
+     * Match skills between search profile desired skills and job post required skills
      */
-    private double matchSkills(List<String> applicantSkills, List<String> jobSkills) {
+    private double matchSkills(List<String> desiredSkills, List<String> jobSkills) {
         if (jobSkills == null || jobSkills.isEmpty()) {
             return 50.0; // If job doesn't specify skills, give 50% score
         }
 
-        if (applicantSkills == null || applicantSkills.isEmpty()) {
+        if (desiredSkills == null || desiredSkills.isEmpty()) {
             return 0.0;
         }
 
         // Normalize skills to lowercase for comparison
-        List<String> normalizedApplicantSkills = applicantSkills.stream()
+        List<String> normalizedDesiredSkills = desiredSkills.stream()
                 .map(s -> s.toLowerCase(Locale.ROOT).trim())
                 .collect(Collectors.toList());
 
@@ -131,74 +137,174 @@ public class JobMatchingService {
                 .map(s -> s.toLowerCase(Locale.ROOT).trim())
                 .collect(Collectors.toList());
 
-        // Count matching skills
-        long matchedCount = normalizedApplicantSkills.stream()
+        // Count matching skills (skills that user wants AND job requires)
+        long matchedCount = normalizedDesiredSkills.stream()
                 .filter(normalizedJobSkills::contains)
                 .count();
 
-        // Calculate percentage: (matched skills / required skills) * 100
+        // Calculate percentage: (matched skills / job required skills) * 100
         return (double) matchedCount / normalizedJobSkills.size() * 100;
     }
 
     /**
-     * Match location between applicant and job post
+     * Match location between search profile desired country and job post location
      */
-    private double matchLocation(Country applicantCountry, String jobLocation) {
+    private double matchLocation(String desiredCountry, String jobLocation) {
         if (jobLocation == null || jobLocation.isEmpty()) {
             return 50.0; // If job doesn't specify location, give 50% score
         }
 
-        if (applicantCountry == null) {
+        if (desiredCountry == null || desiredCountry.isEmpty()) {
             return 0.0;
         }
 
         String normalizedJobLocation = jobLocation.toLowerCase(Locale.ROOT);
-        String countryName = applicantCountry.getDisplayName().toLowerCase(Locale.ROOT);
-        String countryCode = applicantCountry.getCode().toLowerCase(Locale.ROOT);
+        String normalizedDesiredCountry = desiredCountry.toLowerCase(Locale.ROOT).trim();
 
-        // Check if job location contains country name or code
-        if (normalizedJobLocation.contains(countryName) || normalizedJobLocation.contains(countryCode)) {
+        // Check if job location contains desired country
+        if (normalizedJobLocation.contains(normalizedDesiredCountry)) {
             return 100.0;
         }
 
-        // Partial match (e.g., "Ho Chi Minh City, Vietnam" contains "Vietnam")
+        // Partial match
         return 50.0;
     }
 
     /**
-     * Match salary expectations
+     * Match salary between search profile salary range and job post salary
      */
-    private double matchSalary(Applicant applicant, JobPostEvent jobPost) {
+    private double matchSalary(SearchProfile searchProfile, JobPostEvent jobPost) {
         if (jobPost.getSalary() == null) {
             return 50.0; // If job doesn't specify salary, give 50% score
         }
 
-        // For now, return 50% as we don't have salary expectations in applicant profile
-        // This can be enhanced later if salary expectations are added
-        return 50.0;
+        if (searchProfile.getMinSalary() == null && searchProfile.getMaxSalary() == null) {
+            return 50.0; // If user doesn't specify salary expectations, give 50% score
+        }
+
+        BigDecimal jobMin = jobPost.getSalary().getMin();
+        BigDecimal jobMax = jobPost.getSalary().getMax();
+        BigDecimal userMin = searchProfile.getMinSalary();
+        BigDecimal userMax = searchProfile.getMaxSalary();
+
+        // If job has both min and max
+        if (jobMin != null && jobMax != null) {
+            if (userMin != null && userMax != null) {
+                // Both have ranges - check if they overlap
+                // Overlap: jobMax >= userMin AND jobMin <= userMax
+                if (jobMax.compareTo(userMin) >= 0 && jobMin.compareTo(userMax) <= 0) {
+                    return 100.0;
+                }
+                // Check if job salary is completely within user's range
+                if (jobMin.compareTo(userMin) >= 0 && jobMax.compareTo(userMax) <= 0) {
+                    return 100.0;
+                }
+                // Check if close (within 20% of user's range)
+                BigDecimal userRange = userMax.subtract(userMin);
+                BigDecimal tolerance = userRange.multiply(new BigDecimal("0.2"));
+                if (jobMin.subtract(userMax).abs().compareTo(tolerance) <= 0 ||
+                    userMin.subtract(jobMax).abs().compareTo(tolerance) <= 0) {
+                    return 75.0;
+                }
+            } else if (userMin != null) {
+                // User only has minimum - check if job max meets or exceeds minimum
+                if (jobMax.compareTo(userMin) >= 0) {
+                    return 100.0;
+                }
+                // Check if close (within 20% of user min)
+                BigDecimal diff = userMin.subtract(jobMax);
+                if (diff.compareTo(userMin.multiply(new BigDecimal("0.2"))) <= 0) {
+                    return 75.0;
+                }
+            } else if (userMax != null) {
+                // User only has maximum - check if job min is within maximum
+                if (jobMin.compareTo(userMax) <= 0) {
+                    return 100.0;
+                }
+                // Check if close (within 20% of user max)
+                BigDecimal diff = jobMin.subtract(userMax);
+                if (diff.compareTo(userMax.multiply(new BigDecimal("0.2"))) <= 0) {
+                    return 75.0;
+                }
+            }
+        } else if (jobMin != null) {
+            // Job only has minimum
+            if (userMax != null && jobMin.compareTo(userMax) <= 0) {
+                return 100.0;
+            }
+            if (userMin != null && jobMin.compareTo(userMin) >= 0) {
+                return 100.0;
+            }
+        } else if (jobMax != null) {
+            // Job only has maximum
+            if (userMin != null && jobMax.compareTo(userMin) >= 0) {
+                return 100.0;
+            }
+            if (userMax != null && jobMax.compareTo(userMax) <= 0) {
+                return 100.0;
+            }
+        }
+
+        return 30.0; // Partial match or no match
     }
 
     /**
-     * Match employment type
+     * Match employment type between search profile preferences and job post
      */
-    private double matchEmploymentType(List<String> jobEmploymentTypes) {
+    private double matchEmploymentType(List<EmploymentType> desiredEmploymentTypes, List<String> jobEmploymentTypes) {
         if (jobEmploymentTypes == null || jobEmploymentTypes.isEmpty()) {
             return 50.0; // If job doesn't specify employment type, give 50% score
         }
 
-        // For now, return 50% as we don't have employment type preferences in applicant
-        // profile
-        // This can be enhanced later if employment type preferences are added
-        return 50.0;
+        if (desiredEmploymentTypes == null || desiredEmploymentTypes.isEmpty()) {
+            return 0.0;
+        }
+
+        // Convert EmploymentType enum to lowercase strings for comparison
+        List<String> normalizedDesiredTypes = desiredEmploymentTypes.stream()
+                .map(et -> et.name().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toList());
+
+        List<String> normalizedJobTypes = jobEmploymentTypes.stream()
+                .map(et -> et.toLowerCase(Locale.ROOT).trim())
+                .collect(Collectors.toList());
+
+        // Check if any desired employment type matches job employment types
+        boolean hasMatch = normalizedDesiredTypes.stream()
+                .anyMatch(normalizedJobTypes::contains);
+
+        return hasMatch ? 100.0 : 0.0;
+    }
+
+    /**
+     * Match job title between search profile preferences and job post title
+     */
+    private double matchJobTitle(List<String> desiredJobTitles, String jobTitle) {
+        if (jobTitle == null || jobTitle.isEmpty()) {
+            return 50.0; // If job doesn't specify title, give 50% score
+        }
+
+        if (desiredJobTitles == null || desiredJobTitles.isEmpty()) {
+            return 0.0;
+        }
+
+        String normalizedJobTitle = jobTitle.toLowerCase(Locale.ROOT).trim();
+
+        // Check if job title contains any of the desired job titles
+        boolean hasMatch = desiredJobTitles.stream()
+                .map(desired -> desired.toLowerCase(Locale.ROOT).trim())
+                .anyMatch(normalizedJobTitle::contains);
+
+        return hasMatch ? 100.0 : 0.0;
     }
 
     /**
      * Save matched job post
      */
-    private void saveMatchedJobPost(Applicant applicant, JobPostEvent jobPost, double matchScore) {
+    private void saveMatchedJobPost(SearchProfile searchProfile, JobPostEvent jobPost, double matchScore) {
         MatchedJobPost matchedJobPost = new MatchedJobPost();
-        matchedJobPost.setUserId(applicant.getUserId());
-        matchedJobPost.setApplicantId(applicant.getId());
+        matchedJobPost.setUserId(searchProfile.getUserId());
+        matchedJobPost.setApplicantId(null); // Not using applicant ID anymore
         matchedJobPost.setJobPostId(jobPost.getId());
         matchedJobPost.setJobTitle(jobPost.getTitle());
         matchedJobPost.setJobDescription(jobPost.getDescription());
@@ -209,8 +315,8 @@ public class JobMatchingService {
         matchedJobPost.setPostedDate(jobPost.getPostedDate());
         matchedJobPost.setExpiryDate(jobPost.getExpiryDate());
 
-        // Calculate matched skills
-        List<String> matchedSkills = findMatchedSkills(applicant.getSkills(), jobPost.getSkills());
+        // Calculate matched skills (skills that user wants AND job requires)
+        List<String> matchedSkills = findMatchedSkills(searchProfile.getDesiredSkills(), jobPost.getSkills());
         matchedJobPost.setMatchedSkills(matchedSkills);
 
         // Set salary info
@@ -224,15 +330,15 @@ public class JobMatchingService {
     }
 
     /**
-     * Find skills that match between applicant and job post
+     * Find skills that match between search profile desired skills and job post required skills
      */
-    private List<String> findMatchedSkills(List<String> applicantSkills, List<String> jobSkills) {
-        if (applicantSkills == null || applicantSkills.isEmpty() ||
+    private List<String> findMatchedSkills(List<String> desiredSkills, List<String> jobSkills) {
+        if (desiredSkills == null || desiredSkills.isEmpty() ||
                 jobSkills == null || jobSkills.isEmpty()) {
             return new ArrayList<>();
         }
 
-        List<String> normalizedApplicantSkills = applicantSkills.stream()
+        List<String> normalizedDesiredSkills = desiredSkills.stream()
                 .map(s -> s.toLowerCase(Locale.ROOT).trim())
                 .collect(Collectors.toList());
 
@@ -240,7 +346,7 @@ public class JobMatchingService {
                 .map(s -> s.toLowerCase(Locale.ROOT).trim())
                 .collect(Collectors.toList());
 
-        return normalizedApplicantSkills.stream()
+        return normalizedDesiredSkills.stream()
                 .filter(normalizedJobSkills::contains)
                 .collect(Collectors.toList());
     }

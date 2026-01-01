@@ -47,8 +47,8 @@ public class JobPostEventConsumer {
         try {
             logger.info("Received job post event: {} - {}", jobPost.getId(), jobPost.getTitle());
 
-            // Match job post with applicant profiles
-            jobMatchingService.matchJobPostWithApplicants(jobPost);
+            // Match job post with search profiles (user's job search preferences)
+            jobMatchingService.matchJobPostWithSearchProfiles(jobPost);
 
             // Send notifications to premium users who got matches
             notifyPremiumUsers(jobPost);
