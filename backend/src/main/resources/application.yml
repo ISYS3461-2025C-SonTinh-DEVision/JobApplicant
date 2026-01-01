@@ -64,6 +64,10 @@ spring:
       properties:
         spring.json.add.type.headers: false
 
+jm:
+  service:
+    url: ${JOB_MANAGER_SERVICE_URL:http://localhost:3000}
+
   # SMTP configuration removed - using Resend HTTP API instead
   # This avoids SMTP port blocking issues on Railway and other cloud platforms
   # mail:
