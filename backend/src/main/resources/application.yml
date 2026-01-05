@@ -13,13 +13,16 @@
 #     console:
 #       enabled: true
 
+server:
+  port: ${SERVER_PORT:8080}
+
 app:
   frontend:
     base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
   job-manager:
-    base-url: ${JOB_MANAGER_BASE_URL:http://localhost:5173}
+    base-url: ${JOB_MANAGER_BASE_URL:http://localhost:8081}
   mail:
-    from: ${MAIL_FROM:onboarding@resend.dev}
+    from: ${MAIL_FROM:onboarding@resend.dev}  
     from-name: ${MAIL_FROM_NAME:DEVision}
     resend:
       # Resend API Key for HTTP-based email sending (avoids SMTP port blocking)
@@ -103,8 +106,7 @@ spring:
 #     expiration: ${JWT_EXPIRATION}
 #     refresh-expiration: ${JWT_REFRESH_EXPIRATION}
 
-# server:
-#     port: ${SERVER_PORT}
+
 
 # System-to-System Authentication Configuration
 # Configure these for Job Manager System authorization
