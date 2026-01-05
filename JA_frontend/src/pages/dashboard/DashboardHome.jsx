@@ -8,6 +8,7 @@
  * - Activity feed
  * - Light/Dark mode support
  * - Headless UI integration
+ * - Real-time notifications integration
  * 
  * Architecture: A.2.b Componentized Frontend + A.3.a Headless UI
  */
@@ -17,12 +18,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   Briefcase, Search, FileText, TrendingUp,
   Plus, ArrowRight, Clock, CheckCircle, XCircle,
-  Bell, Crown, Eye, BarChart2
+  Bell, Crown, Eye, BarChart2, Sparkles
 } from 'lucide-react';
 import { Card } from '../../components/reusable';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
-import { useHeadlessTabs, useHeadlessDataList } from '../../components/headless';
+import { useHeadlessTabs, useHeadlessDataList, useHeadlessToggle } from '../../components/headless';
+import { useNotifications } from '../../context/NotificationContext';
 
 /**
  * Quick Stats Card with theme support
@@ -51,10 +53,10 @@ function QuickStatsCard({ icon: Icon, label, value, trend, color = 'primary' }) 
         </div>
         {trend !== undefined && (
           <span className={`text-xs font-medium px-2 py-1 rounded-full ${trend > 0
-              ? 'bg-green-500/20 text-green-400'
-              : trend < 0
-                ? 'bg-red-500/20 text-red-400'
-                : isDark ? 'bg-dark-600 text-dark-300' : 'bg-gray-100 text-gray-500'
+            ? 'bg-green-500/20 text-green-400'
+            : trend < 0
+              ? 'bg-red-500/20 text-red-400'
+              : isDark ? 'bg-dark-600 text-dark-300' : 'bg-gray-100 text-gray-500'
             }`}>
             {trend > 0 ? '+' : ''}{trend}%
           </span>
@@ -169,6 +171,7 @@ export default function DashboardHome() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { isDark } = useTheme();
+  const { simulateNotification, showSuccess, unreadCount } = useNotifications();
 
   // Mock data (will be replaced with real data from API)
   const allApplications = useMemo(() => [
@@ -448,6 +451,20 @@ export default function DashboardHome() {
                 icon={Briefcase}
                 label="View Applications"
                 onClick={() => navigate('/dashboard/applications')}
+              />
+              {/* Demo notification button */}
+              <QuickActionButton
+                icon={Sparkles}
+                label="Demo Notification"
+                onClick={() => {
+                  simulateNotification({
+                    id: 'job_' + Date.now(),
+                    title: 'Full Stack Developer',
+                    company: 'TechCorp Vietnam',
+                  });
+                  showSuccess('Notification Sent!', 'Check the bell icon in the header');
+                }}
+                variant="accent"
               />
             </div>
           </div>

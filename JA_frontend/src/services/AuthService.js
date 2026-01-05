@@ -155,10 +155,32 @@ class AuthService {
   }
 
   /**
-   * Initiate Google SSO login
+   * Login with Google ID Token (GIS - Google Identity Services)
+   * 
+   * This is the primary method for Google SSO login using ID Token Flow.
+   * The ID token is obtained from Google Identity Services SDK on the client
+   * and verified by the backend.
+   * 
+   * @param {string} idToken - Google ID token from GIS
+   * @returns {Promise<Object>} Login response with access token
+   */
+  async loginWithGoogleIdToken(idToken) {
+    const response = await httpUtil.post('/api/auth/oauth2/login', { idToken });
+
+    if (response?.accessToken) {
+      httpUtil.setAuthToken(response.accessToken);
+    }
+
+    return response;
+  }
+
+  /**
+   * @deprecated Use loginWithGoogleIdToken instead with Google Identity Services
+   * Initiate Google SSO login (Authorization Code Flow - Legacy)
    * Redirects user to Google OAuth consent screen
    */
   initiateGoogleLogin() {
+    console.warn('initiateGoogleLogin is deprecated. Use Google Identity Services with loginWithGoogleIdToken instead.');
     // Google OAuth configuration
     const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
     const redirectUri = `${window.location.origin}/auth/callback/google`;
@@ -177,11 +199,13 @@ class AuthService {
   }
 
   /**
-   * Handle Google OAuth callback
+   * @deprecated Use loginWithGoogleIdToken instead with Google Identity Services
+   * Handle Google OAuth callback (Authorization Code Flow - Legacy)
    * @param {string} code - Authorization code from Google
    * @returns {Promise<Object>} Login response
    */
   async handleGoogleCallback(code) {
+    console.warn('handleGoogleCallback is deprecated. Use Google Identity Services with loginWithGoogleIdToken instead.');
     const response = await httpUtil.post(API_ENDPOINTS.AUTH.GOOGLE_CALLBACK, { code });
 
     if (response?.accessToken) {
@@ -205,6 +229,73 @@ class AuthService {
    */
   getToken() {
     return httpUtil.getAuthToken();
+  }
+
+  /**
+   * Change password for authenticated user
+   * Requirement 3.1.1: Job Applicants shall be able to edit their Password
+   * @param {string} currentPassword - Current password for verification
+   * @param {string} newPassword - New password to set
+   * @param {string} confirmPassword - Confirm new password
+   * @returns {Promise<Object>} Result with success status and message
+   */
+  async changePassword(currentPassword, newPassword, confirmPassword) {
+    const response = await httpUtil.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    });
+    return response;
+  }
+
+  /**
+   * Change email for authenticated user
+   * Requirement 3.1.1: Job Applicants shall be able to edit their Email
+   * @param {string} newEmail - New email address
+   * @param {string} currentPassword - Current password for verification
+   * @returns {Promise<Object>} Result with success status and message
+   */
+  async changeEmail(newEmail, currentPassword) {
+    const response = await httpUtil.post(API_ENDPOINTS.AUTH.CHANGE_EMAIL, {
+      newEmail,
+      currentPassword,
+    });
+    return response;
+  }
+
+  /**
+   * Send OTP to email for verification
+   * Used in email change flow
+   * @param {string} email - Email address to send OTP to
+   * @returns {Promise<Object>} Result with success status
+   */
+  async sendOtp(email) {
+    try {
+      const response = await httpUtil.post(API_ENDPOINTS.AUTH.SEND_OTP, { email });
+      return response;
+    } catch (error) {
+      if (error.status === 429) {
+        return {
+          success: false,
+          rateLimited: true,
+          retryAfter: error.data?.retryAfter || 60,
+          message: error.data?.message || 'Please wait before requesting another code.'
+        };
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Verify OTP code for email
+   * Used in email change flow
+   * @param {string} email - Email address
+   * @param {string} otp - OTP code to verify
+   * @returns {Promise<Object>} Result with success status
+   */
+  async verifyOtp(email, otp) {
+    const response = await httpUtil.post(API_ENDPOINTS.AUTH.VERIFY_OTP, { email, otp });
+    return response;
   }
 }
 

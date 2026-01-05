@@ -21,7 +21,7 @@ import authService from '../../services/AuthService';
  * Registration Form
  */
 export default function RegisterForm({ onSuccess, onLoginClick }) {
-  const { register, loginWithGoogle, getCountries } = useAuth();
+  const { register, getCountries } = useAuth();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -44,7 +44,6 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [countries, setCountries] = useState([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
-  const [ssoLoading, setSsoLoading] = useState(null);
 
   // Resend activation state
   const [resendLoading, setResendLoading] = useState(false);
@@ -203,10 +202,18 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
     }
   };
 
-  // Handle Google SSO
-  const handleGoogleLogin = () => {
-    setSsoLoading('google');
-    loginWithGoogle();
+  // Handle SSO success - SSO registration auto-creates and logs in user
+  const handleSSOSuccess = (result) => {
+    // SSO creates user if needed and logs them in
+    // Navigate to dashboard
+    if (onSuccess) {
+      onSuccess(result);
+    }
+  };
+
+  // Handle SSO error
+  const handleSSOError = (error) => {
+    setSubmitError(error.message || 'Google sign-up failed');
   };
 
   // Handle resend activation email
@@ -303,11 +310,11 @@ export default function RegisterForm({ onSuccess, onLoginClick }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-      {/* SSO Buttons */}
+      {/* SSO Buttons - Using Google Identity Services */}
       <SSOButtonsGroup
-        onGoogleClick={handleGoogleLogin}
+        onSuccess={handleSSOSuccess}
+        onError={handleSSOError}
         disabled={isSubmitting}
-        loading={ssoLoading}
       />
 
       <OrDivider />

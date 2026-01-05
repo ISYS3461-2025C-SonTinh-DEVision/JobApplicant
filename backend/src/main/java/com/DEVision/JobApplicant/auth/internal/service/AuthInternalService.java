@@ -24,9 +24,11 @@ import com.DEVision.JobApplicant.auth.service.AuthService;
 import com.DEVision.JobApplicant.auth.service.OAuth2Service;
 import com.DEVision.JobApplicant.common.config.RoleConfig;
 import com.DEVision.JobApplicant.common.mail.EmailService;
+import com.DEVision.JobApplicant.common.redis.RedisService;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 /**
@@ -56,6 +58,9 @@ public class AuthInternalService {
 
     @Autowired
     private OAuth2Service oauth2Service;
+
+    @Autowired
+    private RedisService redisService;
 
     /**
      * Register new user with applicant profile
@@ -439,6 +444,175 @@ public class AuthInternalService {
         return Map.of(
             "message", "A new activation link has been sent to your email.",
             "success", true
+        );
+    }
+
+    /**
+     * Change password for authenticated user
+     * Requirement 3.1.1: Job Applicants shall be able to edit their Password
+     * 
+     * @param userId User ID from JWT token
+     * @param currentPassword Current password for verification
+     * @param newPassword New password to set
+     * @return Response with success status and message
+     */
+    public Map<String, Object> changePassword(String userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(userId).orElse(null);
+
+        if (user == null) {
+            return Map.of("message", "User not found", "success", false);
+        }
+
+        // SRS Requirement 1.3.2: SSO users cannot change password
+        if ("google".equals(user.getAuthProvider())) {
+            return Map.of(
+                "message", "This account uses Google SSO. Password change is not allowed. Please manage your password through Google.",
+                "success", false,
+                "isSsoUser", true
+            );
+        }
+
+        // Verify current password
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            return Map.of("message", "Current password is incorrect", "success", false);
+        }
+
+        // Check if new password is same as current
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            return Map.of("message", "New password must be different from current password", "success", false);
+        }
+
+        // Update password
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        return Map.of(
+            "message", "Password changed successfully",
+            "success", true
+        );
+    }
+
+    /**
+     * Change email for authenticated user
+     * Requirement 3.1.1: Job Applicants shall be able to edit their Email
+     * 
+     * @param userId User ID from JWT token
+     * @param newEmail New email address
+     * @param currentPassword Current password for verification
+     * @return Response with success status and message
+     */
+    public Map<String, Object> changeEmail(String userId, String newEmail, String currentPassword) {
+        User user = userRepository.findById(userId).orElse(null);
+
+        if (user == null) {
+            return Map.of("message", "User not found", "success", false);
+        }
+
+        // SRS Requirement 1.3.2: SSO users have special handling
+        if ("google".equals(user.getAuthProvider())) {
+            return Map.of(
+                "message", "This account uses Google SSO. Email change is not allowed. Please manage your email through Google.",
+                "success", false,
+                "isSsoUser", true
+            );
+        }
+
+        // Verify current password
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            return Map.of("message", "Password is incorrect", "success", false);
+        }
+
+        // Check if new email is same as current
+        if (user.getEmail().equalsIgnoreCase(newEmail)) {
+            return Map.of("message", "New email must be different from current email", "success", false);
+        }
+
+        // Check if new email is already in use
+        if (userRepository.existsByEmail(newEmail)) {
+            return Map.of("message", "This email address is already in use", "success", false);
+        }
+
+        // Update email directly
+        String oldEmail = user.getEmail();
+        user.setEmail(newEmail);
+        userRepository.save(user);
+
+        // Send notification to old email about the change
+        try {
+            emailService.sendEmailChangeNotification(oldEmail, newEmail);
+        } catch (Exception e) {
+            System.err.println("Failed to send email change notification: " + e.getMessage());
+        }
+
+        return Map.of(
+            "message", "Email changed successfully",
+            "success", true,
+            "newEmail", newEmail
+        );
+    }
+
+    // ==================== OTP OPERATIONS ====================
+
+    /**
+     * Generate and send OTP to email
+     * Used for email change verification flow
+     * @param email Target email address
+     * @return Response with success status
+     */
+    public Map<String, Object> sendOtp(String email) {
+        // Check rate limit
+        if (!redisService.allowOtpSend(email)) {
+            long remaining = redisService.getRemainingOtpCooldown(email);
+            return Map.of(
+                "message", "Please wait before requesting another code",
+                "success", false,
+                "rateLimited", true,
+                "retryAfter", remaining
+            );
+        }
+
+        // Generate 6-digit OTP
+        String otp = String.format("%06d", new Random().nextInt(999999));
+        
+        // Store OTP in Redis (5 minute expiry)
+        redisService.storeOtp(email, otp, 5);
+        
+        // Send OTP email
+        try {
+            emailService.sendOtpEmail(email, otp);
+            return Map.of(
+                "message", "Verification code sent to " + email,
+                "success", true
+            );
+        } catch (Exception e) {
+            return Map.of(
+                "message", "Failed to send verification code: " + e.getMessage(),
+                "success", false
+            );
+        }
+    }
+
+    /**
+     * Verify OTP for email
+     * @param email Email address
+     * @param otp OTP code to verify
+     * @return Response with success status
+     */
+    public Map<String, Object> verifyOtp(String email, String otp) {
+        if (!redisService.verifyOtp(email, otp)) {
+            return Map.of(
+                "message", "Invalid or expired verification code",
+                "success", false
+            );
+        }
+
+        // Delete OTP after successful verification
+        redisService.deleteOtp(email);
+        
+        return Map.of(
+            "message", "Email verified successfully",
+            "success", true,
+            "verified", true
         );
     }
 }

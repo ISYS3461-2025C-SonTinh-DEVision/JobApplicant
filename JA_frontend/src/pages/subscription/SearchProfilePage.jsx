@@ -21,7 +21,8 @@ import {
     Briefcase, MapPin, DollarSign, Tag as TagIcon, Loader2
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
-import { useHeadlessForm } from '../../components/headless';
+import { useHeadlessForm, useHeadlessModal } from '../../components/headless';
+import { useNotifications } from '../../context/NotificationContext';
 import searchProfileService from '../../services/SearchProfileService';
 
 // Common tech skills for autocomplete
@@ -53,16 +54,18 @@ const COUNTRIES = [
 const SearchProfilePage = () => {
     const navigate = useNavigate();
     const { isDark } = useTheme();
+    const { showSuccess, showError } = useNotifications();
 
     // State
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [success, setSuccess] = useState(null);
-    const [error, setError] = useState(null);
     const [skillInput, setSkillInput] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [hasExistingProfile, setHasExistingProfile] = useState(false);
+
+    // Headless modal for delete confirmation
+    const deleteModal = useHeadlessModal();
 
     // Form setup
     const form = useHeadlessForm({
@@ -83,16 +86,13 @@ const SearchProfilePage = () => {
         },
         onSubmit: async (values) => {
             setSaving(true);
-            setError(null);
-            setSuccess(null);
 
             try {
                 await searchProfileService.saveSearchProfile(values);
-                setSuccess('Search profile saved successfully!');
+                showSuccess('Success!', 'Search profile saved successfully');
                 setHasExistingProfile(true);
-                setTimeout(() => setSuccess(null), 3000);
             } catch (err) {
-                setError(err.message || 'Failed to save profile');
+                showError('Error', err.message || 'Failed to save profile');
             } finally {
                 setSaving(false);
             }
@@ -148,19 +148,16 @@ const SearchProfilePage = () => {
 
     // Handle delete profile
     const handleDelete = async () => {
-        if (!window.confirm('Are you sure you want to delete your search profile?')) return;
-
         setDeleting(true);
-        setError(null);
 
         try {
             await searchProfileService.deleteSearchProfile();
             form.setValues(searchProfileService.getDefaultProfile());
             setHasExistingProfile(false);
-            setSuccess('Profile deleted');
-            setTimeout(() => setSuccess(null), 3000);
+            deleteModal.close();
+            showSuccess('Deleted', 'Search profile has been deleted');
         } catch (err) {
-            setError(err.message || 'Failed to delete profile');
+            showError('Error', err.message || 'Failed to delete profile');
         } finally {
             setDeleting(false);
         }
@@ -213,7 +210,7 @@ const SearchProfilePage = () => {
                 </div>
                 {hasExistingProfile && (
                     <button
-                        onClick={handleDelete}
+                        onClick={deleteModal.open}
                         disabled={deleting}
                         className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-red-900/30 text-dark-400 hover:text-red-400' : 'hover:bg-red-50 text-gray-400 hover:text-red-600'
                             }`}
@@ -224,25 +221,6 @@ const SearchProfilePage = () => {
                 )}
             </div>
 
-            {/* Alerts */}
-            {error && (
-                <div className={`p-4 rounded-xl border flex items-center gap-3 ${isDark ? 'bg-red-900/20 border-red-900/50 text-red-400' : 'bg-red-50 border-red-200 text-red-600'
-                    }`}>
-                    <AlertCircle className="w-5 h-5" />
-                    <span>{error}</span>
-                    <button onClick={() => setError(null)} className="ml-auto">
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-            )}
-
-            {success && (
-                <div className={`p-4 rounded-xl border flex items-center gap-3 ${isDark ? 'bg-green-900/20 border-green-900/50 text-green-400' : 'bg-green-50 border-green-200 text-green-600'
-                    }`}>
-                    <Check className="w-5 h-5" />
-                    <span>{success}</span>
-                </div>
-            )}
 
             {/* Form */}
             <form onSubmit={form.handleSubmit} className="space-y-6">
@@ -456,6 +434,47 @@ const SearchProfilePage = () => {
                     )}
                 </button>
             </form>
+
+            {/* Delete Confirmation Modal */}
+            {deleteModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl animate-scale-in ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200'}`}>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className={`p-2 rounded-lg ${isDark ? 'bg-red-500/20' : 'bg-red-100'}`}>
+                                <Trash2 className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                            </div>
+                            <h3 className={`text-lg font-semibold ${textPrimary}`}>
+                                Delete Search Profile?
+                            </h3>
+                        </div>
+                        <p className={`mb-6 ${textSecondary}`}>
+                            This will remove all your saved job search criteria. You can create a new profile later.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={deleteModal.close}
+                                className={`flex-1 px-4 py-2.5 rounded-xl border font-medium transition-colors ${isDark ? 'border-dark-600 text-dark-300 hover:bg-dark-700' : 'border-gray-300 hover:bg-gray-50'}`}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDelete}
+                                disabled={deleting}
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {deleting ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    'Delete Profile'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

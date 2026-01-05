@@ -303,7 +303,14 @@ export default function EditProfile() {
               variant={isDark ? 'dark' : 'light'}
             />
             <p className={`text-xs -mt-2 ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>
-              Email cannot be changed. Contact support if you need to update it.
+              To change your email or password, visit{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard/security')}
+                className="text-primary-400 hover:text-primary-300 underline"
+              >
+                Security Settings
+              </button>
             </p>
 
             {/* Country - Using new CountrySelect component */}
