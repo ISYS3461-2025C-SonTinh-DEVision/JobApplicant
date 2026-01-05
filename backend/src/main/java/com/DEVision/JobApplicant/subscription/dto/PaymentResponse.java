@@ -1,10 +1,17 @@
 package com.DEVision.JobApplicant.subscription.dto;
 
-// Payment response from JM system (can be changed based on JM API)
+import java.math.BigDecimal;
+
+// Payment response from JM system
 public record PaymentResponse(
-        boolean success,
-        String externalTransactionId,
+        String transactionId,
+        String status,
+        String paymentUrl,
+        BigDecimal amount,
         String currency
 ) {
+    public boolean isSuccessful() {
+        return status != null && !status.equalsIgnoreCase("failed");
+    }
 }
 
