@@ -2,6 +2,7 @@ package com.DEVision.JobApplicant.subscription.controller;
 
 import java.util.List;
 
+import com.DEVision.JobApplicant.subscription.dto.SubscriptionResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,16 +34,22 @@ public class SubscriptionController {
     }
 
     @PostMapping("/subscribe")
-    public ResponseEntity<Subscription> subscribe(
+    public ResponseEntity<SubscriptionResponse> subscribe(
             @RequestParam String userId,
             @Valid @RequestBody SubscriptionRequest request) {
-        Subscription subscription = subscriptionService.subscribe(userId, request.planType());
-        return ResponseEntity.ok(subscription);
+        SubscriptionResponse response = subscriptionService.subscribe(userId, request.email(), request.planType());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/transactions")
     public ResponseEntity<List<PaymentTransactionDto>> getUserTransactions(@RequestParam String userId) {
         List<PaymentTransactionDto> transactions = paymentTransactionService.getUserTransactions(userId);
         return ResponseEntity.ok(transactions);
+    }
+
+    @GetMapping
+    public ResponseEntity<Subscription> getSubscriptionByUserId(@RequestParam String userId) {
+        Subscription subscription = subscriptionService.getSubscriptionByUserId(userId);
+        return ResponseEntity.ok(subscription);
     }
 }

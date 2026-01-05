@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.DEVision.JobApplicant.subscription.client.JobManagerClient;
 import com.DEVision.JobApplicant.subscription.dto.PaymentResponse;
 import com.DEVision.JobApplicant.subscription.dto.PaymentTransactionRequest;
+import com.DEVision.JobApplicant.subscription.dto.SubscriptionResponse;
 import com.DEVision.JobApplicant.subscription.entity.Subscription;
 import com.DEVision.JobApplicant.subscription.enums.PlanType;
 import com.DEVision.JobApplicant.subscription.enums.SubscriptionStatus;
@@ -31,13 +32,16 @@ public class SubscriptionService {
     private final JobManagerClient jobManagerClient;
 
     @Transactional
-    public Subscription subscribe(String userId, PlanType planType) {
+    public SubscriptionResponse subscribe(String userId, String email, PlanType planType) {
 //      Get price based on plan type
         BigDecimal amount = resolvePrice(planType);
 
+//      Resolve subscription type for Job Manager API
+        String subscriptionType = resolveSubscriptionType(planType);
+
 //      Process payment via Job Manager
-        PaymentResponse paymentResponse = jobManagerClient.processPayment(userId, amount);
-        if (paymentResponse == null || !paymentResponse.success()) {
+        PaymentResponse paymentResponse = jobManagerClient.processPayment(email, amount, subscriptionType);
+        if (paymentResponse == null || !paymentResponse.isSuccessful()) {
             throw new IllegalStateException("Payment processing failed for user: " + userId);
         }
 
@@ -46,8 +50,8 @@ public class SubscriptionService {
                 userId,
                 amount,
                 paymentResponse.currency(),
-                TransactionStatus.COMPLETED,
-                paymentResponse.externalTransactionId()
+                TransactionStatus.PENDING,
+                paymentResponse.transactionId()
         );
         paymentTransactionService.createTransaction(transactionRequest);
 
@@ -66,18 +70,31 @@ public class SubscriptionService {
         Instant startDate = currentlyActive && subscription.getStartDate() != null ? subscription.getStartDate() : now;
 
         subscription.setPlanType(planType);
-        subscription.setStatus(SubscriptionStatus.ACTIVE);
+        subscription.setStatus(SubscriptionStatus.PENDING);
         subscription.setStartDate(startDate);
         subscription.setExpiresAt(newExpiry);
         subscription.setUpdatedAt(now);
 
-        return subscriptionRepository.save(subscription);
+        Subscription savedSubscription = subscriptionRepository.save(subscription);
+        return new SubscriptionResponse(savedSubscription, paymentResponse.paymentUrl());
+    }
+
+    public Subscription getSubscriptionByUserId(String userId) {
+        return subscriptionRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Subscription not found for user: " + userId));
     }
 
     private BigDecimal resolvePrice(PlanType planType) {
         return switch (planType) {
             case PREMIUM -> PREMIUM_PRICE;
             case FREEMIUM -> FREEMIUM_PRICE;
+        };
+    }
+
+    private String resolveSubscriptionType(PlanType planType) {
+        return switch (planType) {
+            case PREMIUM -> "applicant_premium";
+            case FREEMIUM -> "applicant_freemium";
         };
     }
 }
