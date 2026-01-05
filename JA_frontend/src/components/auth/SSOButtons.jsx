@@ -1,12 +1,25 @@
 /**
  * SSO Authentication Buttons
- * Google OAuth integration for Level Ultimo requirement
+ * Google OAuth integration using Google Identity Services (GIS) for Level Ultimo requirement
+ * 
+ * Architecture: Requirement 1.3.1 (Ultimo) - SSO via Google
+ * 
+ * Design Pattern: Custom button as visual proxy for the hidden official Google button
+ * This approach combines:
+ * - Beautiful custom styling that matches our design system
+ * - Reliable GIS ID Token flow (no FedCM issues)
+ * - Google branding guidelines compliance
+ * 
+ * @see https://developers.google.com/identity/gsi/web/guides/offerings
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Loader2, AlertCircle } from 'lucide-react';
+import useGoogleIdentity from '../../hooks/useGoogleIdentity';
+import { useAuth } from '../../context/AuthContext';
 
-// Google Icon SVG
-const GoogleIcon = () => (
+// Official Google "G" logo SVG
+const GoogleLogo = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24">
     <path
       fill="#4285F4"
@@ -27,81 +40,311 @@ const GoogleIcon = () => (
   </svg>
 );
 
-// GitHub Icon SVG
-const GitHubIcon = () => (
-  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-    <path
-      fillRule="evenodd"
-      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-
 /**
- * SSO Button Component
+ * Google SSO Button Component using Google Identity Services
+ * 
+ * Uses a "proxy button" pattern:
+ * 1. Renders a hidden official Google button (for reliable ID token flow)
+ * 2. Shows a beautiful custom button that triggers the hidden one
+ * 3. Best of both worlds: custom styling + reliable authentication
  */
-export function SSOButton({ provider, onClick, disabled, loading }) {
-  const providers = {
-    google: {
-      icon: GoogleIcon,
-      label: 'Continue with Google',
-      className: 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200',
-    },
-    github: {
-      icon: GitHubIcon,
-      label: 'Continue with GitHub',
-      className: 'bg-dark-800 hover:bg-dark-700 text-white border-dark-600',
-    },
+export function GoogleSSOButton({
+  onSuccess,
+  onError,
+  disabled = false,
+  className = '',
+  variant = 'default', // 'default' | 'outline' | 'dark'
+}) {
+  const hiddenButtonRef = useRef(null);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState(null);
+  const [isButtonReady, setIsButtonReady] = useState(false);
+  const { loginWithGoogleIdToken } = useAuth();
+
+  // Handle successful Google credential response
+  const handleGoogleSuccess = useCallback(async (idToken) => {
+    setLocalLoading(true);
+    setLocalError(null);
+
+    try {
+      console.log('Processing Google SSO login...');
+      const result = await loginWithGoogleIdToken(idToken);
+
+      if (result.success) {
+        console.log('Google SSO login successful');
+        if (onSuccess) {
+          onSuccess(result);
+        }
+      } else {
+        const errorMsg = result.message || 'Google login failed';
+        console.error('Google SSO login failed:', errorMsg);
+        setLocalError(errorMsg);
+        if (onError) {
+          onError(new Error(errorMsg));
+        }
+      }
+    } catch (err) {
+      const errorMsg = err.message || 'Google login failed';
+      console.error('Google SSO login error:', err);
+      setLocalError(errorMsg);
+      if (onError) {
+        onError(err);
+      }
+    } finally {
+      setLocalLoading(false);
+    }
+  }, [loginWithGoogleIdToken, onSuccess, onError]);
+
+  // Handle Google error
+  const handleGoogleError = useCallback((err) => {
+    console.error('Google Identity error:', err);
+    setLocalLoading(false);
+    setLocalError(err.message);
+    if (onError) {
+      onError(err);
+    }
+  }, [onError]);
+
+  // Initialize Google Identity hook
+  const {
+    isLoaded,
+    isLoading: gisLoading,
+    error: gisError,
+    isConfigured,
+    renderButton,
+  } = useGoogleIdentity({
+    onSuccess: handleGoogleSuccess,
+    onError: handleGoogleError,
+  });
+
+  // Render hidden Google button when GIS is loaded
+  useEffect(() => {
+    if (isLoaded && hiddenButtonRef.current && !isButtonReady) {
+      console.log('Rendering hidden Google button for proxy pattern...');
+      renderButton(hiddenButtonRef.current, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        width: 300,
+      });
+      setIsButtonReady(true);
+    }
+  }, [isLoaded, renderButton, isButtonReady]);
+
+  // Click the hidden Google button when custom button is clicked
+  const handleCustomButtonClick = useCallback(() => {
+    if (disabled || localLoading || gisLoading) return;
+
+    // Find and click the actual Google button inside the hidden container
+    const googleButton = hiddenButtonRef.current?.querySelector('div[role="button"]');
+    if (googleButton) {
+      console.log('Triggering Google Sign-In via proxy button...');
+      googleButton.click();
+    } else {
+      // Fallback: try clicking any clickable element in the container
+      const anyButton = hiddenButtonRef.current?.querySelector('iframe');
+      if (anyButton) {
+        // For iframe-based buttons, we need to focus and simulate click
+        setLocalError('Please use the Google button directly');
+      } else {
+        setLocalError('Google Sign-In not ready. Please refresh the page.');
+      }
+    }
+  }, [disabled, localLoading, gisLoading]);
+
+  const isDisabled = disabled || localLoading || gisLoading;
+  const showError = localError || gisError;
+
+  // Not configured - show warning
+  if (!isConfigured) {
+    return (
+      <div className={className}>
+        <div className="w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400">
+          <AlertCircle className="w-5 h-5" />
+          <span className="text-sm">Google SSO not configured</span>
+        </div>
+        <p className="text-xs text-amber-400 mt-2 text-center">
+          Please set REACT_APP_GOOGLE_CLIENT_ID in .env file
+        </p>
+      </div>
+    );
+  }
+
+  // Button variant styles
+  const variantStyles = {
+    default: `
+      bg-white hover:bg-gray-50 
+      text-gray-700 
+      border border-gray-300 hover:border-gray-400
+      shadow-sm hover:shadow-md
+    `,
+    outline: `
+      bg-transparent hover:bg-white/5
+      text-white
+      border border-white/20 hover:border-white/40
+    `,
+    dark: `
+      bg-dark-700 hover:bg-dark-600
+      text-white
+      border border-dark-600 hover:border-dark-500
+    `,
   };
 
-  const config = providers[provider];
-  const Icon = config.icon;
+  return (
+    <div className={className}>
+      {/* Hidden container for the real Google button */}
+      <div
+        ref={hiddenButtonRef}
+        className="absolute opacity-0 pointer-events-none overflow-hidden"
+        style={{ width: '1px', height: '1px', position: 'absolute', left: '-9999px' }}
+        aria-hidden="true"
+      />
+
+      {/* Beautiful custom button */}
+      <button
+        type="button"
+        onClick={handleCustomButtonClick}
+        disabled={isDisabled || !isLoaded}
+        className={`
+          w-full flex items-center justify-center gap-3 
+          px-6 py-3.5 rounded-xl 
+          font-medium text-base
+          transition-all duration-200 ease-out
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900
+          disabled:opacity-50 disabled:cursor-not-allowed
+          active:scale-[0.98]
+          ${variantStyles[variant]}
+        `}
+      >
+        {localLoading || gisLoading ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Signing in...</span>
+          </>
+        ) : !isLoaded ? (
+          <>
+            <div className="w-5 h-5 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
+            <span>Loading...</span>
+          </>
+        ) : (
+          <>
+            <GoogleLogo />
+            <span>Continue with Google</span>
+          </>
+        )}
+      </button>
+
+      {/* Error message */}
+      {showError && !localLoading && (
+        <p className="text-xs text-red-400 mt-2 flex items-center justify-center gap-1">
+          <AlertCircle className="w-3 h-3" />
+          {showError}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Alternative: Direct Google Button (uses Google's official rendered button)
+ * Use this if you prefer the official Google styling
+ */
+export function GoogleOfficialButton({
+  onSuccess,
+  onError,
+  disabled = false,
+  className = '',
+  theme = 'outline', // 'outline' | 'filled_blue' | 'filled_black'
+}) {
+  const buttonContainerRef = useRef(null);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState(null);
+  const [buttonRendered, setButtonRendered] = useState(false);
+  const { loginWithGoogleIdToken } = useAuth();
+
+  const handleGoogleSuccess = useCallback(async (idToken) => {
+    setLocalLoading(true);
+    setLocalError(null);
+    try {
+      const result = await loginWithGoogleIdToken(idToken);
+      if (result.success) {
+        onSuccess?.(result);
+      } else {
+        setLocalError(result.message || 'Login failed');
+        onError?.(new Error(result.message));
+      }
+    } catch (err) {
+      setLocalError(err.message);
+      onError?.(err);
+    } finally {
+      setLocalLoading(false);
+    }
+  }, [loginWithGoogleIdToken, onSuccess, onError]);
+
+  const { isLoaded, error: gisError, isConfigured, renderButton } = useGoogleIdentity({
+    onSuccess: handleGoogleSuccess,
+    onError,
+  });
+
+  useEffect(() => {
+    if (isLoaded && buttonContainerRef.current && !buttonRendered && !disabled) {
+      renderButton(buttonContainerRef.current, {
+        theme,
+        size: 'large',
+        text: 'continue_with',
+        shape: 'rectangular',
+        width: 400,
+      });
+      setButtonRendered(true);
+    }
+  }, [isLoaded, renderButton, buttonRendered, disabled, theme]);
+
+  if (!isConfigured) {
+    return (
+      <div className={`${className} text-center`}>
+        <p className="text-amber-400 text-sm">Google SSO not configured</p>
+      </div>
+    );
+  }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled || loading}
-      className={`
-        w-full flex items-center justify-center gap-3 px-6 py-3.5
-        rounded-xl border font-medium transition-all duration-200
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900
-        disabled:opacity-50 disabled:cursor-not-allowed
-        hover:shadow-lg active:scale-[0.98]
-        ${config.className}
-      `}
-    >
-      {loading ? (
-        <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-      ) : (
-        <Icon />
+    <div className={className}>
+      {localLoading && (
+        <div className="flex items-center justify-center gap-2 py-3">
+          <Loader2 className="w-5 h-5 animate-spin text-primary-400" />
+          <span className="text-dark-300">Signing in...</span>
+        </div>
       )}
-      <span>{config.label}</span>
-    </button>
+      <div
+        ref={buttonContainerRef}
+        className={`w-full flex justify-center ${localLoading ? 'hidden' : ''}`}
+      />
+      {(localError || gisError) && (
+        <p className="text-xs text-red-400 mt-2 text-center">{localError || gisError}</p>
+      )}
+    </div>
   );
 }
 
 /**
  * SSO Buttons Group Component
+ * Renders all available SSO providers
  */
-export function SSOButtonsGroup({ onGoogleClick, onGitHubClick, disabled, loading }) {
+export function SSOButtonsGroup({
+  onSuccess,
+  onError,
+  disabled = false,
+  loading = null,
+  variant = 'default',
+}) {
   return (
     <div className="space-y-3">
-      <SSOButton
-        provider="google"
-        onClick={onGoogleClick}
-        disabled={disabled}
-        loading={loading === 'google'}
+      <GoogleSSOButton
+        onSuccess={onSuccess}
+        onError={onError}
+        disabled={disabled || loading === 'google'}
+        variant={variant}
       />
-      {onGitHubClick && (
-        <SSOButton
-          provider="github"
-          onClick={onGitHubClick}
-          disabled={disabled}
-          loading={loading === 'github'}
-        />
-      )}
     </div>
   );
 }
@@ -122,5 +365,13 @@ export function OrDivider({ text = 'or continue with email' }) {
   );
 }
 
-export default SSOButtonsGroup;
+// Legacy exports for backwards compatibility
+export function SSOButton({ provider, onClick, disabled, loading }) {
+  console.warn('SSOButton is deprecated. Use GoogleSSOButton instead.');
+  if (provider === 'google') {
+    return <GoogleSSOButton disabled={disabled || loading} onSuccess={onClick} />;
+  }
+  return null;
+}
 
+export default SSOButtonsGroup;

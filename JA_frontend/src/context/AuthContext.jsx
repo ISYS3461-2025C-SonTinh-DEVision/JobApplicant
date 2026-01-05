@@ -185,16 +185,41 @@ export function AuthProvider({ children }) {
   }, []);
 
   /**
-   * Initiate Google SSO
+   * Login with Google ID Token (Google Identity Services)
+   * This is the primary method for Google SSO using ID Token Flow (Ultimo requirement 1.3.1)
+   * @param {string} idToken - Google ID token from GIS SDK
+   */
+  const loginWithGoogleIdToken = useCallback(async (idToken) => {
+    setStatus(AUTH_STATUS.LOADING);
+    setError(null);
+
+    try {
+      await authService.loginWithGoogleIdToken(idToken);
+      await checkAuth();
+      return { success: true };
+    } catch (err) {
+      setStatus(AUTH_STATUS.UNAUTHENTICATED);
+      const errorMessage = err.data?.message || err.message || 'Google login failed';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+    }
+  }, [checkAuth]);
+
+  /**
+   * @deprecated Use loginWithGoogleIdToken with Google Identity Services instead
+   * Initiate Google SSO (redirect-based, legacy)
    */
   const loginWithGoogle = useCallback(() => {
+    console.warn('loginWithGoogle is deprecated. Use loginWithGoogleIdToken with Google Identity Services instead.');
     authService.initiateGoogleLogin();
   }, []);
 
   /**
-   * Handle Google callback
+   * @deprecated Use loginWithGoogleIdToken instead
+   * Handle Google callback (authorization code flow, legacy)
    */
   const handleGoogleCallback = useCallback(async (code) => {
+    console.warn('handleGoogleCallback is deprecated. Use loginWithGoogleIdToken instead.');
     setStatus(AUTH_STATUS.LOADING);
     setError(null);
 
@@ -270,8 +295,9 @@ export function AuthProvider({ children }) {
     activateAccount,
     forgotPassword,
     resetPassword,
-    loginWithGoogle,
-    handleGoogleCallback,
+    loginWithGoogleIdToken, // Primary: Google SSO with ID Token (GIS)
+    loginWithGoogle, // Deprecated: redirect-based flow
+    handleGoogleCallback, // Deprecated: authorization code callback
     getCountries,
   };
 

@@ -62,6 +62,8 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		    requestPath.startsWith("/v3/api-docs") ||
 		    requestPath.startsWith("/api/notifications") ||
 		    requestPath.startsWith("/api/admin") ||
+		    requestPath.startsWith("/api/job-posts") ||
+		    requestPath.startsWith("/api/companies") ||
 		    requestPath.startsWith("/ws/") ||
 		    requestPath.startsWith("/api/system/verify-token") ||
 		    requestPath.startsWith("/api/applications/job/")) {

@@ -13,13 +13,16 @@
 #     console:
 #       enabled: true
 
+server:
+  port: ${SERVER_PORT:8080}
+
 app:
   frontend:
     base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
   job-manager:
-    base-url: ${JOB_MANAGER_BASE_URL:http://localhost:5173}
+    base-url: ${JOB_MANAGER_BASE_URL:http://localhost:8081}
   mail:
-    from: ${MAIL_FROM:onboarding@resend.dev}
+    from: ${MAIL_FROM:onboarding@resend.dev}  
     from-name: ${MAIL_FROM_NAME:DEVision}
     resend:
       # Resend API Key for HTTP-based email sending (avoids SMTP port blocking)
@@ -63,6 +66,17 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         spring.json.add.type.headers: false
+    consumer:
+      group-id: job-applicant-search-profile-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.type.mapping: jobPostEvent:com.DEVision.JobApplicant.search_profile.dto.JobPostEvent,jobPost:com.DEVision.JobApplicant.search_profile.dto.JobPostEvent
+
+jm:
+  service:
+    url: ${JOB_MANAGER_SERVICE_URL:http://localhost:3000}
 
   # SMTP configuration removed - using Resend HTTP API instead
   # This avoids SMTP port blocking issues on Railway and other cloud platforms
@@ -72,26 +86,27 @@ spring:
   #   username: ${MAIL_USERNAME}
   #   password: ${MAIL_PASSWORD}
 
-# Uncomment and configure when enabling Google OAuth2 SSO
-# Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env file
-#  security:
-#    oauth2:
-#      client:
-#        registration:
-#          google:
-#            client-id: ${GOOGLE_CLIENT_ID}
-#            client-secret: ${GOOGLE_CLIENT_SECRET}
-#            scope:
-#              - email
-#              - profile
-#            redirect-uri: "{baseUrl}/api/auth/oauth2/callback/{registrationId}"
-#            authorization-grant-type: authorization_code
-#        provider:
-#          google:
-#            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
-#            token-uri: https://oauth2.googleapis.com/token
-#            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
-#            user-name-attribute: sub
+  # Google OAuth2 SSO Configuration (Requirement 1.3.1 - Ultimo)
+  # Note: Our implementation uses ID Token Flow via OAuth2Service
+  # This config provides the client-id for token verification
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+            redirect-uri: "{baseUrl}/api/auth/oauth2/callback/{registrationId}"
+            authorization-grant-type: authorization_code
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
 
 # firebase:
 #     bucket-name: ${FIREBASE_BUCKET_NAME}
@@ -103,8 +118,7 @@ spring:
 #     expiration: ${JWT_EXPIRATION}
 #     refresh-expiration: ${JWT_REFRESH_EXPIRATION}
 
-# server:
-#     port: ${SERVER_PORT}
+
 
 # System-to-System Authentication Configuration
 # Configure these for Job Manager System authorization

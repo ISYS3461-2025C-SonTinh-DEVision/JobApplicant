@@ -246,13 +246,13 @@ export default function CompanyListPage() {
                 </button>
             </div>
 
-            {/* Job Manager Notice */}
-            <div className="glass-card p-4 border-l-4 border-pink-400/50 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-pink-400 flex-shrink-0 mt-0.5" />
+            {/* Job Manager Notice - Mock Data */}
+            <div className="glass-card p-4 border-l-4 border-yellow-400/50 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
                 <div>
-                    <p className="text-white font-medium text-sm">Company data from Job Manager</p>
+                    <p className="text-white font-medium text-sm">Using sample company data</p>
                     <p className="text-dark-400 text-xs sm:text-sm mt-1">
-                        Companies are managed by the Job Manager subsystem. Full integration coming soon.
+                        Company API from Job Manager is pending. Displaying sample data for demonstration.
                     </p>
                 </div>
             </div>

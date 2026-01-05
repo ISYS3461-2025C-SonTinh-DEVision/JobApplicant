@@ -302,16 +302,28 @@ export default function JobPostListPage() {
                 </button>
             </div>
 
-            {/* Job Manager Notice */}
-            <div className="glass-card p-4 border-l-4 border-blue-400/50 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                <div>
-                    <p className="text-white font-medium text-sm">Job post data from Job Manager</p>
-                    <p className="text-dark-400 text-xs sm:text-sm mt-1">
-                        Job posts are managed by the Job Manager subsystem. Full integration coming soon.
-                    </p>
+            {/* Job Manager Notice - Dynamic based on data source */}
+            {totalItems > 0 ? (
+                <div className="glass-card p-4 border-l-4 border-emerald-400/50 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-white font-medium text-sm">Connected to Job Manager ✓</p>
+                        <p className="text-dark-400 text-xs sm:text-sm mt-1">
+                            Displaying real-time job post data from the Job Manager subsystem.
+                        </p>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="glass-card p-4 border-l-4 border-blue-400/50 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-white font-medium text-sm">Connecting to Job Manager...</p>
+                        <p className="text-dark-400 text-xs sm:text-sm mt-1">
+                            Loading job posts from the Job Manager subsystem.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Search Bar */}
             <div className="glass-card p-4">

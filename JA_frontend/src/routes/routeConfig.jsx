@@ -29,6 +29,7 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import DashboardHome from '../pages/dashboard/DashboardHome';
 import ProfileDashboard from '../pages/dashboard/ProfileDashboard';
 import EditProfile from '../pages/dashboard/EditProfile';
+import SecuritySettingsPage from '../pages/dashboard/SecuritySettingsPage';
 import MyApplicationsPage from '../pages/dashboard/MyApplicationsPage';
 import ApplicationDetailPage from '../pages/dashboard/ApplicationDetailPage';
 import JobListPage from '../pages/job/JobListPage';
@@ -186,6 +187,10 @@ const router = createBrowserRouter([
       {
         path: 'profile/edit',
         element: <EditProfile />,
+      },
+      {
+        path: 'security',
+        element: <SecuritySettingsPage />,
       },
       {
         path: 'applications',

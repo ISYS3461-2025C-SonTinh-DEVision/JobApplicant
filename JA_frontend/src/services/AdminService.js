@@ -114,20 +114,82 @@ class AdminService {
 
     /**
      * Get list of companies with pagination and search
-     * Note: Companies are managed by Job Manager subsystem
-     * This will call Job Manager API when integration is complete
+     * Note: JM /api/companies currently returns 404
+     * Using mock data until JM team provides company API
      */
     async getCompanies({ page = 1, limit = 10, search = '' } = {}) {
         try {
-            // TODO: Call Job Manager API for company data
-            // const response = await httpUtil.get('JOB_MANAGER_URL/api/companies', { page, limit, search });
-            console.warn('Company data should come from Job Manager subsystem');
+            // Mock company data (JM /api/companies returns 404)
+            const mockCompanies = [
+                {
+                    id: 'company_001',
+                    name: 'TechCorp Vietnam',
+                    email: 'hr@techcorp.vn',
+                    industry: 'Technology',
+                    country: 'Vietnam',
+                    city: 'Ho Chi Minh City',
+                    jobPostCount: 3,
+                    status: 'active',
+                    isPremium: true,
+                },
+                {
+                    id: 'company_002',
+                    name: 'Cloudify Solutions',
+                    email: 'careers@cloudify.io',
+                    industry: 'Cloud Services',
+                    country: 'Vietnam',
+                    city: 'Hanoi',
+                    jobPostCount: 2,
+                    status: 'active',
+                    isPremium: false,
+                },
+                {
+                    id: 'company_003',
+                    name: 'InnovateLabs Singapore',
+                    email: 'jobs@innovatelabs.sg',
+                    industry: 'SaaS',
+                    country: 'Singapore',
+                    city: 'Singapore',
+                    jobPostCount: 4,
+                    status: 'active',
+                    isPremium: true,
+                },
+                {
+                    id: 'company_004',
+                    name: 'DataMinds',
+                    email: 'hr@dataminds.io',
+                    industry: 'Data Analytics',
+                    country: 'Singapore',
+                    city: 'Singapore',
+                    jobPostCount: 2,
+                    status: 'active',
+                    isPremium: false,
+                },
+            ];
+
+            // Filter by search
+            let filtered = mockCompanies;
+            if (search) {
+                const term = search.toLowerCase();
+                filtered = mockCompanies.filter(c =>
+                    c.name.toLowerCase().includes(term) ||
+                    c.industry.toLowerCase().includes(term)
+                );
+            }
+
+            // Paginate
+            const start = (page - 1) * limit;
+            const paginated = filtered.slice(start, start + limit);
+
+            console.log('[AdminService] Using mock company data (JM API returns 404)');
+
             return {
-                data: [],
-                total: 0,
+                data: paginated,
+                total: filtered.length,
                 page,
                 limit,
-                totalPages: 0,
+                totalPages: Math.ceil(filtered.length / limit),
+                isMockData: true,
             };
         } catch (error) {
             console.error('Failed to fetch companies:', error.message);
@@ -158,29 +220,74 @@ class AdminService {
 
     /**
      * Get list of job posts with pagination and search
-     * Note: Job Posts are managed by Job Manager subsystem
-     * This will call Job Manager API when integration is complete
+     * Uses REAL API via JA backend proxy to Job Manager
      */
     async getJobPosts({ page = 1, limit = 10, search = '' } = {}) {
         try {
-            // TODO: Call Job Manager API for job post data
-            // const response = await httpUtil.get('JOB_MANAGER_URL/api/job-posts', { page, limit, search });
-            console.warn('Job post data should come from Job Manager subsystem');
+            // Import transformer dynamically to avoid circular deps
+            const { transformJobPost } = await import('../utils/jobTransformers');
+
+            // Call JA backend proxy endpoint
+            const response = await httpUtil.get('/api/job-posts', {
+                page,
+                size: limit,
+                search,
+            });
+
+            // Handle JM API response structure
+            let jobs = [];
+            let total = 0;
+            let totalPages = 0;
+
+            // JA Backend returns: { jobs: [...], meta: {...} } or JM structure
+            if (response.jobs && Array.isArray(response.jobs)) {
+                jobs = response.jobs;
+                total = response.meta?.total || jobs.length;
+                totalPages = response.meta?.totalPages || Math.ceil(total / limit);
+            }
+            // JM API structure: directly returns data array
+            else if (response.data && Array.isArray(response.data)) {
+                jobs = response.data;
+                total = response.meta?.total || jobs.length;
+                totalPages = response.meta?.totalPages || Math.ceil(total / limit);
+            }
+            // Handle { data: { data: [...], meta: {...} } } structure
+            else if (response.data?.data && Array.isArray(response.data.data)) {
+                jobs = response.data.data;
+                total = response.data.meta?.total || jobs.length;
+                totalPages = response.data.meta?.totalPages || Math.ceil(total / limit);
+            }
+
+            // Transform jobs to frontend format
+            const transformedJobs = jobs.map(job => {
+                const transformed = transformJobPost(job);
+                return {
+                    ...transformed,
+                    // Ensure required fields for admin display
+                    company: transformed.company || 'Unknown Company',
+                    salary: transformed.salary || 'Negotiable',
+                };
+            });
+
+            console.log('[AdminService] Fetched real job posts:', transformedJobs.length);
+
             return {
-                data: [],
-                total: 0,
+                data: transformedJobs,
+                total,
                 page,
                 limit,
-                totalPages: 0,
+                totalPages,
+                isRealData: true,
             };
         } catch (error) {
-            console.error('Failed to fetch job posts:', error.message);
+            console.error('Failed to fetch job posts from backend:', error.message);
             return {
                 data: [],
                 total: 0,
                 page,
                 limit,
                 totalPages: 0,
+                isRealData: false,
             };
         }
     }

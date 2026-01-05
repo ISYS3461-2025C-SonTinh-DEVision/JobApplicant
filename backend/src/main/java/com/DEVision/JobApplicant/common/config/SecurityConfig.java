@@ -63,6 +63,8 @@ public class SecurityConfig {
 								"/api/system/verify-token",
 								"/api/applications/job/**")
 						.permitAll()
+						// Job Manager proxy endpoints - public for job search (Requirement 4.1.x)
+						.requestMatchers("/api/job-posts/**", "/api/companies/**").permitAll()
 						// Swagger/OpenAPI documentation endpoints
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
 						// Notification endpoints (for testing - consider requiring auth in production)
@@ -79,8 +81,12 @@ public class SecurityConfig {
 							RoleConfig.ADMIN.getRoleName())
 						// Admin endpoints - permit all for now (can add ADMIN role check later)
 						.requestMatchers("/api/admin/**").permitAll()
-						// Protected endpoints
+						// Protected auth endpoints - require authentication
 						.requestMatchers("/api/auth/check-session").authenticated()
+						.requestMatchers("/api/auth/change-password").authenticated()
+						.requestMatchers("/api/auth/change-email").authenticated()
+						.requestMatchers("/api/auth/send-otp").authenticated()
+						.requestMatchers("/api/auth/verify-otp").authenticated()
 						.anyRequest().authenticated())
 				.logout(logout -> logout
 						.logoutUrl("/api/auth/logout")
