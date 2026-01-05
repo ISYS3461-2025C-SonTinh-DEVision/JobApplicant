@@ -84,6 +84,28 @@ public class SubscriptionService {
                 .orElseThrow(() -> new IllegalArgumentException("Subscription not found for user: " + userId));
     }
 
+    @Transactional
+    public void activateSubscription(String userId) {
+        Subscription subscription = subscriptionRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Subscription not found for user: " + userId));
+
+        subscription.setStatus(SubscriptionStatus.ACTIVE);
+        subscription.setUpdatedAt(Instant.now());
+
+        subscriptionRepository.save(subscription);
+    }
+
+    @Transactional
+    public void cancelSubscription(String userId) {
+        Subscription subscription = subscriptionRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Subscription not found for user: " + userId));
+
+        subscription.setStatus(SubscriptionStatus.CANCELLED);
+        subscription.setUpdatedAt(Instant.now());
+
+        subscriptionRepository.save(subscription);
+    }
+
     private BigDecimal resolvePrice(PlanType planType) {
         return switch (planType) {
             case PREMIUM -> PREMIUM_PRICE;
