@@ -58,6 +58,24 @@ public class CallJobPostService implements JobPostServiceInf {
     
     @Override
     public JobPostListResponse searchJobPosts(Map<String, Object> queryParams) {
+        // Enforce minimum limit of 20 (JM API requirement)
+        if (queryParams.containsKey("limit")) {
+            Object limitObj = queryParams.get("limit");
+            int limit = 20;
+            if (limitObj instanceof Integer) {
+                limit = Math.max((Integer) limitObj, 20);
+            } else if (limitObj instanceof String) {
+                try {
+                    limit = Math.max(Integer.parseInt((String) limitObj), 20);
+                } catch (NumberFormatException e) {
+                    limit = 20;
+                }
+            }
+            queryParams.put("limit", limit);
+        } else {
+            queryParams.put("limit", 20);
+        }
+        
         String url = buildUrlWithQueryParams(externalUrl.getJobPostsUrl(), queryParams);
         return restTemplate.getForObject(url, JobPostListResponse.class);
     }

@@ -13,7 +13,7 @@
  * Architecture: A.2.c - REST HTTP Helper Class pattern
  */
 
-import { JOB_MANAGER_API_URL, API_ENDPOINTS, AUTH_CONFIG } from '../config/apiConfig';
+import { API_BASE_URL, JOB_MANAGER_API_URL, API_ENDPOINTS, AUTH_CONFIG } from '../config/apiConfig';
 
 // Comprehensive mock job posts data matching Job Manager API structure
 const MOCK_JOB_POSTS = [
@@ -451,7 +451,10 @@ const MOCK_COMPANIES = [
 
 class JobManagerService {
     constructor() {
-        this.baseURL = JOB_MANAGER_API_URL;
+        // Use JA backend proxy instead of direct JM API for security
+        // Frontend should call JA backend at localhost:8080/api/job-posts
+        // JA backend will proxy to JM backend
+        this.baseURL = API_BASE_URL || 'http://localhost:8080';
         this.useMock = false; // Will be set to true if real API fails
     }
 

@@ -78,8 +78,10 @@ public class JobPostSearchRequest implements Serializable {
         Map<String, Object> params = new HashMap<>();
         
         // Pagination - convert 'size' to 'limit' for JM API
+        // Enforce minimum limit of 20 (JM API requirement)
         if (page != null) params.put("page", page);
-        if (size != null) params.put("limit", size);
+        int limit = (size != null) ? Math.max(size, 20) : 20;
+        params.put("limit", limit);
         
         // Filters
         if (status != null && !status.trim().isEmpty()) {
