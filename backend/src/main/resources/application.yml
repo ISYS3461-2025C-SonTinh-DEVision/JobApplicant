@@ -72,11 +72,12 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
-        spring.json.type.mapping: jobPostEvent:com.DEVision.JobApplicant.search_profile.dto.JobPostEvent,jobPost:com.DEVision.JobApplicant.search_profile.dto.JobPostEvent
 
 jm:
   service:
     url: ${JOB_MANAGER_SERVICE_URL:http://localhost:3000}
+    email: ${JOB_MANAGER_SERVICE_EMAIL:}
+    password: ${JOB_MANAGER_SERVICE_PASSWORD:}
 
   # SMTP configuration removed - using Resend HTTP API instead
   # This avoids SMTP port blocking issues on Railway and other cloud platforms
