@@ -1,6 +1,10 @@
 package com.DEVision.JobApplicant.jmintegration.jobpost.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -11,7 +15,6 @@ import com.DEVision.JobApplicant.jmintegration.jobpost.external.dto.JobPostDto;
 import com.DEVision.JobApplicant.jmintegration.jobpost.external.dto.JobPostListResponse;
 import com.DEVision.JobApplicant.jmintegration.jobpost.external.dto.JobPostSearchRequest;
 import com.DEVision.JobApplicant.jmintegration.jobpost.external.dto.JobPostSingleResponse;
-
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +22,8 @@ import java.util.Map;
  * Service for calling JM system Job Post API
  * Implements the interface and uses RestTemplate to make HTTP calls
  * Supports all query parameters for filtering, searching, and pagination
+ * 
+ * Uses Cognito OAuth2 token for system-to-system authentication
  */
 @Service
 public class CallJobPostService implements JobPostServiceInf {
@@ -29,31 +34,59 @@ public class CallJobPostService implements JobPostServiceInf {
     @Autowired
     private ExternalUrl externalUrl;
     
+    @Autowired
+    private CognitoTokenService cognitoTokenService;
+    
+    /**
+     * Create HTTP headers with Cognito Bearer token for system-to-system auth
+     */
+    private HttpHeaders createAuthHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", cognitoTokenService.getAuthorizationHeader());
+        return headers;
+    }
+    
     @Override
     public JobPostDto getJobPostById(String jobPostId) {
-        JobPostSingleResponse response = restTemplate.getForObject(
+        HttpEntity<Void> entity = new HttpEntity<>(createAuthHeaders());
+        
+        ResponseEntity<JobPostSingleResponse> response = restTemplate.exchange(
             externalUrl.getJobPostsUrl() + "/{jobPostId}",
+            HttpMethod.GET,
+            entity,
             JobPostSingleResponse.class,
             jobPostId
         );
-        return response != null ? response.getJobPost() : null;
+        return response.getBody() != null ? response.getBody().getJobPost() : null;
     }
     
     @Override
     public List<JobPostDto> getAllJobPosts() {
-        JobPostListResponse response = restTemplate.getForObject(
+        HttpEntity<Void> entity = new HttpEntity<>(createAuthHeaders());
+        
+        ResponseEntity<JobPostListResponse> response = restTemplate.exchange(
             externalUrl.getJobPostsUrl(),
+            HttpMethod.GET,
+            entity,
             JobPostListResponse.class
         );
-        return response != null && response.getJobs() != null 
-            ? response.getJobs() 
+        return response.getBody() != null && response.getBody().getJobs() != null 
+            ? response.getBody().getJobs() 
             : List.of();
     }
     
     @Override
     public JobPostListResponse searchJobPosts(JobPostSearchRequest searchRequest) {
         String url = buildUrlWithQueryParams(externalUrl.getJobPostsUrl(), searchRequest.toQueryParams());
-        return restTemplate.getForObject(url, JobPostListResponse.class);
+        HttpEntity<Void> entity = new HttpEntity<>(createAuthHeaders());
+        
+        ResponseEntity<JobPostListResponse> response = restTemplate.exchange(
+            url,
+            HttpMethod.GET,
+            entity,
+            JobPostListResponse.class
+        );
+        return response.getBody();
     }
     
     @Override
@@ -77,7 +110,15 @@ public class CallJobPostService implements JobPostServiceInf {
         }
         
         String url = buildUrlWithQueryParams(externalUrl.getJobPostsUrl(), queryParams);
-        return restTemplate.getForObject(url, JobPostListResponse.class);
+        HttpEntity<Void> entity = new HttpEntity<>(createAuthHeaders());
+        
+        ResponseEntity<JobPostListResponse> response = restTemplate.exchange(
+            url,
+            HttpMethod.GET,
+            entity,
+            JobPostListResponse.class
+        );
+        return response.getBody();
     }
     
     /**

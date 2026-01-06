@@ -4,7 +4,7 @@ public enum RoleConfig {
     APPLICANT("APPLICANT"),
     COMPANY("COMPANY"),
     ADMIN("ADMIN"),
-    GUEST("GUEST");
+    SYSTEM("SYSTEM");
 
     private final String roleName;
 

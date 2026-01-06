@@ -122,3 +122,15 @@ jm:
 
 # System-to-System Authentication Configuration
 # Configure these for Job Manager System authorization
+
+# AWS Cognito configuration for system-to-system OAuth2 (client_credentials)
+# Used by CognitoJwtVerifier + SystemAuthFilter + CognitoTokenService
+cognito:
+  region: ${COGNITO_REGION:ap-southeast-2}
+  user-pool-id: ${COGNITO_USER_POOL_ID:ap-southeast-2_r9U2ssJAZ}
+  client-id: ${COGNITO_CLIENT_ID:3fv3a7qb2eo8r3710vd0s43ma6}
+  client-secret: ${COGNITO_CLIENT_SECRET:1pd1tg8f17hhgkm5ja510rnvi5pjthp9i45a3d8p43cf69m1kt9v}
+  # Token endpoint URL (your Cognito domain)
+  token-url: ${COGNITO_TOKEN_URL:https://ap-southeast-2r9u2ssjaz.auth.ap-southeast-2.amazoncognito.com/oauth2/token}
+  # Scope required on the access token for system-to-system calls
+  required-scope: ${COGNITO_REQUIRED_SCOPE:default-m2m-resource-server-wti-ej/read}
