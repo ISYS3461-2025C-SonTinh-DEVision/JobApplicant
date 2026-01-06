@@ -150,7 +150,7 @@ public class ApplicationController {
     })
     @GetMapping("/my-applications")
     public ResponseEntity<?> getMyApplications(
-            @Parameter(description = "Optional status filter (PENDING, REVIEWING, ACCEPTED, REJECTED, WITHDRAWN)")
+            @Parameter(description = "Optional status filter (PENDING, ACCEPTED, REJECTED, WITHDRAWN)")
             @RequestParam(value = "status", required = false) String status,
             @Parameter(description = "Page number (0-based). If not provided, returns all results.")
             @RequestParam(value = "page", required = false) Integer page,
@@ -179,7 +179,7 @@ public class ApplicationController {
                     statusFilter = Application.ApplicationStatus.valueOf(status.toUpperCase());
                 } catch (IllegalArgumentException e) {
                     Map<String, String> error = new HashMap<>();
-                    error.put("error", "Invalid status: " + status + ". Valid values: PENDING, REVIEWING, ACCEPTED, REJECTED, WITHDRAWN");
+                    error.put("error", "Invalid status: " + status + ". Valid values: PENDING, ACCEPTED, REJECTED, WITHDRAWN");
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
                 }
             }
@@ -249,6 +249,48 @@ public class ApplicationController {
             System.err.println("Error fetching applications by job post: " + e.getMessage());
             Map<String, String> error = new HashMap<>();
             error.put("error", "Failed to fetch applications");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+    
+    @Operation(
+        summary = "Update application status",
+        description = "Explicitly update the status of an application. " +
+                      "Valid statuses: PENDING, ACCEPTED, REJECTED, WITHDRAWN."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Application status updated successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid status value"),
+        @ApiResponse(responseCode = "404", description = "Application not found")
+    })
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<?> updateApplicationStatus(
+            @Parameter(description = "Application ID to update")
+            @PathVariable String id,
+            @Parameter(description = "New status (PENDING, ACCEPTED, REJECTED, WITHDRAWN)")
+            @RequestParam("status") String status) {
+        try {
+            Application.ApplicationStatus newStatus;
+            try {
+                newStatus = Application.ApplicationStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Invalid status: " + status + ". Valid values: PENDING, ACCEPTED, REJECTED, WITHDRAWN");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+            
+            ApplicationResponse response = externalService.updateApplicationStatus(id, newStatus);
+            if (response == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Application not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+            
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
+            System.err.println("Error updating application status: " + e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to update application status");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
