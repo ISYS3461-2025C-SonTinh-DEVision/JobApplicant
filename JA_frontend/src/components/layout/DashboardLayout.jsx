@@ -18,7 +18,6 @@ import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, User, Briefcase, Search, Bell, Settings,
-  Home, User, Briefcase, Search, Settings,
   LogOut, Menu, X, ChevronDown, Crown,
   FileText, TrendingUp, Sun, Moon, PanelLeftClose, PanelLeft
 } from 'lucide-react';
@@ -26,7 +25,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useHeadlessModal, useHeadlessToggle } from '../../components/headless';
-import { NotificationProvider } from '../../context/NotificationContext';
+
 import { NotificationBell, ToastContainer } from '../notification';
 
 /**
@@ -228,6 +227,8 @@ export default function DashboardLayout() {
   const { unreadCount } = useNotifications();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+
+
   // Navigation items
   const navigationItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard', exact: true },
@@ -264,189 +265,189 @@ export default function DashboardLayout() {
   const isCollapsed = sidebarCollapse.isOn;
 
   return (
-    <NotificationProvider>
-      <div className={`min-h-screen flex overflow-x-hidden ${isDark ? 'bg-dark-900' : 'bg-gray-50'}`}>
-        {/* Sidebar - Desktop (Collapsible) */}
-        <aside className={`
+
+    <div className={`min-h-screen flex overflow-x-hidden ${isDark ? 'bg-dark-900' : 'bg-gray-50'}`}>
+      {/* Sidebar - Desktop (Collapsible) */}
+      <aside className={`
         hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 
         transition-all duration-300 ease-in-out overflow-visible
         ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
         ${isDark
-            ? 'bg-dark-800 border-r border-dark-700'
-            : 'bg-white border-r border-gray-200'
-          }
+          ? 'bg-dark-800 border-r border-dark-700'
+          : 'bg-white border-r border-gray-200'
+        }
       `}>
-          {/* Logo */}
-          <div className={`
+        {/* Logo */}
+        <div className={`
           flex items-center gap-3 px-4 py-5 border-b relative
           ${isCollapsed ? 'justify-center' : 'px-6'}
           ${isDark ? 'border-dark-700' : 'border-gray-200'}
         `}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-glow flex-shrink-0">
-              <Briefcase className="w-5 h-5 text-white" />
-            </div>
-            {!isCollapsed && (
-              <div className="overflow-hidden">
-                <h1 className={`text-xl font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>DEVision</h1>
-                <p className={`text-xs truncate ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Job Applicant</p>
-              </div>
-            )}
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-glow flex-shrink-0">
+            <Briefcase className="w-5 h-5 text-white" />
           </div>
+          {!isCollapsed && (
+            <div className="overflow-hidden">
+              <h1 className={`text-xl font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>DEVision</h1>
+              <p className={`text-xs truncate ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Job Applicant</p>
+            </div>
+          )}
+        </div>
 
-          {/* Navigation */}
-          <nav className={`flex-1 py-6 space-y-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-4'}`}>
-            {navigationItems.map((item) => (
-              <NavItem
-                key={item.to}
-                to={item.to}
-                icon={item.icon}
-                label={item.label}
-                badge={item.badge}
-                isActive={isActive(item.to, item.exact)}
-                onClick={handleNavigation}
-                isDark={isDark}
-                isCollapsed={isCollapsed}
-                className={item.highlight ? `
+        {/* Navigation */}
+        <nav className={`flex-1 py-6 space-y-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-4'}`}>
+          {navigationItems.map((item) => (
+            <NavItem
+              key={item.to}
+              to={item.to}
+              icon={item.icon}
+              label={item.label}
+              badge={item.badge}
+              isActive={isActive(item.to, item.exact)}
+              onClick={handleNavigation}
+              isDark={isDark}
+              isCollapsed={isCollapsed}
+              className={item.highlight ? `
                 ${isDark
-                    ? 'bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-500/20'
-                    : 'bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200'
-                  }
+                  ? 'bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-500/20'
+                  : 'bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200'
+                }
               ` : ''}
-              />
-            ))}
-          </nav>
+            />
+          ))}
+        </nav>
 
-          {/* Toggle Button */}
-          <div className={`px-4 py-3 border-t ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
-            <button
-              onClick={sidebarCollapse.toggle}
-              className={`
+        {/* Toggle Button */}
+        <div className={`px-4 py-3 border-t ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
+          <button
+            onClick={sidebarCollapse.toggle}
+            className={`
               w-full flex items-center gap-3 px-4 py-3 rounded-xl
               transition-all duration-200 group
               ${isCollapsed ? 'justify-center px-3' : ''}
               ${isDark
-                  ? 'text-dark-400 hover:bg-dark-700/50 hover:text-white'
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-                }
+                ? 'text-dark-400 hover:bg-dark-700/50 hover:text-white'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+              }
             `}
-              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              {isCollapsed ? (
-                <PanelLeft className="w-5 h-5" />
-              ) : (
-                <>
-                  <PanelLeftClose className="w-5 h-5" />
-                  <span className="font-medium text-sm">Collapse</span>
-                </>
-              )}
-            </button>
-          </div>
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? (
+              <PanelLeft className="w-5 h-5" />
+            ) : (
+              <>
+                <PanelLeftClose className="w-5 h-5" />
+                <span className="font-medium text-sm">Collapse</span>
+              </>
+            )}
+          </button>
+        </div>
 
-          {/* User Section */}
-          <div className={`p-4 border-t ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
-            <div className={`
+        {/* User Section */}
+        <div className={`p-4 border-t ${isDark ? 'border-dark-700' : 'border-gray-200'}`}>
+          <div className={`
             flex items-center gap-3 py-3 rounded-xl
             ${isCollapsed ? 'justify-center px-0' : 'px-4'}
             ${isDark ? 'bg-dark-700' : 'bg-gray-100'}
           `}>
-              {currentUser?.avatarUrl ? (
-                <img
-                  src={currentUser.avatarUrl}
-                  alt="Avatar"
-                  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-                  {currentUser?.firstName?.[0] || currentUser?.email?.[0]?.toUpperCase() || 'U'}
-                </div>
-              )}
-              {!isCollapsed && (
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {currentUser?.firstName || 'User'} {currentUser?.lastName || ''}
-                  </p>
-                  <p className={`text-xs truncate ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
-                    {currentUser?.email}
-                  </p>
-                </div>
-              )}
-            </div>
+            {currentUser?.avatarUrl ? (
+              <img
+                src={currentUser.avatarUrl}
+                alt="Avatar"
+                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                {currentUser?.firstName?.[0] || currentUser?.email?.[0]?.toUpperCase() || 'U'}
+              </div>
+            )}
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {currentUser?.firstName || 'User'} {currentUser?.lastName || ''}
+                </p>
+                <p className={`text-xs truncate ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                  {currentUser?.email}
+                </p>
+              </div>
+            )}
           </div>
-        </aside>
+        </div>
+      </aside>
 
-        {/* Mobile Sidebar */}
-        {isSidebarOpen && (
-          <>
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-              onClick={() => setIsSidebarOpen(false)}
-            />
+      {/* Mobile Sidebar */}
+      {isSidebarOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
 
-            {/* Sidebar */}
-            <aside className={`
+          {/* Sidebar */}
+          <aside className={`
             fixed inset-y-0 left-0 w-64 z-50 lg:hidden animate-slide-in-left
             ${isDark
-                ? 'bg-dark-800 border-r border-dark-700'
-                : 'bg-white border-r border-gray-200'
-              }
+              ? 'bg-dark-800 border-r border-dark-700'
+              : 'bg-white border-r border-gray-200'
+            }
           `}>
-              {/* Logo */}
-              <div className={`
+            {/* Logo */}
+            <div className={`
               flex items-center justify-between px-6 py-5 border-b
               ${isDark ? 'border-dark-700' : 'border-gray-200'}
             `}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-glow">
-                    <Briefcase className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>DEVision</h1>
-                    <p className={`text-xs ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Job Applicant</p>
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-glow">
+                  <Briefcase className="w-5 h-5 text-white" />
                 </div>
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className={`transition-colors ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
-                >
-                  <X className="w-6 h-6" />
-                </button>
+                <div>
+                  <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>DEVision</h1>
+                  <p className={`text-xs ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Job Applicant</p>
+                </div>
               </div>
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className={`transition-colors ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
 
-              {/* Navigation */}
-              <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-                {navigationItems.map((item) => (
-                  <NavItem
-                    key={item.to}
-                    to={item.to}
-                    icon={item.icon}
-                    label={item.label}
-                    badge={item.badge}
-                    isActive={isActive(item.to, item.exact)}
-                    onClick={handleNavigation}
-                    isDark={isDark}
-                    className={item.highlight ? `
+            {/* Navigation */}
+            <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+              {navigationItems.map((item) => (
+                <NavItem
+                  key={item.to}
+                  to={item.to}
+                  icon={item.icon}
+                  label={item.label}
+                  badge={item.badge}
+                  isActive={isActive(item.to, item.exact)}
+                  onClick={handleNavigation}
+                  isDark={isDark}
+                  className={item.highlight ? `
                     ${isDark
-                        ? 'bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-500/20'
-                        : 'bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200'
-                      }
+                      ? 'bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-500/20'
+                      : 'bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200'
+                    }
                   ` : ''}
-                  />
-                ))}
-              </nav>
-            </aside>
-          </>
-        )}
+                />
+              ))}
+            </nav>
+          </aside>
+        </>
+      )}
 
-        {/* Main Content */}
-        <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
-          {/* Header */}
-          <header className={`
+      {/* Main Content */}
+      <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+        {/* Header */}
+        <header className={`
           sticky top-0 z-30 backdrop-blur-sm border-b
           ${isDark
-              ? 'bg-dark-800/95 border-dark-700'
-              : 'bg-white/95 border-gray-200'
-            }
+            ? 'bg-dark-800/95 border-dark-700'
+            : 'bg-white/95 border-gray-200'
+          }
         `}>
           <div className="px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
@@ -471,64 +472,26 @@ export default function DashboardLayout() {
                 {/* Theme Toggle */}
                 <ThemeToggle />
 
-                {/* Notifications */}
-                <button
-                  onClick={() => navigate('/dashboard/notifications')}
-                  className={`
-                    relative p-2 rounded-lg transition-colors
-                    ${isDark
-                      ? 'text-dark-400 hover:text-white hover:bg-dark-700'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                    }
-                  `}
-                >
-                  <Bell className="w-5 h-5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-accent-500 rounded-full animate-pulse" />
-                  )}
-            <div className="px-4 sm:px-6 lg:px-8 py-4">
-              <div className="flex items-center justify-between">
-                {/* Mobile Menu Button */}
-                <button
-                  onClick={() => setIsSidebarOpen(true)}
-                  className={`lg:hidden transition-colors ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
-                    }`}
-                >
-                  <Menu className="w-6 h-6" />
-                </button>
+                {/* Notifications Bell - Real-time via WebSocket */}
+                <NotificationBell />
 
-                {/* Page Title - Desktop Only */}
-                <div className="hidden lg:block">
-                  <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {navigationItems.find(item => isActive(item.to, item.exact))?.label || 'Dashboard'}
-                  </h2>
-                </div>
-
-                {/* Right Section */}
-                <div className="flex items-center gap-3">
-                  {/* Theme Toggle */}
-                  <ThemeToggle />
-
-                  {/* Notifications Bell - Real-time via WebSocket */}
-                  <NotificationBell />
-
-                  {/* User Dropdown */}
-                  <UserDropdown user={currentUser} onLogout={handleLogout} isDark={isDark} />
-                </div>
+                {/* User Dropdown */}
+                <UserDropdown user={currentUser} onLogout={handleLogout} isDark={isDark} />
               </div>
             </div>
-          </header>
+          </div>
+        </header>
 
-          {/* Page Content */}
-          <main className="p-4 sm:p-6 lg:p-8">
-            <Outlet />
-          </main>
-        </div>
-
-        {/* Toast Notifications - Real-time feedback */}
-        <ToastContainer />
+        {/* Page Content */}
+        <main className="p-4 sm:p-6 lg:p-8">
+          <Outlet />
+        </main>
       </div>
-    </NotificationProvider>
+
+      {/* Toast Notifications */}
+      <ToastContainer />
+    </div>
+
   );
 }
 
