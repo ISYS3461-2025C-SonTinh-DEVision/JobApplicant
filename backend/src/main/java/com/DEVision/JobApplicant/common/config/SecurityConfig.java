@@ -70,8 +70,8 @@ public class SecurityConfig {
 						.requestMatchers("/api/notifications/**").permitAll()
 						// WebSocket endpoint
 						.requestMatchers("/ws/**").permitAll()
-						// Admin endpoints - permit all for now (can add ADMIN role check later)
-						.requestMatchers("/api/admin/**").permitAll()
+						// Admin endpoints
+						.requestMatchers("/api/admin/**").hasRole(RoleConfig.ADMIN.getRoleName())
 						// System-to-system endpoints: requires Cognito ROLE_SYSTEM or authenticated user with valid JWE
 						.requestMatchers("/api/applications/job/**").hasAnyRole(
 								RoleConfig.SYSTEM.getRoleName(),
