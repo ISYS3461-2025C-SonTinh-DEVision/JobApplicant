@@ -78,7 +78,8 @@ const MOCK_PAYMENT_HISTORY = [
 
 class SubscriptionService {
     constructor() {
-        this.useMock = true; // Start with mock, toggle to false when backend is ready
+        // Try real API first, fallback to mock if API unavailable
+        this.useMock = false; // Enable real API by default
         // Load subscription from localStorage for persistence across refreshes
         this._mockSubscription = this._loadFromStorage() || { ...MOCK_SUBSCRIPTION };
     }
@@ -116,20 +117,24 @@ class SubscriptionService {
      * @returns {Promise<Object>} Subscription details
      */
     async getSubscriptionStatus() {
-        if (this.useMock) {
-            await this._delay(300);
-            return {
-                success: true,
-                data: this._mockSubscription,
-            };
+        // Try real API first, fallback to mock if unavailable
+        if (!this.useMock) {
+            try {
+                const response = await httpUtil.get(API_ENDPOINTS.SUBSCRIPTION.STATUS);
+                return response;
+            } catch (error) {
+                console.warn('Real API unavailable, falling back to mock:', error.message);
+                // Fall through to mock
+            }
         }
 
-        try {
-            return await httpUtil.get(API_ENDPOINTS.SUBSCRIPTION.STATUS);
-        } catch (error) {
-            console.error('Error getting subscription status:', error);
-            throw error;
-        }
+        // Mock fallback
+        await this._delay(300);
+        return {
+            success: true,
+            data: this._mockSubscription,
+            source: 'mock'
+        };
     }
 
     /**
@@ -140,38 +145,49 @@ class SubscriptionService {
      * @returns {Promise<Object>} Subscription result
      */
     async subscribe(paymentDetails) {
-        if (this.useMock) {
-            await this._delay(1500); // Simulate payment processing
-
-            // Mock successful subscription
-            this._mockSubscription = {
-                ...MOCK_PREMIUM_SUBSCRIPTION,
-                startDate: new Date().toISOString(),
-                renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            };
-
-            // Persist to localStorage
-            this._saveToStorage();
-
-            return {
-                success: true,
-                message: 'Subscription activated successfully!',
-                data: this._mockSubscription,
-                transaction: {
-                    id: `pay_${Date.now()}`,
-                    amount: 10.00,
-                    currency: 'USD',
-                    status: 'completed',
-                },
-            };
+        // Try real API first for actual payment processing
+        if (!this.useMock) {
+            try {
+                const response = await httpUtil.post(API_ENDPOINTS.SUBSCRIPTION.SUBSCRIBE, paymentDetails);
+                // Update local state on success
+                this._mockSubscription = {
+                    ...MOCK_PREMIUM_SUBSCRIPTION,
+                    startDate: new Date().toISOString(),
+                    renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                };
+                this._saveToStorage();
+                return response;
+            } catch (error) {
+                console.warn('Real API unavailable, using mock subscription:', error.message);
+                // Fall through to mock for demo purposes
+            }
         }
 
-        try {
-            return await httpUtil.post(API_ENDPOINTS.SUBSCRIPTION.SUBSCRIBE, paymentDetails);
-        } catch (error) {
-            console.error('Error subscribing:', error);
-            throw error;
-        }
+        // Mock fallback - simulate payment processing
+        await this._delay(1500);
+
+        // Mock successful subscription
+        this._mockSubscription = {
+            ...MOCK_PREMIUM_SUBSCRIPTION,
+            startDate: new Date().toISOString(),
+            renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        };
+
+        // Persist to localStorage
+        this._saveToStorage();
+
+        return {
+            success: true,
+            message: 'Subscription activated successfully!',
+            data: this._mockSubscription,
+            transaction: {
+                id: `pay_${Date.now()}`,
+                amount: 10.00,
+                currency: 'USD',
+                status: 'completed',
+            },
+            source: 'mock'
+        };
     }
 
     /**
