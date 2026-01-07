@@ -5,7 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.DEVision.JobApplicant.jobManager.jobpost.config.ExternalUrl;
+import com.DEVision.JobApplicant.jobManager.config.ExternalUrl;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.api.JobPostServiceInf;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostDto;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostListResponse;
