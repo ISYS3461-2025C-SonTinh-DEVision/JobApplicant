@@ -192,8 +192,9 @@ public class AdminServiceImpl implements AdminService {
         dto.setAddress(applicant.getAddress());
         dto.setPhoneNumber(applicant.getPhoneNumber());
         dto.setSkills(applicant.getSkills());
-        dto.setEducation(applicant.getEducation());
-        dto.setWorkExperience(applicant.getWorkExperience());
+        // Convert list to string representation for display
+        dto.setEducation(applicant.getEducation() != null ? applicant.getEducation().toString() : "");
+        dto.setWorkExperience(applicant.getWorkExperience() != null ? applicant.getWorkExperience().toString() : "");
         dto.setObjectiveSummary(applicant.getObjectiveSummary());
         dto.setCreatedAt(applicant.getCreatedAt() != null ? applicant.getCreatedAt().toString() : "");
 
