@@ -76,3 +76,4 @@ coverage/
 docker-compose.override.yml
 
 backend/.claude/
+backend/CLAUDE.md
