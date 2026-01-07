@@ -1,0 +1,167 @@
+{
+  "info": {
+    "name": "JobApplicant Admin API",
+    "_postman_id": "admin-api-collection",
+    "description": "API endpoints for admin operations including applicant and company management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "applicantId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "companyAccountId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "stats"]
+            },
+            "description": "Retrieve dashboard statistics including total applicants, active users, and premium counts"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Applicant Management",
+      "item": [
+        {
+          "name": "Get All Applicants",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/applicants?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "applicants"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page (default: 10)"
+                }
+              ]
+            },
+            "description": "Retrieve paginated list of applicants"
+          },
+          "response": []
+        },
+        {
+          "name": "Search Applicants",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/applicants?search=John&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "applicants"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "John",
+                  "description": "Search by applicant name"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Search applicants by name with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Applicant by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/applicants/{{applicantId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "applicants", "{{applicantId}}"]
+            },
+            "description": "Retrieve detailed information for a specific applicant"
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate Applicant",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/applicants/{{applicantId}}/deactivate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "applicants", "{{applicantId}}", "deactivate"]
+            },
+            "description": "Deactivate an applicant account (sets enabled=false)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Company Management (JM Integration)",
+      "item": [
+        {
+          "name": "Activate Company Account",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/companies/{{companyAccountId}}/activate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "companies", "{{companyAccountId}}", "activate"]
+            },
+            "description": "Activate a company account in JM system"
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate Company Account",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/companies/{{companyAccountId}}/deactivate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "companies", "{{companyAccountId}}", "deactivate"]
+            },
+            "description": "Deactivate a company account in JM system"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
