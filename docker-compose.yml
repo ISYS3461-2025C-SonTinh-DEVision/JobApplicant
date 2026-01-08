@@ -28,7 +28,7 @@ services:
     image: apache/kafka:latest
     container_name: JA_kafka
     ports:
-      - "9092:9092"
+      - "29092:9092"   # External:Internal - use 29092 to avoid port conflict
     environment:
     # Required for KRaft single-node
     - KAFKA_NODE_ID=1

@@ -31,12 +31,12 @@ const MOCK_SEARCH_PROFILE = {
 
 class SearchProfileService {
     constructor() {
-        this.useMock = true; // Start with mock
+        this.useMock = false; // Use real API (set to true only for testing without backend)
         this._mockProfile = null;
     }
 
     /**
-     * Get saved search profile
+     * Get current user's search profile
      * @returns {Promise<Object>} Search profile or null
      */
     async getSearchProfile() {
@@ -49,9 +49,16 @@ class SearchProfileService {
         }
 
         try {
-            return await httpUtil.get(API_ENDPOINTS.SEARCH_PROFILE.GET);
+            // httpUtil.get returns data directly, wrap in { data: ... } for consistency
+            const data = await httpUtil.get(API_ENDPOINTS.SEARCH_PROFILE.GET);
+            // Handle null/undefined/empty responses (204 No Content or empty body)
+            if (data === null || data === undefined || data === '') {
+                return { success: true, data: null };
+            }
+            return { success: true, data: data };
         } catch (error) {
-            if (error.status === 404) {
+            // 204 No Content or 404 Not Found both mean no profile exists
+            if (error.status === 404 || error.status === 204) {
                 return { success: true, data: null };
             }
             console.error('Error getting search profile:', error);
@@ -140,12 +147,14 @@ class SearchProfileService {
         const errors = [];
 
         // Technical skills validation (Req 5.2.2)
-        if (!profile.technicalSkills || profile.technicalSkills.length === 0) {
+        // Accept both 'technicalSkills' (form) and 'desiredSkills' (DTO) field names
+        const skills = profile.technicalSkills || profile.desiredSkills || [];
+        if (skills.length === 0) {
             errors.push('At least one technical skill is required');
         }
 
-        // Employment types validation (Req 5.2.3)
-        const validTypes = ['FULLTIME', 'PARTTIME', 'INTERNSHIP', 'CONTRACT'];
+        // Employment types validation (Req 5.2.3) - must match Backend enum
+        const validTypes = ['FULL_TIME', 'PART_TIME', 'FRESHER', 'INTERNSHIP', 'CONTRACT'];
         if (profile.employmentTypes?.length > 0) {
             const invalidTypes = profile.employmentTypes.filter(t => !validTypes.includes(t));
             if (invalidTypes.length > 0) {
@@ -170,8 +179,14 @@ class SearchProfileService {
         }
 
         // Job titles validation (Req 5.2.1)
+        // Handle both array and semicolon-separated string formats
         if (profile.jobTitles) {
-            const titles = profile.jobTitles.split(';').filter(t => t.trim());
+            let titles = [];
+            if (Array.isArray(profile.jobTitles)) {
+                titles = profile.jobTitles;
+            } else if (typeof profile.jobTitles === 'string') {
+                titles = profile.jobTitles.split(';').filter(t => t.trim());
+            }
             if (titles.length > 10) {
                 errors.push('Maximum 10 job titles allowed');
             }
