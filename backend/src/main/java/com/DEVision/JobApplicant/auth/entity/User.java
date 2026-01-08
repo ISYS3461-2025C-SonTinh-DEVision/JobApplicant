@@ -4,6 +4,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.model.PlanType;
 
 import jakarta.validation.constraints.Email;
@@ -40,6 +41,8 @@ public class User {
 
     @NotNull(message = "Plan type is required")
     private PlanType planType;
+
+    private Country country;
 
     // Account activation fields
     private boolean isActivated;
@@ -160,5 +163,13 @@ public class User {
 
     public void setAuthProvider(String authProvider) {
         this.authProvider = authProvider;
+    }
+
+    public Country getCountry() {
+        return country;
+    }
+
+    public void setCountry(Country country) {
+        this.country = country;
     }
 }

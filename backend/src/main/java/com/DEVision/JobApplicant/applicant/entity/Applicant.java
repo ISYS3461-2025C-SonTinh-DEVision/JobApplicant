@@ -3,10 +3,7 @@ package com.DEVision.JobApplicant.applicant.entity;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import com.DEVision.JobApplicant.common.country.model.Country;
-
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
@@ -24,9 +21,6 @@ public class Applicant {
 
     private String firstName;
     private String lastName;
-
-    @NotNull(message = "Country is required")
-    private Country country;
 
     private String phoneNumber;
     private String address;
@@ -65,9 +59,8 @@ public class Applicant {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public Applicant(String userId, Country country) {
+    public Applicant(String userId) {
         this.userId = userId;
-        this.country = country;
         this.education = new ArrayList<>();
         this.workExperience = new ArrayList<>();
         this.skills = new ArrayList<>();
@@ -108,14 +101,6 @@ public class Applicant {
 
     public void setLastName(String lastName) {
         this.lastName = lastName;
-    }
-
-    public Country getCountry() {
-        return country;
-    }
-
-    public void setCountry(Country country) {
-        this.country = country;
     }
 
     public String getPhoneNumber() {

@@ -46,7 +46,7 @@ public class SecurityConfig {
 				})
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests((requests) -> requests
-						// Public auth endpoints
+						// Public auth endpoints (no authentication required)
 						.requestMatchers(
 								"/api/auth/login",
 								"/api/auth/register",
@@ -67,25 +67,21 @@ public class SecurityConfig {
 								"/api/applicants/{id}",
 								"/api/applicants/user/{id}")
 						.permitAll()
-						// Job Manager proxy endpoints - public for job search (Requirement 4.1.x)
-						.requestMatchers("/api/job-posts/**", "/api/companies/**", "/api/jm/company/**").permitAll()
 						// Swagger/OpenAPI documentation endpoints
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
 						// WebSocket endpoint
 						.requestMatchers("/ws/**").permitAll()
-						// System-to-system token verification endpoint (public for external systems)
-						.requestMatchers("/api/system/verify-token").permitAll()
-						// Admin endpoints - permit all for now (can add ADMIN role check later)
-						.requestMatchers("/api/admin/**").permitAll()
+						// Admin endpoints - require ADMIN role (from main)
+						.requestMatchers("/api/admin/**").hasRole(RoleConfig.ADMIN.getRoleName())
 						// Search Profile endpoints - require authentication (Requirement 5.2.x)
 						.requestMatchers("/api/search-profiles/**").authenticated()
 						// Subscription endpoints - require authentication (Requirement 5.1.x)
 						.requestMatchers("/api/subscription/**").authenticated()
 						// Notification endpoints - require authentication (user-specific data)
 						.requestMatchers("/api/notifications/**").authenticated()
-						// System-to-system endpoints (requires ROLE_SYSTEM or authenticated user)
+						// System-to-system endpoints: requires Cognito ROLE_SYSTEM or authenticated user with valid JWE
 						.requestMatchers("/api/applications/job/**").hasAnyRole(
-								"SYSTEM",
+								RoleConfig.SYSTEM.getRoleName(),
 								RoleConfig.APPLICANT.getRoleName(),
 								RoleConfig.COMPANY.getRoleName(),
 								RoleConfig.ADMIN.getRoleName())

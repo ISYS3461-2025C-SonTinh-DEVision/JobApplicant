@@ -23,11 +23,13 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useHeadlessTabs, useHeadlessModal } from '../../components/headless';
+import { useAuth } from '../../context/AuthContext';
 import subscriptionService from '../../services/SubscriptionService';
 
 const SubscriptionPage = () => {
     const navigate = useNavigate();
     const { isDark } = useTheme();
+    const { user } = useAuth();
 
     // State
     const [subscription, setSubscription] = useState(null);
@@ -35,6 +37,7 @@ const SubscriptionPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [cancelling, setCancelling] = useState(false);
+    const [upgrading, setUpgrading] = useState(false);
 
     // Headless hooks - tabs expects array of string IDs
     const TAB_CONFIG = [
@@ -85,6 +88,43 @@ const SubscriptionPage = () => {
             setError('Failed to cancel subscription');
         } finally {
             setCancelling(false);
+        }
+    };
+
+    // Handle upgrade to premium
+    const handleUpgrade = async (planId) => {
+        if (!user?.email) {
+            setError('User information not available. Please log in again.');
+            return;
+        }
+
+        setUpgrading(true);
+        setError(null);
+
+        try {
+            // Map frontend plan ID to backend PlanType enum
+            const planType = planId === 'monthly' || planId === 'yearly' ? 'PREMIUM' : 'FREEMIUM';
+
+            // Call subscribe API with SubscriptionRequest
+            // Backend will extract userId from JWT token
+            const response = await subscriptionService.subscribe({
+                email: user.email,
+                planType: planType
+            });
+
+            // Extract paymentUrl from response
+            const paymentUrl = response?.data?.paymentUrl || response?.paymentUrl;
+
+            if (paymentUrl) {
+                // Redirect to external payment gateway
+                window.location.href = paymentUrl;
+            } else {
+                setError('Payment URL not received. Please try again.');
+            }
+        } catch (err) {
+            setError(err.message || 'Failed to start subscription. Please try again.');
+        } finally {
+            setUpgrading(false);
         }
     };
 
@@ -234,12 +274,13 @@ const SubscriptionPage = () => {
                                         Upgrade to Premium to unlock powerful job search features
                                     </p>
                                     <button
-                                        onClick={() => navigate('/dashboard/subscription/payment')}
-                                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-semibold rounded-xl shadow-lg shadow-amber-500/30 transition-all"
+                                        onClick={() => handleUpgrade('monthly')}
+                                        disabled={upgrading}
+                                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-semibold rounded-xl shadow-lg shadow-amber-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Sparkles className="w-5 h-5" />
-                                        Upgrade to Premium
-                                        <ChevronRight className="w-4 h-4" />
+                                        {upgrading ? 'Processing...' : 'Upgrade to Premium'}
+                                        {!upgrading && <ChevronRight className="w-4 h-4" />}
                                     </button>
                                 </div>
                             )}
@@ -289,7 +330,8 @@ const SubscriptionPage = () => {
                                 key={plan.id}
                                 plan={plan}
                                 isCurrentPlan={subscription?.isPremium && subscription?.plan?.toLowerCase() === plan.id}
-                                onSelect={() => navigate('/dashboard/subscription/payment', { state: { planId: plan.id } })}
+                                onSelect={() => handleUpgrade(plan.id)}
+                                upgrading={upgrading}
                                 isDark={isDark}
                             />
                         ))}
@@ -339,7 +381,7 @@ const SubscriptionPage = () => {
 /**
  * Pricing Card Component
  */
-const PricingCard = ({ plan, isCurrentPlan, onSelect, isDark }) => {
+const PricingCard = ({ plan, isCurrentPlan, onSelect, upgrading, isDark }) => {
     const textPrimary = isDark ? 'text-white' : 'text-gray-900';
     const textSecondary = isDark ? 'text-dark-400' : 'text-gray-500';
 
@@ -392,10 +434,10 @@ const PricingCard = ({ plan, isCurrentPlan, onSelect, isDark }) => {
 
             <button
                 onClick={onSelect}
-                disabled={isCurrentPlan}
+                disabled={isCurrentPlan || upgrading}
                 className={`
           w-full py-3 rounded-xl font-semibold transition-all
-          ${isCurrentPlan
+          ${isCurrentPlan || upgrading
                         ? `${isDark ? 'bg-dark-700 text-dark-400' : 'bg-gray-100 text-gray-400'} cursor-not-allowed`
                         : plan.popular
                             ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-500/30'
@@ -405,7 +447,7 @@ const PricingCard = ({ plan, isCurrentPlan, onSelect, isDark }) => {
                     }
         `}
             >
-                {isCurrentPlan ? 'Current Plan' : 'Get Started'}
+                {isCurrentPlan ? 'Current Plan' : upgrading ? 'Processing...' : 'Get Started'}
             </button>
         </div>
     );

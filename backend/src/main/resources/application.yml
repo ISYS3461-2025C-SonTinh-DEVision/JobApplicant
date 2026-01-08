@@ -1,17 +1,3 @@
-# spring:
-#   application:
-#     name: springauth
-#   datasource:
-#     url: jdbc:h2:mem:mydb
-#     username: sa
-#     password: password
-#     driverClassName: org.h2.Driver
-#   jpa:
-#     database-platform: org.hibernate.dialect.H2Dialect
-
-#   h2:
-#     console:
-#       enabled: true
 
 server:
   port: ${SERVER_PORT:8080}
@@ -25,7 +11,7 @@ app:
     from: ${MAIL_FROM:onboarding@resend.dev}  
     from-name: ${MAIL_FROM_NAME:DEVision}
     resend:
-      # Resend API Key for HTTP-based email sending (avoids SMTP port blocking)
+      # Resend API Key for HTTP-based email sending 
       api-key: ${MAIL_PASSWORD:re_LiDzSkL7_HtCBpf7dvcrRbi3kSDLyMH8P}
 
 cloudinary:
@@ -34,6 +20,9 @@ cloudinary:
   api-secret: ${CLOUDINARY_API_SECRET}
 
 spring:
+  application:
+    name: JobApplicant
+    
   servlet:
     multipart:
       enabled: true
@@ -79,13 +68,7 @@ jm:
     email: ${JOB_MANAGER_SERVICE_EMAIL:}
     password: ${JOB_MANAGER_SERVICE_PASSWORD:}
 
-  # SMTP configuration removed - using Resend HTTP API instead
-  # This avoids SMTP port blocking issues on Railway and other cloud platforms
-  # mail:
-  #   host: smtp.resend.com
-  #   port: 587
-  #   username: ${MAIL_USERNAME}
-  #   password: ${MAIL_PASSWORD}
+
 
   # Google OAuth2 SSO Configuration (Requirement 1.3.1 - Ultimo)
   # Note: Our implementation uses ID Token Flow via OAuth2Service
@@ -109,17 +92,16 @@ jm:
             user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
             user-name-attribute: sub
 
-# firebase:
-#     bucket-name: ${FIREBASE_BUCKET_NAME}
-#     project-id: ${FIREBASE_PROJECT_ID}
-#     credentials-path: ${FIREBASE_CREDENTIALS_PATH}
-
-# jwt:
-#     secret: ${JWT_SECRET}
-#     expiration: ${JWT_EXPIRATION}
-#     refresh-expiration: ${JWT_REFRESH_EXPIRATION}
 
 
-
-# System-to-System Authentication Configuration
-# Configure these for Job Manager System authorization
+# AWS Cognito configuration for system-to-system OAuth2 (client_credentials)
+# Used by CognitoJwtVerifier + SystemAuthFilter + CognitoTokenService
+cognito:
+  region: ${COGNITO_REGION:ap-southeast-2}
+  user-pool-id: ${COGNITO_USER_POOL_ID:ap-southeast-2_r9U2ssJAZ}
+  client-id: ${COGNITO_CLIENT_ID:3fv3a7qb2eo8r3710vd0s43ma6}
+  client-secret: ${COGNITO_CLIENT_SECRET:1pd1tg8f17hhgkm5ja510rnvi5pjthp9i45a3d8p43cf69m1kt9v}
+  # Token endpoint URL (your Cognito domain)
+  token-url: ${COGNITO_TOKEN_URL:https://ap-southeast-2r9u2ssjaz.auth.ap-southeast-2.amazoncognito.com/oauth2/token}
+  # Scope required on the access token for system-to-system calls
+  required-scope: ${COGNITO_REQUIRED_SCOPE:default-m2m-resource-server-wti-ej/read}

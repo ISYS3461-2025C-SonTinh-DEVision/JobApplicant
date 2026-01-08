@@ -139,23 +139,25 @@ class SubscriptionService {
 
     /**
      * Subscribe to premium plan
-     * @param {Object} paymentDetails - Payment information
-     * @param {string} paymentDetails.plan - Plan type ('monthly')
-     * @param {string} paymentDetails.paymentMethodId - Stripe payment method ID
-     * @returns {Promise<Object>} Subscription result
+     * @param {Object} subscriptionData - Subscription information
+     * @param {string} subscriptionData.email - User email
+     * @param {string} subscriptionData.planType - Plan type ('PREMIUM' or 'FREEMIUM')
+     * @returns {Promise<Object>} Subscription response with paymentUrl
      */
-    async subscribe(paymentDetails) {
-        // Try real API first for actual payment processing
+    async subscribe(subscriptionData) {
+        const { email, planType } = subscriptionData;
+
+        // Try real API first
         if (!this.useMock) {
             try {
-                const response = await httpUtil.post(API_ENDPOINTS.SUBSCRIPTION.SUBSCRIBE, paymentDetails);
-                // Update local state on success
-                this._mockSubscription = {
-                    ...MOCK_PREMIUM_SUBSCRIPTION,
-                    startDate: new Date().toISOString(),
-                    renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                };
-                this._saveToStorage();
+                // Call backend API with SubscriptionRequest in body
+                // Backend extracts userId from JWT token via @AuthenticationPrincipal
+                const response = await httpUtil.post(
+                    API_ENDPOINTS.SUBSCRIPTION.SUBSCRIBE,
+                    { email, planType }
+                );
+
+                // Response contains: { subscription, paymentUrl }
                 return response;
             } catch (error) {
                 console.warn('Real API unavailable, using mock subscription:', error.message);
@@ -163,28 +165,23 @@ class SubscriptionService {
             }
         }
 
-        // Mock fallback - simulate payment processing
+        // Mock fallback - simulate payment URL redirect
         await this._delay(1500);
 
-        // Mock successful subscription
-        this._mockSubscription = {
-            ...MOCK_PREMIUM_SUBSCRIPTION,
+        // Mock successful subscription response with payment URL
+        const mockSubscription = {
+            id: `sub_${Date.now()}`,
+            planType,
+            status: 'PENDING',
             startDate: new Date().toISOString(),
-            renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         };
-
-        // Persist to localStorage
-        this._saveToStorage();
 
         return {
             success: true,
-            message: 'Subscription activated successfully!',
-            data: this._mockSubscription,
-            transaction: {
-                id: `pay_${Date.now()}`,
-                amount: 10.00,
-                currency: 'USD',
-                status: 'completed',
+            data: {
+                subscription: mockSubscription,
+                paymentUrl: `https://payment-gateway.example.com/checkout?session=${Date.now()}`
             },
             source: 'mock'
         };

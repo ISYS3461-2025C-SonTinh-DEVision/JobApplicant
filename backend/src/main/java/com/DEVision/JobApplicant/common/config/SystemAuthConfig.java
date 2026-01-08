@@ -12,7 +12,6 @@ public class SystemAuthConfig {
     
     /**
      * Job Manager System API URL for token verification (optional - for API-based verification)
-     * e.g., http://job-manager-api.com/api/auth/verify-token
      */
     @Value("${system.auth.job-manager.verify-token-url:}")
     private String jobManagerVerifyTokenUrl;

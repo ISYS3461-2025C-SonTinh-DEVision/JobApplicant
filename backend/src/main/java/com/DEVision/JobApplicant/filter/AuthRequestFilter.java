@@ -43,8 +43,7 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		// DEBUG: Log the request path being checked
 		System.out.println("AuthRequestFilter checking path: " + requestPath);
 
-		// Public paths that don't require authentication
-		// Combined from both fe-myprofile-page (admin) and main (applications)
+		// Public paths that don't require authentication (must match SecurityConfig permitAll)
 		if (requestPath.equals("/api/auth/login") ||
 				requestPath.equals("/api/auth/register") ||
 				requestPath.equals("/api/auth/refresh") ||
@@ -61,8 +60,6 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 				requestPath.startsWith("/swagger-ui") ||
 				requestPath.startsWith("/v3/api-docs") ||
 				requestPath.startsWith("/api/admin") ||
-				requestPath.startsWith("/api/job-posts") ||
-				requestPath.startsWith("/api/companies") ||
 				requestPath.startsWith("/ws/") ||
 				requestPath.startsWith("/api/applications/job/") ||
 				// Only specific public applicant endpoints (not /me which requires auth)
@@ -73,6 +70,11 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 			filterChain.doFilter(request, response);
 			return;
 		}
+		
+		// For /api/applications/job/** - don't skip; let SystemAuthFilter or this filter handle auth
+		// SystemAuthFilter sets ROLE_SYSTEM for Cognito tokens
+		// This filter sets user roles for JWE tokens
+		// Both are accepted per SecurityConfig hasAnyRole rule
 
 		// Try to extract token from Authorization header first (Bearer token)
 		String authHeader = request.getHeader("Authorization");

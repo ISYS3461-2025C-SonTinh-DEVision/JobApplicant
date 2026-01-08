@@ -16,6 +16,8 @@ public class JobManagerClient {
 
     private static final String DEFAULT_CURRENCY = "USD";
     private static final String DEFAULT_PAYMENT_METHOD = "stripe";
+    private static final String SUCCESS_URL = "https://ja.devision.sbs/dashboard";
+    private static final String CANCEL_URL = "https://ja.devision.sbs/dashboard";
 
     private final RestClient restClient;
 
@@ -38,7 +40,9 @@ public class JobManagerClient {
                 amount,
                 DEFAULT_CURRENCY,
                 DEFAULT_PAYMENT_METHOD,
-                subscriptionType
+                subscriptionType,
+                SUCCESS_URL,
+                CANCEL_URL
         );
 
         return restClient.post()
