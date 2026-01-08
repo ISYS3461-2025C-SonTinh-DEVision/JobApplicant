@@ -53,12 +53,17 @@ const JobSearchService = {
                     queryParams.location = filters.location;
                 }
 
-                // Add employment type filter
+                // Add employment type filter - only if array has items or string is non-empty
                 if (filters.employmentType) {
-                    // Handle array or string
-                    queryParams.employmentType = Array.isArray(filters.employmentType)
-                        ? filters.employmentType.join(',')
-                        : filters.employmentType;
+                    if (Array.isArray(filters.employmentType)) {
+                        // Only add if array has items
+                        if (filters.employmentType.length > 0) {
+                            queryParams.employmentType = filters.employmentType.join(',');
+                        }
+                    } else if (filters.employmentType.trim()) {
+                        // Only add if string is non-empty
+                        queryParams.employmentType = filters.employmentType;
+                    }
                 }
 
                 // Add salary filters

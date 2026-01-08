@@ -34,9 +34,14 @@ function Option({
         : selectedValue === value;
     const isHighlighted = index === highlightedIndex;
 
+    // Evaluate className if it's a function (for dynamic styling based on state)
+    const resolvedClassName = typeof className === 'function'
+        ? className({ isSelected, isHighlighted, disabled })
+        : className;
+
     return (
         <Component
-            className={className}
+            className={resolvedClassName}
             aria-disabled={disabled}
             {...optionProps}
         >
@@ -49,3 +54,4 @@ function Option({
 }
 
 export default Option;
+

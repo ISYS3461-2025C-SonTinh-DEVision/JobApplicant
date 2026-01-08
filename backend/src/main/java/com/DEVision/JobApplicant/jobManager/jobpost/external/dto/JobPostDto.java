@@ -53,6 +53,20 @@ public class JobPostDto implements Serializable {
     @JsonProperty("isActive")
     private Boolean isActive;
     
+    // Company information (from JM API)
+    @JsonProperty("companyId")
+    private String companyId;
+    
+    @JsonProperty("companyName")
+    private String companyName;
+    
+    @JsonProperty("logoUrl")
+    private String companyLogo;  // Maps to logoUrl from JM API
+    
+    // Fresher friendly flag
+    @JsonProperty("isFresherFriendly")
+    private Boolean isFresherFriendly;
+    
     // Default constructor
     public JobPostDto() {
     }
@@ -180,6 +194,38 @@ public class JobPostDto implements Serializable {
     
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+    
+    public String getCompanyId() {
+        return companyId;
+    }
+    
+    public void setCompanyId(String companyId) {
+        this.companyId = companyId;
+    }
+    
+    public String getCompanyName() {
+        return companyName;
+    }
+    
+    public void setCompanyName(String companyName) {
+        this.companyName = companyName;
+    }
+    
+    public String getCompanyLogo() {
+        return companyLogo;
+    }
+    
+    public void setCompanyLogo(String companyLogo) {
+        this.companyLogo = companyLogo;
+    }
+    
+    public Boolean getIsFresherFriendly() {
+        return isFresherFriendly;
+    }
+    
+    public void setIsFresherFriendly(Boolean isFresherFriendly) {
+        this.isFresherFriendly = isFresherFriendly;
     }
     
     @Override

@@ -134,6 +134,7 @@ export function transformJobPost(job) {
         company: job.companyName || job.company || 'Unknown Company',
         companyId: job.companyId,
         companyName: job.companyName || job.company,
+        companyLogo: job.logoUrl || job.companyLogo || null,  // Logo URL from JM API
 
         // Dates
         postedAt: job.postedDate || job.postedAt || job.createdAt,
@@ -145,9 +146,9 @@ export function transformJobPost(job) {
         status: job.isActive !== false ? 'active' : 'expired',
         isActive: job.isActive !== false,
 
-        // Fresher friendly
-        fresher: job.isFresher || job.fresherFriendly || false,
-        isFresher: job.isFresher || job.fresherFriendly || false,
+        // Fresher friendly - check all possible field names from JM API
+        fresher: job.isFresherFriendly || job.isFresher || job.fresherFriendly || false,
+        isFresher: job.isFresherFriendly || job.isFresher || job.fresherFriendly || false,
 
         // Additional fields
         requirements: job.requirements || [],

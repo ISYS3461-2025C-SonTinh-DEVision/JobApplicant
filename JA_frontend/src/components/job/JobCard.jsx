@@ -195,13 +195,15 @@ export function JobCard({
             <Tag
               key={index}
               label={skill}
-              variant={variant === 'dark' ? 'primary' : 'default'}
+              variant="skill"
+              isDark={variant === 'dark'}
             />
           ))}
           {skills.length > 5 && (
             <Tag
               label={`+${skills.length - 5}`}
               variant="default"
+              isDark={variant === 'dark'}
             />
           )}
         </div>
