@@ -1,20 +1,31 @@
-
+/**
+ * FilterSidebar Component
+ * 
+ * Job search filter sidebar using Headless UI components.
+ * 
+ * Architecture: A.3.a (Ultimo Frontend) - Uses Headless UI components
+ * - Uses StyledCheckbox for employment type selection
+ * - Uses StyledSelect for location dropdown
+ * - Uses StyledToggle for fresher friendly switch
+ */
 import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { MapPin, DollarSign, Filter } from 'lucide-react';
+import { StyledCheckbox, StyledToggle, StyledSelect } from '../styled';
 
 const EMP_TYPES = [
-    { id: 'Full-time', label: 'Full-time' },
-    { id: 'Part-time', label: 'Part-time' },
-    { id: 'Internship', label: 'Internship' },
-    { id: 'Contract', label: 'Contract' }
+    { value: 'Full-time', label: 'Full-time' },
+    { value: 'Part-time', label: 'Part-time' },
+    { value: 'Internship', label: 'Internship' },
+    { value: 'Contract', label: 'Contract' }
 ];
 
 const LOCATIONS = [
-    "Vietnam",
-    "Thailand",
-    "Singapore",
-    "Malaysia"
+    { value: '', label: 'All Locations' },
+    { value: 'Vietnam', label: 'Vietnam' },
+    { value: 'Thailand', label: 'Thailand' },
+    { value: 'Singapore', label: 'Singapore' },
+    { value: 'Malaysia', label: 'Malaysia' }
 ];
 
 const FilterSidebar = ({ filters, onFilterChange, onReset, className = '' }) => {
@@ -26,8 +37,8 @@ const FilterSidebar = ({ filters, onFilterChange, onReset, className = '' }) => 
 
     const sectionTitleClass = `text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`;
     const inputClass = `w-full px-3 py-2 rounded-lg text-sm border outline-none transition-colors ${isDark
-            ? 'bg-dark-700 border-dark-600 text-white focus:border-primary-500'
-            : 'bg-white border-gray-300 text-gray-900 focus:border-primary-500'
+        ? 'bg-dark-700 border-dark-600 text-white focus:border-primary-500'
+        : 'bg-white border-gray-300 text-gray-900 focus:border-primary-500'
         }`;
 
     return (
@@ -48,58 +59,37 @@ const FilterSidebar = ({ filters, onFilterChange, onReset, className = '' }) => 
                 )}
             </div>
 
-            {/* Employment Type (Toggleable Custom Checkboxes) */}
+            {/* Employment Type - Using Headless Checkbox */}
             <div>
                 <h3 className={sectionTitleClass}>Employment Type</h3>
                 <div className="space-y-2">
                     {EMP_TYPES.map((type) => {
-                        const isSelected = filters.employmentType === type.id;
+                        const isSelected = filters.employmentType === type.value;
                         return (
-                            <div
-                                key={type.id}
-                                className="flex items-center gap-3 cursor-pointer group"
-                                onClick={() => handleChange('employmentType', isSelected ? null : type.id)}
-                            >
-                                <div className="relative flex items-center justify-center">
-                                    <div className={`
-                                        w-5 h-5 border rounded transition-all flex items-center justify-center
-                                        ${isSelected
-                                            ? 'bg-primary-500 border-primary-500'
-                                            : isDark ? 'border-dark-600 bg-dark-700' : 'border-gray-300 bg-white'
-                                        }
-                                    `}>
-                                        {isSelected && (
-                                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        )}
-                                    </div>
-                                </div>
-                                <span className={`text-sm select-none ${isDark ? 'text-dark-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'}`}>
-                                    {type.label}
-                                </span>
-                            </div>
+                            <StyledCheckbox
+                                key={type.value}
+                                checked={isSelected}
+                                onChange={(checked) => handleChange('employmentType', checked ? type.value : null)}
+                                label={type.label}
+                                variant={isDark ? 'dark' : 'light'}
+                                size="md"
+                            />
                         );
                     })}
                 </div>
             </div>
 
-            {/* Location (Dropdown) */}
+            {/* Location - Using Headless Select */}
             <div>
                 <h3 className={sectionTitleClass}>Location</h3>
-                <div className="relative">
-                    <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
-                    <select
-                        value={filters.location || ''}
-                        onChange={(e) => handleChange('location', e.target.value)}
-                        className={`${inputClass} pl-9 appearance-none cursor-pointer`}
-                    >
-                        <option value="">All Locations</option>
-                        {LOCATIONS.map(loc => (
-                            <option key={loc} value={loc}>{loc}</option>
-                        ))}
-                    </select>
-                </div>
+                <StyledSelect
+                    options={LOCATIONS}
+                    value={filters.location || ''}
+                    onChange={(value) => handleChange('location', value)}
+                    placeholder="All Locations"
+                    icon={MapPin}
+                    variant={isDark ? 'dark' : 'light'}
+                />
             </div>
 
             {/* Salary Range */}
@@ -130,29 +120,15 @@ const FilterSidebar = ({ filters, onFilterChange, onReset, className = '' }) => 
                 </div>
             </div>
 
-            {/* Fresher Friendly */}
+            {/* Fresher Friendly - Using Headless Toggle */}
             <div>
-                <label className="flex items-center justify-between cursor-pointer group">
-                    <div className="flex flex-col">
-                        <span className={sectionTitleClass + " mb-0"}>Fresher Friendly</span>
-                        <span className={`text-xs ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Only show jobs suitable for freshers</span>
-                    </div>
-
-                    <div className="relative">
-                        <input
-                            type="checkbox"
-                            className="peer sr-only"
-                            checked={filters.fresher || false}
-                            onChange={(e) => handleChange('fresher', e.target.checked)}
-                        />
-                        <div className={`
-                            w-11 h-6 rounded-full transition-colors
-                            ${isDark ? 'bg-dark-700' : 'bg-gray-200'}
-                            peer-checked:bg-primary-500
-                        `}></div>
-                        <div className="absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-5"></div>
-                    </div>
-                </label>
+                <StyledToggle
+                    checked={filters.fresher || false}
+                    onChange={(checked) => handleChange('fresher', checked)}
+                    label="Fresher Friendly"
+                    description="Only show jobs suitable for freshers"
+                    variant={isDark ? 'dark' : 'light'}
+                />
             </div>
         </div>
     );

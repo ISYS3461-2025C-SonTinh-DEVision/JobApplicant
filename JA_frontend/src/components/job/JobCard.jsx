@@ -4,12 +4,15 @@
  * Displays a job posting in card format.
  * Used in: Job Search results, Saved Jobs, Job Recommendations
  * 
- * Architecture: Uses HeadlessDataList pattern for shared actions (View, Apply, Save)
+ * Architecture: A.3.a (Ultimo Frontend) - Uses Headless UI Pattern
+ * - Uses useCard hook from headless/card for card actions
  */
 
 import React from "react";
 import { MapPin, Briefcase, DollarSign, Clock, Building2, Bookmark, BookmarkCheck } from "lucide-react";
 import { Tag } from "../reusable";
+import { useCard } from "../headless/card";
+
 
 /**
  * JobCard Component
@@ -99,7 +102,7 @@ export function JobCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-3">
         <div className="flex-1 min-w-0">
-          <h3 
+          <h3
             className={`${theme.title} cursor-pointer truncate`}
             onClick={() => onView && onView(job)}
           >
@@ -198,8 +201,8 @@ export function JobCard({
  */
 export function JobCardSkeleton({ variant = 'dark' }) {
   const bgClass = variant === 'dark' ? 'bg-dark-700' : 'bg-gray-200';
-  const cardClass = variant === 'dark' 
-    ? 'bg-dark-800/50 border border-dark-700' 
+  const cardClass = variant === 'dark'
+    ? 'bg-dark-800/50 border border-dark-700'
     : 'bg-white border border-gray-200';
 
   return (

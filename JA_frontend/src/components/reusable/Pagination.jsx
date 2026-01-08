@@ -1,15 +1,18 @@
 /**
  * Reusable Pagination Component
  * 
- * Styled pagination component that can use HeadlessPagination hook for logic.
+ * Styled pagination component that uses HeadlessPagination hook for logic.
  * Supports: dark/light themes, page numbers, navigation buttons, compact mode.
  * 
- * Architecture: A.2.a (Medium Frontend) - Reusable UI Component
+ * Architecture: A.3.a (Ultimo Frontend) - Uses Headless UI Pattern
+ * - Uses useHeadlessPagination hook for pagination logic
  */
 
 import React from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
+import useHeadlessPagination from "../headless/HeadlessPagination";
+
 
 /**
  * Pagination Component

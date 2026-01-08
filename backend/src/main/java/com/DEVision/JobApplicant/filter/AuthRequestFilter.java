@@ -65,12 +65,11 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 				requestPath.startsWith("/api/job-posts") ||
 				requestPath.startsWith("/api/companies") ||
 				requestPath.startsWith("/ws/") ||
-				requestPath.startsWith("/api/system/verify-token") ||
 				requestPath.startsWith("/api/applications/job/") ||
-				requestPath.startsWith("/api/applications/{id}/status") ||
-				requestPath.startsWith("/api/applicants") ||
-				requestPath.startsWith("/api/applicants/{id}") ||
-				requestPath.startsWith("/api/applicants/user/{id}")) {
+				// Only specific public applicant endpoints (not /me which requires auth)
+				requestPath.equals("/api/applicants") ||
+				requestPath.matches("/api/applicants/\\d+") ||
+				requestPath.matches("/api/applicants/user/\\d+")) {
 			System.out.println("AuthRequestFilter: Path " + requestPath + " is PUBLIC, skipping auth");
 			filterChain.doFilter(request, response);
 			return;

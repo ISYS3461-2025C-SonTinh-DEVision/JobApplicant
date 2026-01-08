@@ -75,6 +75,28 @@ export {
     TabPanel,
 } from './tabs';
 
+// Select - Headless select/dropdown with keyboard navigation
+export {
+    Select,
+    useSelect,
+    useSelectContext,
+    SelectTrigger,
+    SelectOptions,
+    SelectOption,
+} from './select';
+
+// Checkbox - Headless checkbox with accessibility
+export {
+    Checkbox,
+    useCheckbox,
+} from './checkbox';
+
+// Card - Headless card with actions (view, action, delete, select)
+export {
+    Card,
+    useCard,
+} from './card';
+
 
 // =============================================================================
 // LEGACY HOOKS (kept for backward compatibility)

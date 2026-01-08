@@ -2,12 +2,16 @@
  * Confirm Dialog Component
  * Custom modal for delete confirmations with smooth animations
  * Enhanced UI with beautiful gradients, shadows, and typography
- * Architecture: A.1.c Reusable Component
+ * 
+ * Architecture: A.3.a (Ultimo Frontend) - Uses Headless UI Pattern
+ * - Uses useHeadlessModal hook for modal logic
  */
 
 import React from 'react';
 import { AlertTriangle, X, Trash2, AlertCircle } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { useHeadlessModal } from '../headless';
+
 
 /**
  * ConfirmDialog - A beautiful, animated confirmation dialog

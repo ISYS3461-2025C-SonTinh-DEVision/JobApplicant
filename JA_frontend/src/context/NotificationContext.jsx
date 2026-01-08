@@ -284,23 +284,24 @@ export function NotificationProvider({ children }) {
         });
     }, [showToastInternal]);
 
-    // Load notifications on auth change
+    // Connect to WebSocket when authenticated
     useEffect(() => {
         if (isAuthenticated && !hasLoadedRef.current) {
             hasLoadedRef.current = true;
             loadNotifications();
             wsConnect();
         }
+    }, [isAuthenticated, loadNotifications, wsConnect]);
 
-        return () => {
-            if (!isAuthenticated) {
-                hasLoadedRef.current = false;
-                setNotifications([]);
-                setUnreadCount(0);
-                wsDisconnect();
-            }
-        };
-    }, [isAuthenticated, loadNotifications, wsConnect, wsDisconnect]);
+    // Handle logout - reset state when auth changes to false
+    useEffect(() => {
+        if (!isAuthenticated && hasLoadedRef.current) {
+            hasLoadedRef.current = false;
+            setNotifications([]);
+            setUnreadCount(0);
+            wsDisconnect();
+        }
+    }, [isAuthenticated, wsDisconnect]);
 
     // Subscribe to service notifications
     useEffect(() => {

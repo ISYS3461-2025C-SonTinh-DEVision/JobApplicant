@@ -1,14 +1,17 @@
 /**
  * Reusable Table Component
  * 
- * Styled table component that can use HeadlessTable hook for logic.
+ * Styled table component that uses HeadlessTable hook for logic.
  * Supports: dark/light themes, sorting, selection, custom cell renderers.
  * 
- * Architecture: A.2.a (Medium Frontend) - Reusable UI Component
+ * Architecture: A.3.a (Ultimo Frontend) - Uses Headless UI Pattern
+ * - Uses useTable hook from headless/table for sorting logic
  */
 
 import React from "react";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { useTable } from "../headless/table";
+
 
 /**
  * Sort Icon Component
@@ -112,7 +115,7 @@ export function Table({
             {columns.map((col) => {
               const isSortable = col.sortable !== false && onSort;
               const isSorted = sortKey === col.key;
-              
+
               return (
                 <th
                   key={col.key}
@@ -169,6 +172,7 @@ export function Table({
  * DataTable - Table with built-in HeadlessTable logic
  * 
  * Combines Table styling with HeadlessTable sorting logic.
+ * Architecture: A.3.a (Ultimo Frontend) - Uses useTable headless hook
  */
 export function DataTable({
   columns,
@@ -177,45 +181,24 @@ export function DataTable({
   defaultSortDirection = 'asc',
   ...props
 }) {
-  const [sortKey, setSortKey] = React.useState(defaultSortKey);
-  const [sortDirection, setSortDirection] = React.useState(defaultSortDirection);
-
-  const handleSort = (key) => {
-    if (key === sortKey) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDirection('asc');
-    }
-  };
-
-  // Sort data
-  const sortedData = React.useMemo(() => {
-    if (!sortKey) return data;
-
-    return [...data].sort((a, b) => {
-      const aVal = a[sortKey];
-      const bVal = b[sortKey];
-
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
-      if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
-
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-
-      const comparison = String(aVal).toLowerCase().localeCompare(String(bVal).toLowerCase());
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }, [data, sortKey, sortDirection]);
+  // Use the headless useTable hook for all sorting logic
+  const {
+    sortKey,
+    direction,
+    sortedData,
+    handleSort,
+  } = useTable({
+    data,
+    defaultSortKey,
+    defaultDirection: defaultSortDirection,
+  });
 
   return (
     <Table
       columns={columns}
       data={sortedData}
       sortKey={sortKey}
-      sortDirection={sortDirection}
+      sortDirection={direction}
       onSort={handleSort}
       {...props}
     />
