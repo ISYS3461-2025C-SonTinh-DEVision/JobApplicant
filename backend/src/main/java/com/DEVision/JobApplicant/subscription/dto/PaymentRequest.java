@@ -8,7 +8,9 @@ public record PaymentRequest(
         BigDecimal amount,
         String currency,
         String paymentMethod,
-        String subscriptionType
+        String subscriptionType,
+        String successUrl,
+        String cancelUrl
 ) {
 }
 

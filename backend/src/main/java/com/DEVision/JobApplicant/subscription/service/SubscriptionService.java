@@ -2,8 +2,12 @@ package com.DEVision.JobApplicant.subscription.service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
+import com.DEVision.JobApplicant.notification.entity.Notification;
+import com.DEVision.JobApplicant.notification.service.NotificationService;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +34,7 @@ public class SubscriptionService {
     private final PaymentTransactionService paymentTransactionService;
     private final SubscriptionRepository subscriptionRepository;
     private final JobManagerClient jobManagerClient;
+    private final NotificationService notificationService;
 
     @Transactional
     public SubscriptionResponse subscribe(String userId, String email, PlanType planType) {
@@ -118,5 +123,31 @@ public class SubscriptionService {
             case PREMIUM -> "applicant_premium";
             case FREEMIUM -> "applicant_freemium";
         };
+    }
+
+    @Scheduled(cron = "0 0 0 * * ?")
+    @Transactional
+    public void expireSubscriptions() {
+        Instant now = Instant.now();
+        subscriptionRepository.findAll().stream()
+                .filter(s -> s.getExpiresAt().isAfter(now))
+                .forEach(s -> {
+                    s.setStatus(SubscriptionStatus.EXPIRED);
+                    s.setUpdatedAt(now);
+                    subscriptionRepository.save(s);
+                    sendExpirationNotification(s.getUserId(), now);
+                });
+
+    }
+
+    private void sendExpirationNotification(String userId, Instant expiryDate) {
+        Notification notification = new Notification();
+        notification.setUserId(userId);
+        notification.setTitle("Subscription Expired");
+        notification.setContent("Your subscription has expired. Please renew to continue enjoying premium features.");
+        notification.setTimestamp(LocalDateTime.from(expiryDate));
+        notification.setRead(false);
+
+        notificationService.createNotification(notification);
     }
 }
