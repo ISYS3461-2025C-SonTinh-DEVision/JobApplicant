@@ -121,13 +121,19 @@ public class ApplicantInternalService {
         Applicant updatedApplicant = new Applicant();
         updatedApplicant.setFirstName(request.getFirstName());
         updatedApplicant.setLastName(request.getLastName());
-        updatedApplicant.setCountry(request.getCountry());
+
         updatedApplicant.setPhoneNumber(request.getPhoneNumber());
         updatedApplicant.setAddress(request.getAddress());
         updatedApplicant.setCity(request.getCity());
         updatedApplicant.setObjectiveSummary(request.getObjectiveSummary());
 
         Applicant updated = applicantService.updateApplicant(id, updatedApplicant);
+        
+        // Update country in User if provided
+        if (request.getCountry() != null && updated != null) {
+            applicantService.updateUserCountry(updated.getUserId(), request.getCountry());
+        }
+        
         return updated != null ? toProfileResponse(updated) : null;
     }
 
@@ -284,13 +290,19 @@ public class ApplicantInternalService {
         Applicant updatedApplicant = new Applicant();
         updatedApplicant.setFirstName(request.getFirstName());
         updatedApplicant.setLastName(request.getLastName());
-        updatedApplicant.setCountry(request.getCountry());
+
         updatedApplicant.setPhoneNumber(request.getPhoneNumber());
         updatedApplicant.setAddress(request.getAddress());
         updatedApplicant.setCity(request.getCity());
         updatedApplicant.setObjectiveSummary(request.getObjectiveSummary());
 
         Applicant updated = applicantService.updateApplicant(applicant.getId(), updatedApplicant);
+        
+        // Update country in User if provided
+        if (request.getCountry() != null && updated != null) {
+            applicantService.updateUserCountry(updated.getUserId(), request.getCountry());
+        }
+        
         return updated != null ? toProfileResponse(updated) : null;
     }
 
@@ -594,18 +606,19 @@ public class ApplicantInternalService {
                 .collect(Collectors.toList())
             : List.of();
 
-        // Fetch user to get planType
-        User user = authRepository.findByEmail(applicant.getUserId());
+        // Fetch user to get planType and country
+        User user = authRepository.findById(applicant.getUserId()).orElse(null);
         PlanType planType = user != null && user.getPlanType() != null
             ? user.getPlanType()
             : PlanType.FREEMIUM;
+        Country country = user != null ? user.getCountry() : null;
 
         return new ProfileResponse(
             applicant.getId(),
             applicant.getUserId(),
             applicant.getFirstName(),
             applicant.getLastName(),
-            applicant.getCountry(),
+            country,
             applicant.getPhoneNumber(),
             applicant.getAddress(),
             applicant.getCity(),
@@ -622,7 +635,6 @@ public class ApplicantInternalService {
         );
     }
     
-    // Convert entity to applicant list item response DTO (excludes userId)
     private ApplicantListItemResponse toApplicantListItemResponse(Applicant applicant) {
         List<EducationResponse> educationResponses = applicant.getEducation() != null
             ? applicant.getEducation().stream()
@@ -652,17 +664,18 @@ public class ApplicantInternalService {
                 .collect(Collectors.toList())
             : List.of();
 
-        // Fetch user to get planType
-        User user = authRepository.findByEmail(applicant.getUserId());
+        // Fetch user to get planType and country
+        User user = authRepository.findById(applicant.getUserId()).orElse(null);
         PlanType planType = user != null && user.getPlanType() != null
             ? user.getPlanType()
             : PlanType.FREEMIUM;
+        Country country = user != null ? user.getCountry() : null;
 
         return new ApplicantListItemResponse(
             applicant.getId(),
             applicant.getFirstName(),
             applicant.getLastName(),
-            applicant.getCountry(),
+            country,
             applicant.getPhoneNumber(),
             applicant.getAddress(),
             applicant.getCity(),

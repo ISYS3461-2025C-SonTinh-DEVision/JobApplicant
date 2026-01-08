@@ -175,22 +175,23 @@ public class AdminServiceImpl implements AdminService {
         dto.setId(applicant.getId());
         dto.setName((applicant.getFirstName() != null ? applicant.getFirstName() : "") + " " +
                    (applicant.getLastName() != null ? applicant.getLastName() : ""));
-        dto.setCountry(applicant.getCountry() != null ? applicant.getCountry().getDisplayName() : "");
         dto.setCity(applicant.getCity() != null ? applicant.getCity() : "");
         dto.setSkills(applicant.getSkills());
         dto.setCreatedAt(applicant.getCreatedAt() != null ? applicant.getCreatedAt().toString() : "");
 
-        // Get user info
+        // Get user info (country is now in User)
         User user = authRepository.findById(applicant.getUserId()).orElse(null);
         if (user != null) {
             dto.setEmail(user.getEmail());
             dto.setStatus(user.isEnabled() ? "active" : "inactive");
             dto.setIsPremium(user.getPlanType() != null &&
                            user.getPlanType().name().equals("PREMIUM"));
+            dto.setCountry(user.getCountry() != null ? user.getCountry().getDisplayName() : "");
         } else {
             dto.setEmail("");
             dto.setStatus("unknown");
             dto.setIsPremium(false);
+            dto.setCountry("");
         }
 
         return dto;
@@ -204,7 +205,7 @@ public class AdminServiceImpl implements AdminService {
         dto.setId(applicant.getId());
         dto.setFirstName(applicant.getFirstName());
         dto.setLastName(applicant.getLastName());
-        dto.setCountry(applicant.getCountry() != null ? applicant.getCountry().getDisplayName() : "");
+        dto.setCountry(user != null && user.getCountry() != null ? user.getCountry().getDisplayName() : "");
         dto.setCity(applicant.getCity());
         dto.setAddress(applicant.getAddress());
         dto.setPhoneNumber(applicant.getPhoneNumber());
