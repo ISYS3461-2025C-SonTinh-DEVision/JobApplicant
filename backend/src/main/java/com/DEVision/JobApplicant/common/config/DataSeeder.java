@@ -26,7 +26,7 @@ import com.DEVision.JobApplicant.common.model.PlanType;
  * - One ADMINISTRATOR
  * - Five APPLICANT accounts (2 Vietnam, 2 Singapore, 1 other; 2 Premium)
  * 
- * This runs on application startup and clears existing data if needed.
+ * This runs on application startup and only seeds data if it doesn't already exist.
  */
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -46,30 +46,24 @@ public class DataSeeder implements CommandLineRunner {
     public void run(String... args) throws Exception {
         logger.info("=== Starting Database Data Seeding ===");
         
-        // Clear existing data
-        logger.info("Clearing existing data...");
-        applicantRepository.deleteAll();
-        authRepository.deleteAll();
-        
-        // Seed Admin account
         seedAdminAccount();
-        
-        // Seed Applicant accounts
         seedApplicantAccounts();
         
         logger.info("=== Database Data Seeding Completed ===");
     }
 
-    /**
-     * Create Administrator account
-     * Email: admin@devision.com
-     * Password: Admin@123
-     */
     private void seedAdminAccount() {
+        String adminEmail = "admin@devision.com";
+        
+        if (authRepository.findByEmail(adminEmail) != null) {
+            logger.info("Admin account already exists: {}", adminEmail);
+            return;
+        }
+        
         logger.info("Creating Administrator account...");
         
         User admin = new User();
-        admin.setEmail("admin@devision.com");
+        admin.setEmail(adminEmail);
         admin.setPassword(passwordEncoder.encode("Admin@123"));
         admin.setRole(RoleConfig.ADMIN.getRoleName());
         admin.setEnabled(true);
@@ -77,78 +71,94 @@ public class DataSeeder implements CommandLineRunner {
         admin.setPlanType(PlanType.PREMIUM);
         
         authRepository.save(admin);
-        logger.info("Admin account created: admin@devision.com");
+        logger.info("Admin account created: {}", adminEmail);
     }
 
-    /**
-     * Create 5 Applicant accounts:
-     * - 2 from Vietnam (1 Premium)
-     * - 2 from Singapore (1 Premium)
-     * - 1 from another nation (Australia)
-     */
     private void seedApplicantAccounts() {
-        logger.info("Creating Applicant accounts...");
+        logger.info("Checking and creating Applicant accounts...");
 
-        // Applicant 1: Vietnam, Premium - Software Engineer (React, Spring Boot, Docker)
-        createApplicant(
+        int created = 0;
+        int skipped = 0;
+
+        if (createApplicantIfNotExists(
             "nguyen.an@gmail.com", "Applicant@123", PlanType.PREMIUM,
             "Nguyen", "Van An", Country.VIETNAM, "+84901234567",
             "123 Le Loi Street", "Ho Chi Minh City",
             Arrays.asList("React", "Spring Boot", "Docker", "TypeScript", "PostgreSQL"),
             "Bachelor of Software Engineering (Hons) at RMIT Vietnam",
             "Experienced Full Stack Developer seeking challenging opportunities in software engineering."
-        );
+        )) {
+            created++;
+        } else {
+            skipped++;
+        }
 
-        // Applicant 2: Vietnam, Freemium - Backend Developer
-        createApplicant(
+        if (createApplicantIfNotExists(
             "tran.bich@gmail.com", "Applicant@123", PlanType.FREEMIUM,
             "Tran", "Thi Bich", Country.VIETNAM, "+84912345678",
             "456 Nguyen Hue Boulevard", "Ha Noi",
             Arrays.asList("Java", "Spring Boot", "MySQL", "Redis"),
             "Bachelor of Computer Science at Vietnam National University",
             "Backend Developer with 3 years experience in enterprise applications."
-        );
+        )) {
+            created++;
+        } else {
+            skipped++;
+        }
 
-        // Applicant 3: Singapore, Premium - Data Engineer (Python, AWS, Snowflake)
-        createApplicant(
+        if (createApplicantIfNotExists(
             "lee.weiming@gmail.com", "Applicant@123", PlanType.PREMIUM,
             "Lee", "Wei Ming", Country.SINGAPORE, "+6581234567",
             "78 Robinson Road", "Singapore",
             Arrays.asList("Python", "AWS", "Snowflake", "Spark", "Kafka"),
             "Master of Data Science at National University of Singapore",
             "Senior Data Engineer specializing in cloud data platforms and ETL pipelines."
-        );
+        )) {
+            created++;
+        } else {
+            skipped++;
+        }
 
-        // Applicant 4: Singapore, Freemium - Frontend Developer
-        createApplicant(
+        if (createApplicantIfNotExists(
             "tan.meilin@outlook.com", "Applicant@123", PlanType.FREEMIUM,
             "Tan", "Mei Lin", Country.SINGAPORE, "+6591234567",
             "25 Marina Boulevard", "Singapore",
             Arrays.asList("React", "Vue.js", "CSS", "Tailwind CSS", "JavaScript"),
             "Bachelor of Information Systems at Singapore Management University",
             "UI/UX focused Frontend Developer passionate about creating beautiful interfaces."
-        );
+        )) {
+            created++;
+        } else {
+            skipped++;
+        }
 
-        // Applicant 5: Australia (other nation), Freemium - DevOps Engineer
-        createApplicant(
+        if (createApplicantIfNotExists(
             "james.smith@gmail.com", "Applicant@123", PlanType.FREEMIUM,
             "James", "Smith", Country.AUSTRALIA, "+61412345678",
             "100 Collins Street", "Melbourne",
             Arrays.asList("Kubernetes", "Docker", "AWS", "Terraform", "CI/CD"),
             "Bachelor of Computer Science at University of Melbourne",
             "DevOps Engineer with expertise in cloud infrastructure and automation."
-        );
+        )) {
+            created++;
+        } else {
+            skipped++;
+        }
 
-        logger.info("5 Applicant accounts created successfully");
+        logger.info("Applicant accounts: {} created, {} already existed", created, skipped);
     }
 
-    private void createApplicant(
+    private boolean createApplicantIfNotExists(
         String email, String password, PlanType planType,
         String firstName, String lastName, Country country, String phone,
         String address, String city, List<String> skills,
         String education, String objectiveSummary
     ) {
-        // Create User account
+        if (authRepository.findByEmail(email) != null) {
+            logger.debug("Applicant account already exists: {}", email);
+            return false;
+        }
+
         User user = new User();
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(password));
@@ -159,7 +169,6 @@ public class DataSeeder implements CommandLineRunner {
         user.setCountry(country);
         User savedUser = authRepository.save(user);
 
-        // Create Applicant profile
         Applicant applicant = new Applicant(savedUser.getId());
         applicant.setFirstName(firstName);
         applicant.setLastName(lastName);
@@ -169,7 +178,6 @@ public class DataSeeder implements CommandLineRunner {
         applicant.setSkills(skills);
         applicant.setObjectiveSummary(objectiveSummary);
         
-        // Add education
         Education edu = new Education();
         edu.setDegree(education.split(" at ")[0]);
         edu.setInstitution(education.contains(" at ") ? education.split(" at ")[1] : "");
@@ -177,7 +185,6 @@ public class DataSeeder implements CommandLineRunner {
         edu.setEndDate(java.time.LocalDate.of(2022, 6, 30));
         applicant.setEducation(Arrays.asList(edu));
         
-        // Add work experience
         WorkExperience work = new WorkExperience();
         work.setPosition("Software Developer");
         work.setCompany("Tech Company");
@@ -191,5 +198,6 @@ public class DataSeeder implements CommandLineRunner {
         
         applicantRepository.save(applicant);
         logger.info("Created applicant: {} {} ({}) - {}", firstName, lastName, country.getDisplayName(), planType);
+        return true;
     }
 }
