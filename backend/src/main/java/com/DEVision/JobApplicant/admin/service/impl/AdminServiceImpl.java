@@ -123,6 +123,23 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    public String activateApplicant(String id) {
+        Applicant applicant = applicantRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Applicant not found"));
+
+        // Activate the user account
+        User user = authRepository.findById(applicant.getUserId()).orElse(null);
+        if (user != null) {
+            user.setEnabled(true);
+            authRepository.save(user);
+        } else {
+            throw new RuntimeException("User account not found for applicant");
+        }
+
+        return "Applicant activated successfully";
+    }
+
+    @Override
     public String deactivateCompany(String accountId) {
         AccountActionResponse response = callCompanyService.deactivateAccount(accountId);
 

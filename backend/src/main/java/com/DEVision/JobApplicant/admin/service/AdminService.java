@@ -37,6 +37,13 @@ public interface AdminService {
     String deactivateApplicant(String id);
 
     /**
+     * Activate an applicant account
+     * @param id Applicant ID
+     * @return Success message
+     */
+    String activateApplicant(String id);
+
+    /**
      * Deactivate a company account in JM system
      * @param accountId Company account ID from JM
      * @return Success message

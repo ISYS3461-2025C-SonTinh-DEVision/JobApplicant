@@ -123,6 +123,26 @@ public class AdminController {
     }
 
     /**
+     * Activate an applicant account
+     */
+    @PutMapping("/applicants/{id}/activate")
+    public ResponseEntity<Map<String, Object>> activateApplicant(@PathVariable String id) {
+        try {
+            String message = adminService.activateApplicant(id);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", message);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+    /**
      * Deactivate a company account in JM system
      */
     @PutMapping("/companies/{accountId}/deactivate")
