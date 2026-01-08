@@ -15,6 +15,7 @@ import com.DEVision.JobApplicant.applicant.internal.dto.AddEducationRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillsRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddWorkExperienceRequest;
+import com.DEVision.JobApplicant.applicant.internal.dto.ApplicantListItemResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.ApplicantSearchResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.EducationResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioItemResponse;
@@ -99,13 +100,13 @@ public class ApplicantInternalService {
             keyword, countryEnum, skill, page, size, sortBy, sortDirection
         );
         
-        // Convert to ProfileResponse list
-        List<ProfileResponse> profileResponses = applicantsPage.getContent().stream()
-            .map(this::toProfileResponse)
+        // Convert to ApplicantListItemResponse list (excludes userId)
+        List<ApplicantListItemResponse> applicantListItems = applicantsPage.getContent().stream()
+            .map(applicant -> toApplicantListItemResponse(applicant))
             .collect(Collectors.toList());
         
         return new ApplicantSearchResponse(
-            profileResponses,
+            applicantListItems,
             applicantsPage.getNumber(),
             applicantsPage.getSize(),
             applicantsPage.getTotalElements(),
@@ -602,6 +603,63 @@ public class ApplicantInternalService {
         return new ProfileResponse(
             applicant.getId(),
             applicant.getUserId(),
+            applicant.getFirstName(),
+            applicant.getLastName(),
+            applicant.getCountry(),
+            applicant.getPhoneNumber(),
+            applicant.getAddress(),
+            applicant.getCity(),
+            educationResponses,
+            workExperienceResponses,
+            skills,
+            applicant.getObjectiveSummary(),
+            planType,
+            applicant.getAvatarUrl(),
+            portfolioImages,
+            portfolioVideos,
+            applicant.getCreatedAt(),
+            applicant.getUpdatedAt()
+        );
+    }
+    
+    // Convert entity to applicant list item response DTO (excludes userId)
+    private ApplicantListItemResponse toApplicantListItemResponse(Applicant applicant) {
+        List<EducationResponse> educationResponses = applicant.getEducation() != null
+            ? applicant.getEducation().stream()
+                .map(this::toEducationResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
+        List<WorkExperienceResponse> workExperienceResponses = applicant.getWorkExperience() != null
+            ? applicant.getWorkExperience().stream()
+                .map(this::toWorkExperienceResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
+        List<String> skills = applicant.getSkills() != null
+            ? applicant.getSkills()
+            : List.of();
+
+        List<PortfolioItemResponse> portfolioImages = applicant.getPortfolioImages() != null
+            ? applicant.getPortfolioImages().stream()
+                .map(this::toPortfolioItemResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
+        List<PortfolioItemResponse> portfolioVideos = applicant.getPortfolioVideos() != null
+            ? applicant.getPortfolioVideos().stream()
+                .map(this::toPortfolioItemResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
+        // Fetch user to get planType
+        User user = authRepository.findByEmail(applicant.getUserId());
+        PlanType planType = user != null && user.getPlanType() != null
+            ? user.getPlanType()
+            : PlanType.FREEMIUM;
+
+        return new ApplicantListItemResponse(
+            applicant.getId(),
             applicant.getFirstName(),
             applicant.getLastName(),
             applicant.getCountry(),

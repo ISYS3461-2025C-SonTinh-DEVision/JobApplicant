@@ -7,7 +7,7 @@ import java.util.List;
  */
 public class ApplicantSearchResponse {
 
-    private List<ProfileResponse> applicants;
+    private List<ApplicantListItemResponse> applicants;
     private int currentPage;
     private int pageSize;
     private long totalElements;
@@ -17,7 +17,7 @@ public class ApplicantSearchResponse {
 
     public ApplicantSearchResponse() {}
 
-    public ApplicantSearchResponse(List<ProfileResponse> applicants, int currentPage, int pageSize,
+    public ApplicantSearchResponse(List<ApplicantListItemResponse> applicants, int currentPage, int pageSize,
                                    long totalElements, int totalPages) {
         this.applicants = applicants;
         this.currentPage = currentPage;
@@ -29,11 +29,11 @@ public class ApplicantSearchResponse {
     }
 
     // Getters and Setters
-    public List<ProfileResponse> getApplicants() {
+    public List<ApplicantListItemResponse> getApplicants() {
         return applicants;
     }
 
-    public void setApplicants(List<ProfileResponse> applicants) {
+    public void setApplicants(List<ApplicantListItemResponse> applicants) {
         this.applicants = applicants;
     }
 
