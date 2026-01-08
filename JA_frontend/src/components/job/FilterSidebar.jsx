@@ -4,9 +4,10 @@
  * Job search filter sidebar using Headless UI components.
  * 
  * Architecture: A.3.a (Ultimo Frontend) - Uses Headless UI components
- * - Uses StyledCheckbox for employment type selection
+ * - Uses StyledCheckbox for employment type selection (MULTI-SELECT per 4.1.1)
  * - Uses StyledSelect for location dropdown
  * - Uses StyledToggle for fresher friendly switch
+ * - Default location: Vietnam (Requirement 4.3.1)
  */
 import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
@@ -59,17 +60,33 @@ const FilterSidebar = ({ filters, onFilterChange, onReset, className = '' }) => 
                 )}
             </div>
 
-            {/* Employment Type - Using Headless Checkbox */}
+            {/* Employment Type - Multi-select per Requirement 4.1.1 */}
             <div>
                 <h3 className={sectionTitleClass}>Employment Type</h3>
                 <div className="space-y-2">
                     {EMP_TYPES.map((type) => {
-                        const isSelected = filters.employmentType === type.value;
+                        // Support both array and single value for backward compatibility
+                        const selectedTypes = Array.isArray(filters.employmentType)
+                            ? filters.employmentType
+                            : (filters.employmentType ? [filters.employmentType] : []);
+                        const isSelected = selectedTypes.includes(type.value);
+
                         return (
                             <StyledCheckbox
                                 key={type.value}
                                 checked={isSelected}
-                                onChange={(checked) => handleChange('employmentType', checked ? type.value : null)}
+                                onChange={(checked) => {
+                                    let newTypes;
+                                    if (checked) {
+                                        // Add to array
+                                        newTypes = [...selectedTypes, type.value];
+                                    } else {
+                                        // Remove from array
+                                        newTypes = selectedTypes.filter(t => t !== type.value);
+                                    }
+                                    // Return empty array if none selected, or the array
+                                    handleChange('employmentType', newTypes.length > 0 ? newTypes : []);
+                                }}
                                 label={type.label}
                                 variant={isDark ? 'dark' : 'light'}
                                 size="md"
@@ -77,14 +94,11 @@ const FilterSidebar = ({ filters, onFilterChange, onReset, className = '' }) => 
                         );
                     })}
                 </div>
-<<<<<<< Updated upstream
-=======
                 {Array.isArray(filters.employmentType) && filters.employmentType.length > 0 && (
                     <p className={`text-xs mt-2 ${isDark ? 'text-primary-400' : 'text-primary-600'}`}>
                         {filters.employmentType.length} type(s) selected
                     </p>
                 )}
->>>>>>> Stashed changes
             </div>
 
             {/* Location - Using Headless Select */}

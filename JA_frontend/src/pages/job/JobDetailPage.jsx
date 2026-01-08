@@ -2,12 +2,17 @@
 /**
  * Job Detail Page
  * Displays full details of a specific job posting.
+ * 
+ * Requirements covered:
+ * - 4.1.4: Display job details with Posted Date, Expiry Date
+ * - 4.2.3 & 4.3.2: Apply with Cover Letter and CV upload (via ApplicationModal)
  */
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Briefcase, DollarSign, Clock, Building2, Share2, Bookmark } from 'lucide-react';
+import { ArrowLeft, MapPin, Briefcase, DollarSign, Clock, Building2, Share2, Bookmark, Calendar, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import JobSearchService from '../../services/JobSearchService';
+import ApplicationModal from '../../components/job/ApplicationModal';
 import { formatDate, formatSalary } from '../../utils/JobHelpers';
 import { Tag } from '../../components/reusable';
 
@@ -19,6 +24,9 @@ const JobDetailPage = () => {
     const [job, setJob] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Application Modal state
+    const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchJob = async () => {
@@ -39,10 +47,19 @@ const JobDetailPage = () => {
         }
     }, [id]);
 
+    // Open application modal
     const handleApply = () => {
-        console.log('Applying for job:', id);
-        // TODO: Implement application flow
+        setIsApplicationModalOpen(true);
     };
+
+    // Handle successful application
+    const handleApplicationSuccess = () => {
+        console.log('Application submitted successfully for job:', id);
+        // Could show a success toast or redirect
+    };
+
+    // Check if job is expired
+    const isExpired = job?.expiresAt && new Date(job.expiresAt) < new Date();
 
     if (loading) {
         return (
@@ -105,10 +122,18 @@ const JobDetailPage = () => {
                                         {job.company}
                                     </div>
                                 </div>
-                                {/* Optional: Company Logo */}
-                                <div className={`w-16 h-16 rounded-lg flex items-center justify-center text-xl font-bold ${isDark ? 'bg-dark-700 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                                    {job.company[0]}
-                                </div>
+                                {/* Company Logo or Fallback */}
+                                {job.companyLogo ? (
+                                    <img
+                                        src={job.companyLogo}
+                                        alt={job.company}
+                                        className="w-16 h-16 rounded-lg object-cover"
+                                    />
+                                ) : (
+                                    <div className={`w-16 h-16 rounded-lg flex items-center justify-center text-xl font-bold ${isDark ? 'bg-gradient-to-br from-pink-500 to-violet-500 text-white' : 'bg-gradient-to-br from-primary-400 to-primary-600 text-white'}`}>
+                                        {job.company?.charAt(0) || '?'}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-wrap gap-y-4 gap-x-8 pb-6 border-b border-gray-200 dark:border-dark-700">
@@ -126,8 +151,26 @@ const JobDetailPage = () => {
                                 </span>
                                 <span className={`flex items-center gap-2 ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
                                     <Clock className="w-4 h-4" />
-                                    {formatDate(job.postedAt)}
+                                    Posted: {formatDate(job.postedAt)}
                                 </span>
+                                {/* Expiry Date per Requirement 4.1.4 */}
+                                {job.expiresAt && (
+                                    <span className={`flex items-center gap-2 ${isExpired ? (isDark ? 'text-red-400' : 'text-red-600') : (isDark ? 'text-dark-300' : 'text-gray-600')}`}>
+                                        <Calendar className="w-4 h-4" />
+                                        Expires: {formatDate(job.expiresAt)}
+                                    </span>
+                                )}
+                                {isExpired && (
+                                    <span className={`flex items-center gap-2 px-2 py-0.5 rounded-full text-xs font-medium ${isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-600'}`}>
+                                        <AlertTriangle className="w-3 h-3" />
+                                        Expired
+                                    </span>
+                                )}
+                                {job.fresher && !isExpired && (
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'}`}>
+                                        Fresher Welcome
+                                    </span>
+                                )}
                             </div>
 
                             <div className="pt-6">
@@ -160,9 +203,13 @@ const JobDetailPage = () => {
                         <div className={`sticky top-24 p-6 rounded-xl border space-y-6 ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200'}`}>
                             <button
                                 onClick={handleApply}
-                                className="w-full py-3 px-4 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl text-lg shadow-lg shadow-primary-500/30 transition-all"
+                                disabled={isExpired}
+                                className={`w-full py-3 px-4 font-semibold rounded-xl text-lg transition-all ${isExpired
+                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                        : 'bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-500/30'
+                                    }`}
                             >
-                                Apply Now
+                                {isExpired ? 'Job Expired' : 'Apply Now'}
                             </button>
 
                             <div>
@@ -183,6 +230,14 @@ const JobDetailPage = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Application Modal - Requirements 4.2.3 & 4.3.2 */}
+            <ApplicationModal
+                isOpen={isApplicationModalOpen}
+                onClose={() => setIsApplicationModalOpen(false)}
+                job={job}
+                onSuccess={handleApplicationSuccess}
+            />
         </div>
     );
 };

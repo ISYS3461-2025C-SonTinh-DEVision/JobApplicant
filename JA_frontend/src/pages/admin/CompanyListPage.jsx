@@ -32,7 +32,7 @@ function StatusBadge({ status, isPremium }) {
 }
 
 // Action Menu Component - Fixed positioning
-function ActionMenu({ company, onDeactivate, onView }) {
+function ActionMenu({ company, onDeactivate, onActivate, onView }) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef(null);
     const buttonRef = useRef(null);
@@ -74,13 +74,21 @@ function ActionMenu({ company, onDeactivate, onView }) {
                         <Eye className="w-4 h-4" />
                         View Details
                     </button>
-                    {company.status === 'active' && (
+                    {company.status === 'active' ? (
                         <button
                             onClick={() => { onDeactivate(company); setIsOpen(false); }}
                             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10"
                         >
                             <Ban className="w-4 h-4" />
                             Deactivate
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => { onActivate && onActivate(company); setIsOpen(false); }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-green-400 hover:bg-green-500/10"
+                        >
+                            <Eye className="w-4 h-4" />
+                            Activate
                         </button>
                     )}
                 </div>
@@ -90,14 +98,22 @@ function ActionMenu({ company, onDeactivate, onView }) {
 }
 
 // Mobile Company Card Component
-function CompanyCard({ company, onDeactivate, onView, actionLoading }) {
+function CompanyCard({ company, onDeactivate, onActivate, onView, actionLoading }) {
     return (
         <div className="glass-card p-4 space-y-3">
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-violet-500 flex items-center justify-center text-white font-medium text-lg">
-                        {company.name.charAt(0)}
-                    </div>
+                    {company.logoUrl ? (
+                        <img
+                            src={company.logoUrl}
+                            alt={company.name}
+                            className="w-12 h-12 rounded-xl object-cover"
+                        />
+                    ) : (
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-violet-500 flex items-center justify-center text-white font-medium text-lg">
+                            {company.name.charAt(0)}
+                        </div>
+                    )}
                     <div>
                         <p className="font-medium text-white">{company.name}</p>
                         <p className="text-sm text-dark-400">{company.industry}</p>
@@ -109,6 +125,7 @@ function CompanyCard({ company, onDeactivate, onView, actionLoading }) {
                     <ActionMenu
                         company={company}
                         onDeactivate={onDeactivate}
+                        onActivate={onActivate}
                         onView={onView}
                     />
                 )}
@@ -117,11 +134,11 @@ function CompanyCard({ company, onDeactivate, onView, actionLoading }) {
             <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2 text-dark-300">
                     <MapPin className="w-4 h-4 text-dark-500 flex-shrink-0" />
-                    <span>{company.city}, {company.country}</span>
+                    <span>{company.city}{company.city && company.country ? ', ' : ''}{company.country}</span>
                 </div>
                 <div className="flex items-center gap-2 text-dark-300">
                     <Briefcase className="w-4 h-4 text-dark-500 flex-shrink-0" />
-                    <span>{company.jobPostCount} job posts</span>
+                    <span>{company.jobPostCount || 0} job posts</span>
                 </div>
             </div>
 
@@ -137,6 +154,9 @@ export default function CompanyListPage() {
     const [loading, setLoading] = useState(true);
     const [totalItems, setTotalItems] = useState(0);
     const [actionLoading, setActionLoading] = useState(null);
+    const [isRealData, setIsRealData] = useState(false);
+    const [apiError, setApiError] = useState(null);
+    const [selectedCompany, setSelectedCompany] = useState(null);
 
     const {
         query: searchQuery,
@@ -172,6 +192,7 @@ export default function CompanyListPage() {
 
     const fetchCompanies = useCallback(async () => {
         setLoading(true);
+        setApiError(null);
         try {
             const response = await AdminService.getCompanies({
                 page: currentPage,
@@ -182,8 +203,14 @@ export default function CompanyListPage() {
             setCompanies(response.data || []);
             setTotalItems(response.total || 0);
             setPaginationTotal(response.total || 0);
+            setIsRealData(response.isRealData === true);
+
+            if (response.error) {
+                setApiError(response.error);
+            }
         } catch (error) {
             console.error('Failed to fetch companies:', error);
+            setApiError(error.message || 'Failed to fetch companies');
         } finally {
             setLoading(false);
         }
@@ -200,18 +227,47 @@ export default function CompanyListPage() {
 
         setActionLoading(company.id);
         try {
-            await AdminService.deactivateCompany(company.id);
-            fetchCompanies();
+            const result = await AdminService.deactivateCompany(company.id);
+            if (result.success) {
+                fetchCompanies();
+            } else {
+                alert(result.message || 'Failed to deactivate company');
+            }
         } catch (error) {
             console.error('Failed to deactivate company:', error);
-            alert('Company management requires Job Manager integration');
+            alert('Failed to deactivate company: ' + error.message);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleActivate = async (company) => {
+        if (!window.confirm(`Are you sure you want to activate ${company.name}?`)) {
+            return;
+        }
+
+        setActionLoading(company.id);
+        try {
+            const result = await AdminService.activateCompany(company.id);
+            if (result.success) {
+                fetchCompanies();
+            } else {
+                alert(result.message || 'Failed to activate company');
+            }
+        } catch (error) {
+            console.error('Failed to activate company:', error);
+            alert('Failed to activate company: ' + error.message);
         } finally {
             setActionLoading(null);
         }
     };
 
     const handleView = (company) => {
-        alert(`Company: ${company.name}\nIndustry: ${company.industry}\nLocation: ${company.city}, ${company.country}\nJob Posts: ${company.jobPostCount}`);
+        setSelectedCompany(company);
+    };
+
+    const closeDetailModal = () => {
+        setSelectedCompany(null);
     };
 
     const columns = [
@@ -246,16 +302,28 @@ export default function CompanyListPage() {
                 </button>
             </div>
 
-            {/* Job Manager Notice - Mock Data */}
-            <div className="glass-card p-4 border-l-4 border-yellow-400/50 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                <div>
-                    <p className="text-white font-medium text-sm">Using sample company data</p>
-                    <p className="text-dark-400 text-xs sm:text-sm mt-1">
-                        Company API from Job Manager is pending. Displaying sample data for demonstration.
-                    </p>
+            {/* API Status Notice */}
+            {apiError ? (
+                <div className="glass-card p-4 border-l-4 border-red-400/50 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-white font-medium text-sm">Failed to load companies</p>
+                        <p className="text-dark-400 text-xs sm:text-sm mt-1">
+                            {apiError}. Try refreshing the page.
+                        </p>
+                    </div>
                 </div>
-            </div>
+            ) : isRealData ? (
+                <div className="glass-card p-4 border-l-4 border-green-400/50 flex items-start gap-3">
+                    <Building2 className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-white font-medium text-sm">Connected to Job Manager API</p>
+                        <p className="text-dark-400 text-xs sm:text-sm mt-1">
+                            Showing real company data from Job Manager system.
+                        </p>
+                    </div>
+                </div>
+            ) : null}
 
             {/* Search Bar */}
             <div className="glass-card p-4">
@@ -298,6 +366,7 @@ export default function CompanyListPage() {
                             key={company.id}
                             company={company}
                             onDeactivate={handleDeactivate}
+                            onActivate={handleActivate}
                             onView={handleView}
                             actionLoading={actionLoading}
                         />
@@ -354,12 +423,20 @@ export default function CompanyListPage() {
                                     >
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-violet-500 flex items-center justify-center text-white font-medium">
-                                                    {company.name.charAt(0)}
-                                                </div>
+                                                {company.logoUrl ? (
+                                                    <img
+                                                        src={company.logoUrl}
+                                                        alt={company.name}
+                                                        className="w-10 h-10 rounded-xl object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-violet-500 flex items-center justify-center text-white font-medium">
+                                                        {company.name.charAt(0)}
+                                                    </div>
+                                                )}
                                                 <div>
                                                     <p className="font-medium text-white">{company.name}</p>
-                                                    <p className="text-sm text-dark-400">{company.email}</p>
+                                                    <p className="text-sm text-dark-400">{company.email || company.phoneNumber || ''}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -388,6 +465,7 @@ export default function CompanyListPage() {
                                                 <ActionMenu
                                                     company={company}
                                                     onDeactivate={handleDeactivate}
+                                                    onActivate={handleActivate}
                                                     onView={handleView}
                                                 />
                                             )}
@@ -452,6 +530,118 @@ export default function CompanyListPage() {
                                 className="flex-1 px-4 py-2 rounded-lg bg-white/5 text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Company Detail Modal */}
+            {selectedCompany && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closeDetailModal}>
+                    <div
+                        className="glass-card max-w-lg w-full max-h-[90vh] overflow-y-auto animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="p-6 border-b border-white/10">
+                            <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-4">
+                                    {selectedCompany.logoUrl ? (
+                                        <img
+                                            src={selectedCompany.logoUrl}
+                                            alt={selectedCompany.name}
+                                            className="w-16 h-16 rounded-xl object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-pink-500 to-violet-500 flex items-center justify-center text-white text-2xl font-bold">
+                                            {selectedCompany.name.charAt(0)}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <h2 className="text-xl font-bold text-white">{selectedCompany.name}</h2>
+                                        <p className="text-dark-400">{selectedCompany.industry}</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={closeDetailModal}
+                                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                >
+                                    <X className="w-5 h-5 text-dark-400" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 space-y-4">
+                            {/* Status */}
+                            <div>
+                                <StatusBadge status={selectedCompany.status} isPremium={selectedCompany.isPremium} />
+                            </div>
+
+                            {/* Location */}
+                            <div className="flex items-center gap-3 text-dark-300">
+                                <MapPin className="w-5 h-5 text-pink-400" />
+                                <div>
+                                    <p className="text-white font-medium">Location</p>
+                                    <p>{selectedCompany.street && `${selectedCompany.street}, `}{selectedCompany.city}{selectedCompany.city && selectedCompany.country ? ', ' : ''}{selectedCompany.country}</p>
+                                </div>
+                            </div>
+
+                            {/* Contact */}
+                            {(selectedCompany.email || selectedCompany.phoneNumber) && (
+                                <div className="flex items-center gap-3 text-dark-300">
+                                    <Building2 className="w-5 h-5 text-pink-400" />
+                                    <div>
+                                        <p className="text-white font-medium">Contact</p>
+                                        {selectedCompany.email && <p>{selectedCompany.email}</p>}
+                                        {selectedCompany.phoneNumber && <p>{selectedCompany.phoneNumber}</p>}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Job Posts */}
+                            <div className="flex items-center gap-3 text-dark-300">
+                                <Briefcase className="w-5 h-5 text-pink-400" />
+                                <div>
+                                    <p className="text-white font-medium">Active Job Posts</p>
+                                    <p>{selectedCompany.jobPostCount || 0} positions</p>
+                                </div>
+                            </div>
+
+                            {/* About */}
+                            {selectedCompany.aboutUs && (
+                                <div className="pt-4 border-t border-white/10">
+                                    <p className="text-white font-medium mb-2">About</p>
+                                    <p className="text-dark-300 text-sm leading-relaxed">{selectedCompany.aboutUs}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 border-t border-white/10 flex gap-3">
+                            {selectedCompany.status === 'active' ? (
+                                <button
+                                    onClick={() => { handleDeactivate(selectedCompany); closeDetailModal(); }}
+                                    className="flex-1 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Ban className="w-4 h-4" />
+                                    Deactivate
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => { handleActivate(selectedCompany); closeDetailModal(); }}
+                                    className="flex-1 px-4 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Eye className="w-4 h-4" />
+                                    Activate
+                                </button>
+                            )}
+                            <button
+                                onClick={closeDetailModal}
+                                className="flex-1 px-4 py-2 bg-white/5 text-white rounded-lg hover:bg-white/10 transition-colors"
+                            >
+                                Close
                             </button>
                         </div>
                     </div>

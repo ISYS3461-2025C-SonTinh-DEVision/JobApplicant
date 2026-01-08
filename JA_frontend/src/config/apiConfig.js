@@ -79,16 +79,28 @@ export const API_ENDPOINTS = {
     APPLY: '/api/jobs/apply',
   },
 
-  // Job Manager external API endpoints
+  // Job Manager external API endpoints (proxied through JA backend for security)
   JOB_MANAGER: {
-    // Job Posts
+    // Job Posts - proxied through JA backend
     JOB_POSTS: '/api/job-posts',
     JOB_POST_BY_ID: (id) => `/api/job-posts/${id}`,
-    // Companies
-    COMPANIES: '/api/companies',
-    COMPANY_BY_ID: (id) => `/api/companies/${id}`,
+    // Companies - OLD endpoints (deprecated, use JM_COMPANY instead)
+    COMPANIES: '/api/jm/company',
+    COMPANY_BY_ID: (id) => `/api/jm/company/${id}`,
     // Auth (for token forwarding)
     AUTH_USERS: '/api/auth/users',
+  },
+
+  // JM Company endpoints (proxied through JA backend at /api/jm/company)
+  JM_COMPANY: {
+    // GET /api/jm/company - Get all companies with pagination and search
+    LIST: '/api/jm/company',
+    // GET /api/jm/company/{id} - Get company by ID
+    BY_ID: (id) => `/api/jm/company/${id}`,
+    // POST /api/jm/company/{id}/activate - Activate company account (admin)
+    ACTIVATE: (id) => `/api/jm/company/${id}/activate`,
+    // POST /api/jm/company/{id}/deactivate - Deactivate company account (admin)
+    DEACTIVATE: (id) => `/api/jm/company/${id}/deactivate`,
   },
 
   // Application endpoints (Requirement 3.2.4 - Display applications)

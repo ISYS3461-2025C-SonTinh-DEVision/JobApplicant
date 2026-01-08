@@ -203,6 +203,13 @@ export function transformJobPostListResponse(response) {
 
 /**
  * Transform company from JM API format
+ * Maps JM Company API response fields to frontend format
+ * 
+ * JM API Response fields:
+ * - _id, uniqueID, name, country, city, street
+ * - phoneNumber, logoUrl, aboutUs
+ * - isDeleted, createdAt, updatedAt
+ * 
  * @param {Object} company - Company object from JM API
  * @returns {Object} Transformed company object
  */
@@ -210,17 +217,91 @@ export function transformCompany(company) {
     if (!company) return null;
 
     return {
-        id: company.uniqueId || company.id || company._id,
+        // ID fields - JM uses _id and uniqueID
+        id: company._id || company.id || company.uniqueId || company.uniqueID,
+        uniqueId: company.uniqueID || company.uniqueId || company._id,
+
+        // Basic info
         name: company.name || company.companyName || 'Unknown Company',
-        description: company.description || '',
+        description: company.aboutUs || company.description || '',
+        aboutUs: company.aboutUs || company.description || '',
+
+        // Contact info
         email: company.email || '',
-        industry: company.industry || 'Technology',
+        phoneNumber: company.phoneNumber || '',
+
+        // Location
         country: company.country || company.location || '',
         city: company.city || '',
-        logo: company.logo || company.logoUrl || null,
+        street: company.street || '',
+
+        // Branding
+        logo: company.logoUrl || company.logo || null,
+        logoUrl: company.logoUrl || company.logo || null,
+
+        // Business info (fallback to reasonable defaults)
+        industry: company.industry || 'Technology',
         jobPostCount: company.jobPostCount || company.jobCount || 0,
-        status: company.isActive !== false ? 'active' : 'inactive',
-        isPremium: company.isPremium || company.planType === 'PREMIUM',
+
+        // Status
+        status: company.isDeleted === true ? 'inactive' : 'active',
+        isActive: company.isDeleted !== true,
+        isDeleted: company.isDeleted || false,
+        isPremium: company.isPremium || company.planType === 'PREMIUM' || false,
+
+        // Timestamps
+        createdAt: company.createdAt || null,
+        updatedAt: company.updatedAt || null,
+    };
+}
+
+/**
+ * Transform company list response from JM API
+ * @param {Object} response - Response from /api/jm/company
+ * @returns {Object} Transformed response with {data, total, page, limit, totalPages}
+ */
+export function transformCompanyListResponse(response) {
+    if (!response) {
+        return { data: [], total: 0, page: 1, limit: 10, totalPages: 0 };
+    }
+
+    // Handle JA Backend proxy structure: { companies: [...], totalCount, page, limit, totalPages }
+    let companies = [];
+    let meta = {};
+
+    if (response.companies && Array.isArray(response.companies)) {
+        companies = response.companies;
+        meta = {
+            total: response.totalCount || companies.length,
+            page: response.page || 1,
+            limit: response.limit || 10,
+            totalPages: response.totalPages || Math.ceil((response.totalCount || companies.length) / (response.limit || 10)),
+        };
+    }
+    // Direct array response
+    else if (Array.isArray(response)) {
+        companies = response;
+        meta = { total: companies.length, page: 1, limit: companies.length, totalPages: 1 };
+    }
+    // Handle { data: [...] } structure
+    else if (response.data && Array.isArray(response.data)) {
+        companies = response.data;
+        meta = {
+            total: response.total || companies.length,
+            page: response.page || 1,
+            limit: response.limit || 10,
+            totalPages: response.totalPages || 1,
+        };
+    }
+
+    const transformedCompanies = companies.map(transformCompany).filter(Boolean);
+
+    return {
+        data: transformedCompanies,
+        total: meta.total || transformedCompanies.length,
+        page: meta.page || 1,
+        limit: meta.limit || 10,
+        totalPages: meta.totalPages || 1,
     };
 }
 
@@ -245,5 +326,6 @@ export default {
     transformJobPost,
     transformJobPostListResponse,
     transformCompany,
+    transformCompanyListResponse,
     isRealApiData,
 };

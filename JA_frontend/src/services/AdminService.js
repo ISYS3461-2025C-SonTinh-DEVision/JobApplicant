@@ -114,107 +114,151 @@ class AdminService {
 
     /**
      * Get list of companies with pagination and search
-     * Note: JM /api/companies currently returns 404
-     * Using mock data until JM team provides company API
+     * Uses REAL API via JA backend proxy to Job Manager
+     * Endpoint: /api/jm/company
      */
-    async getCompanies({ page = 1, limit = 10, search = '' } = {}) {
+    async getCompanies({ page = 1, limit = 10, search = '', country = '', city = '' } = {}) {
         try {
-            // Mock company data (JM /api/companies returns 404)
-            const mockCompanies = [
-                {
-                    id: 'company_001',
-                    name: 'TechCorp Vietnam',
-                    email: 'hr@techcorp.vn',
-                    industry: 'Technology',
-                    country: 'Vietnam',
-                    city: 'Ho Chi Minh City',
-                    jobPostCount: 3,
-                    status: 'active',
-                    isPremium: true,
-                },
-                {
-                    id: 'company_002',
-                    name: 'Cloudify Solutions',
-                    email: 'careers@cloudify.io',
-                    industry: 'Cloud Services',
-                    country: 'Vietnam',
-                    city: 'Hanoi',
-                    jobPostCount: 2,
-                    status: 'active',
-                    isPremium: false,
-                },
-                {
-                    id: 'company_003',
-                    name: 'InnovateLabs Singapore',
-                    email: 'jobs@innovatelabs.sg',
-                    industry: 'SaaS',
-                    country: 'Singapore',
-                    city: 'Singapore',
-                    jobPostCount: 4,
-                    status: 'active',
-                    isPremium: true,
-                },
-                {
-                    id: 'company_004',
-                    name: 'DataMinds',
-                    email: 'hr@dataminds.io',
-                    industry: 'Data Analytics',
-                    country: 'Singapore',
-                    city: 'Singapore',
-                    jobPostCount: 2,
-                    status: 'active',
-                    isPremium: false,
-                },
-            ];
+            // Import transformer dynamically to avoid circular deps
+            const { transformCompany } = await import('../utils/jobTransformers');
 
-            // Filter by search
-            let filtered = mockCompanies;
-            if (search) {
-                const term = search.toLowerCase();
-                filtered = mockCompanies.filter(c =>
-                    c.name.toLowerCase().includes(term) ||
-                    c.industry.toLowerCase().includes(term)
-                );
-            }
-
-            // Paginate
-            const start = (page - 1) * limit;
-            const paginated = filtered.slice(start, start + limit);
-
-            console.log('[AdminService] Using mock company data (JM API returns 404)');
-
-            return {
-                data: paginated,
-                total: filtered.length,
+            // Build query params for API call
+            const queryParams = {
                 page,
                 limit,
-                totalPages: Math.ceil(filtered.length / limit),
-                isMockData: true,
+            };
+            if (search) queryParams.search = search;
+            if (country) queryParams.country = country;
+            if (city) queryParams.city = city;
+
+            // Call JA backend proxy endpoint for Company data
+            const response = await httpUtil.get(API_ENDPOINTS.JM_COMPANY.LIST, queryParams);
+
+            // Handle response structure from JA Backend
+            // Expected: { companies: [...], totalCount, page, limit, totalPages }
+            let companies = [];
+            let total = 0;
+            let totalPages = 0;
+
+            if (response.companies && Array.isArray(response.companies)) {
+                companies = response.companies;
+                total = response.totalCount || companies.length;
+                totalPages = response.totalPages || Math.ceil(total / limit);
+            }
+            // Handle { data: [...] } structure
+            else if (response.data && Array.isArray(response.data)) {
+                companies = response.data;
+                total = response.total || companies.length;
+                totalPages = response.totalPages || Math.ceil(total / limit);
+            }
+            // Handle direct array response
+            else if (Array.isArray(response)) {
+                companies = response;
+                total = companies.length;
+                totalPages = Math.ceil(total / limit);
+            }
+
+            // Transform companies to frontend format
+            const transformedCompanies = companies.map(company => {
+                const transformed = transformCompany(company);
+                return {
+                    ...transformed,
+                    // Ensure required fields for admin display
+                    industry: transformed.industry || 'Technology',
+                    jobPostCount: transformed.jobPostCount || 0,
+                };
+            });
+
+            console.log('[AdminService] Fetched real company data:', transformedCompanies.length);
+
+            return {
+                data: transformedCompanies,
+                total,
+                page,
+                limit,
+                totalPages,
+                isRealData: true,
             };
         } catch (error) {
-            console.error('Failed to fetch companies:', error.message);
+            console.error('Failed to fetch companies from backend:', error.message);
+            // Return empty result on error
             return {
                 data: [],
                 total: 0,
                 page,
                 limit,
                 totalPages: 0,
+                isRealData: false,
+                error: error.message,
             };
         }
     }
 
     /**
      * Deactivate a company account
-     * Note: Companies are managed by Job Manager subsystem
+     * Uses JA backend proxy to call Job Manager API
+     * Endpoint: POST /api/jm/company/{accountId}/deactivate
      */
     async deactivateCompany(companyId) {
         try {
-            // TODO: Call Job Manager API
-            console.warn('Company deactivation should go through Job Manager subsystem');
-            return { success: false, message: 'Company management requires Job Manager integration' };
+            const response = await httpUtil.post(API_ENDPOINTS.JM_COMPANY.DEACTIVATE(companyId));
+            console.log('[AdminService] Company deactivated:', companyId);
+            return {
+                success: response.success !== false,
+                message: response.message || 'Company deactivated successfully',
+                data: response,
+            };
         } catch (error) {
             console.error('Failed to deactivate company:', error.message);
-            throw error;
+            return {
+                success: false,
+                message: error.message || 'Failed to deactivate company',
+            };
+        }
+    }
+
+    /**
+     * Activate a company account
+     * Uses JA backend proxy to call Job Manager API
+     * Endpoint: POST /api/jm/company/{accountId}/activate
+     */
+    async activateCompany(companyId) {
+        try {
+            const response = await httpUtil.post(API_ENDPOINTS.JM_COMPANY.ACTIVATE(companyId));
+            console.log('[AdminService] Company activated:', companyId);
+            return {
+                success: response.success !== false,
+                message: response.message || 'Company activated successfully',
+                data: response,
+            };
+        } catch (error) {
+            console.error('Failed to activate company:', error.message);
+            return {
+                success: false,
+                message: error.message || 'Failed to activate company',
+            };
+        }
+    }
+
+    /**
+     * Get a single company by ID
+     * Endpoint: GET /api/jm/company/{id}
+     */
+    async getCompanyById(companyId) {
+        try {
+            const { transformCompany } = await import('../utils/jobTransformers');
+            const response = await httpUtil.get(API_ENDPOINTS.JM_COMPANY.BY_ID(companyId));
+
+            if (response) {
+                return {
+                    success: true,
+                    data: transformCompany(response),
+                };
+            }
+            return { success: false, data: null };
+        } catch (error) {
+            console.error('Failed to fetch company:', error.message);
+            return { success: false, data: null, error: error.message };
         }
     }
 

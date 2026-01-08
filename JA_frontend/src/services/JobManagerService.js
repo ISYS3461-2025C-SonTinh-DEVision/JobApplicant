@@ -7,13 +7,19 @@
  * API Endpoints from Job Manager:
  * - GET /api/job-posts - Get job posts with filters
  * - GET /api/job-posts/{id} - Get job post by ID
- * - GET /api/companies - Get companies
- * - GET /api/companies/{id} - Get company by ID
+ * - GET /api/jm/company - Get companies (via JA backend proxy)
+ * - GET /api/jm/company/{id} - Get company by ID (via JA backend proxy)
  * 
  * Architecture: A.2.c - REST HTTP Helper Class pattern
  */
 
 import { API_BASE_URL, JOB_MANAGER_API_URL, API_ENDPOINTS, AUTH_CONFIG } from '../config/apiConfig';
+
+// Access JM_COMPANY endpoints (fallback for safety)
+const JM_COMPANY_ENDPOINTS = API_ENDPOINTS.JM_COMPANY || {
+    LIST: '/api/jm/company',
+    BY_ID: (id) => `/api/jm/company/${id}`,
+};
 
 // Comprehensive mock job posts data matching Job Manager API structure
 const MOCK_JOB_POSTS = [
@@ -376,78 +382,9 @@ const MOCK_JOB_POSTS = [
             'Portfolio or personal projects',
             'Strong desire to learn',
         ],
-    },
 ];
 
-// Mock companies data
-const MOCK_COMPANIES = [
-    {
-        id: 'company_001',
-        uniqueID: 'company_001',
-        name: 'TechCorp Vietnam',
-        description: 'Leading tech company in Vietnam specializing in enterprise software solutions.',
-        country: 'Vietnam',
-        city: 'Ho Chi Minh City',
-        industry: 'Technology',
-        size: '100-500',
-        logo: null,
-    },
-    {
-        id: 'company_002',
-        uniqueID: 'company_002',
-        name: 'Cloudify Solutions',
-        description: 'Cloud-native software development company with offices across ASEAN.',
-        country: 'Vietnam',
-        city: 'Hanoi',
-        industry: 'Cloud Services',
-        size: '50-100',
-        logo: null,
-    },
-    {
-        id: 'company_003',
-        uniqueID: 'company_003',
-        name: 'InnovateLabs Singapore',
-        description: 'Innovation hub for SaaS products targeting enterprise customers.',
-        country: 'Singapore',
-        city: 'Singapore',
-        industry: 'SaaS',
-        size: '200-500',
-        logo: null,
-    },
-    {
-        id: 'company_004',
-        uniqueID: 'company_004',
-        name: 'DataMinds',
-        description: 'Data analytics and AI company providing insights for businesses.',
-        country: 'Singapore',
-        city: 'Singapore',
-        industry: 'Data Analytics',
-        size: '100-200',
-        logo: null,
-    },
-    {
-        id: 'company_005',
-        uniqueID: 'company_005',
-        name: 'AppWiz Malaysia',
-        description: 'Mobile-first development company creating innovative apps.',
-        country: 'Malaysia',
-        city: 'Kuala Lumpur',
-        industry: 'Mobile Development',
-        size: '50-100',
-        logo: null,
-    },
-    {
-        id: 'company_006',
-        uniqueID: 'company_006',
-        name: 'QualityFirst Thailand',
-        description: 'QA and testing services company ensuring software quality.',
-        country: 'Thailand',
-        city: 'Bangkok',
-        industry: 'QA Services',
-        size: '50-100',
-        logo: null,
-    },
-];
+// NOTE: MOCK_COMPANIES removed - Company data should always come from real API at /api/jm/company
 
 class JobManagerService {
     constructor() {
@@ -563,23 +500,19 @@ class JobManagerService {
                         // Return filtered list
                         resolve(this.filterMockJobPosts(params));
                     }
-                } else if (endpoint.includes('/api/companies')) {
-                    const idMatch = endpoint.match(/\/api\/companies\/(.+)/);
-                    if (idMatch) {
-                        const companyId = idMatch[1];
-                        const company = MOCK_COMPANIES.find(c => c.id === companyId || c.uniqueID === companyId);
-                        resolve({
-                            statusCode: 200,
-                            message: 'Company found successfully',
-                            data: company || null,
-                        });
-                    } else {
-                        resolve({
-                            statusCode: 200,
-                            message: 'Companies retrieved successfully',
-                            data: MOCK_COMPANIES,
-                        });
-                    }
+                } else if (endpoint.includes('/api/jm/company') || endpoint.includes('/api/companies')) {
+                    // Company data should always come from real API
+                    // Log warning and return empty result - UI should handle retry with real API
+                    console.warn('[JobManagerService] Company data should use real API at /api/jm/company');
+                    resolve({
+                        statusCode: 200,
+                        message: 'No mock company data - please use real API',
+                        companies: [],
+                        totalCount: 0,
+                        page: 1,
+                        limit: 10,
+                        totalPages: 0,
+                    });
                 } else {
                     resolve({ statusCode: 404, message: 'Not found', data: null });
                 }
@@ -690,21 +623,25 @@ class JobManagerService {
     }
 
     /**
-     * Get all companies
-     * @returns {Promise<Object>} Companies list
+     * Get all companies with optional search/filter parameters
+     * Uses JA backend proxy: /api/jm/company
+     * @param {Object} params - Optional search parameters (search, country, city, page, limit)
+     * @returns {Promise<Object>} Companies list with pagination
      */
-    async getCompanies() {
-        const response = await this.request('GET', API_ENDPOINTS.JOB_MANAGER.COMPANIES);
+    async getCompanies(params = {}) {
+        const response = await this.request('GET', API_ENDPOINTS.JM_COMPANY?.LIST || '/api/jm/company', params);
         return response;
     }
 
     /**
      * Get company by ID
+     * Uses JA backend proxy: /api/jm/company/{id}
      * @param {string} id - Company ID
      * @returns {Promise<Object>} Company details
      */
     async getCompanyById(id) {
-        const response = await this.request('GET', API_ENDPOINTS.JOB_MANAGER.COMPANY_BY_ID(id));
+        const endpoint = API_ENDPOINTS.JM_COMPANY?.BY_ID?.(id) || `/api/jm/company/${id}`;
+        const response = await this.request('GET', endpoint);
         return response;
     }
 
@@ -752,5 +689,5 @@ class JobManagerService {
 const jobManagerService = new JobManagerService();
 export default jobManagerService;
 
-// Export class and mock data for testing
-export { JobManagerService, MOCK_JOB_POSTS, MOCK_COMPANIES };
+// Export class and mock data for testing (MOCK_COMPANIES removed - use real API)
+export { JobManagerService, MOCK_JOB_POSTS };

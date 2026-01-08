@@ -16,9 +16,10 @@ const JobListPage = () => {
     const defaultSearchFilters = useMemo(() => ({}), []);
 
     // Local State for Dynamic Filters
+    // Default location: Vietnam per Requirement 4.3.1
     const [filters, setFilters] = useState({
-        location: '', // Changed default to empty (All Locations) or 'Vietnam' if desired
-        employmentType: null, // Changed to null for single select logic
+        location: 'Vietnam', // Default to Vietnam per 4.3.1
+        employmentType: [], // Array for multi-select per 4.1.1
         minSalary: '',
         maxSalary: '',
         fresher: false,
@@ -78,6 +79,7 @@ const JobListPage = () => {
         fetch();
 
     }, [page, size, filters.employmentType, filters.location, filters.minSalary, filters.maxSalary, filters.fresher, filters.search, fetchJobs, updateHasMore]);
+
 
     useEffect(() => {
         updateHasMore(total, jobs.length);
@@ -169,8 +171,8 @@ const JobListPage = () => {
                                 filters={filters}
                                 onFilterChange={(newValues) => setFilters(prev => ({ ...prev, ...newValues }))}
                                 onReset={() => setFilters({
-                                    location: '',
-                                    employmentType: null,
+                                    location: 'Vietnam', // Reset to default Vietnam
+                                    employmentType: [], // Reset to empty array
                                     minSalary: '',
                                     maxSalary: '',
                                     fresher: false,
@@ -183,8 +185,8 @@ const JobListPage = () => {
 
                 {/* Main Content */}
                 <div className="flex-1 w-full space-y-6">
-                    {/* Active Filters Summary*/}
-                    {(filters.employmentType || filters.location || filters.fresher) && (
+                    {/* Active Filters Summary - Updated for multi-select */}
+                    {(filters.employmentType?.length > 0 || filters.location || filters.fresher) && (
                         <div className="flex flex-wrap gap-2">
                             {filters.location && (
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${isDark ? 'bg-dark-800 border-dark-700 text-white' : 'bg-white border-gray-300 text-gray-800'}`}>
@@ -192,12 +194,15 @@ const JobListPage = () => {
                                     <button onClick={() => handleFilterChange({ location: '' })}><Filter className="w-3 h-3 rotate-45" /></button>
                                 </span>
                             )}
-                            {filters.employmentType && (
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${isDark ? 'bg-dark-800 border-dark-700 text-white' : 'bg-white border-gray-300 text-gray-800'}`}>
-                                    {filters.employmentType}
-                                    <button onClick={() => handleFilterChange({ employmentType: null })}><Filter className="w-3 h-3 rotate-45" /></button>
+                            {/* Show each selected employment type as a badge */}
+                            {filters.employmentType?.map((type, idx) => (
+                                <span key={idx} className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${isDark ? 'bg-dark-800 border-dark-700 text-white' : 'bg-white border-gray-300 text-gray-800'}`}>
+                                    {type}
+                                    <button onClick={() => handleFilterChange({
+                                        employmentType: filters.employmentType.filter(t => t !== type)
+                                    })}><Filter className="w-3 h-3 rotate-45" /></button>
                                 </span>
-                            )}
+                            ))}
                             {filters.fresher && (
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${isDark ? 'bg-green-900/30 border-green-800 text-green-400' : 'bg-green-50 border-green-200 text-green-700'}`}>
                                     Fresher Friendly

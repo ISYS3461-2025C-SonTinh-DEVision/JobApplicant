@@ -9,7 +9,7 @@
  */
 
 import React from "react";
-import { MapPin, Briefcase, DollarSign, Clock, Building2, Bookmark, BookmarkCheck } from "lucide-react";
+import { MapPin, Briefcase, DollarSign, Clock, Building2, Bookmark, BookmarkCheck, Calendar, AlertTriangle } from "lucide-react";
 import { Tag } from "../reusable";
 import { useCard } from "../headless/card";
 
@@ -37,14 +37,18 @@ export function JobCard({
     id,
     title,
     company,
+    companyLogo, // Company logo URL
     location,
     employmentType,
     salary,
     skills = [],
     fresher,
     postedAt,
-    expiresAt,
+    expiresAt, // Expiry date per Requirement 4.1.4
   } = job;
+
+  // Check if job is expired
+  const isExpired = expiresAt && new Date(expiresAt) < new Date();
 
   const themes = {
     dark: {
@@ -54,6 +58,7 @@ export function JobCard({
       meta: 'text-dark-300 text-sm flex items-center gap-1.5', // Changed from 400 to 300
       salary: 'text-green-400 font-semibold', // More visible green
       badge: 'bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded-full font-medium',
+      expiredBadge: 'bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded-full font-medium',
       button: 'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
       buttonPrimary: 'bg-primary-600 text-white hover:bg-primary-700 shadow-md shadow-primary-500/20',
       buttonSecondary: 'bg-dark-600 text-white border border-dark-500 hover:bg-dark-500 hover:border-dark-400', // Much more visible
@@ -68,6 +73,7 @@ export function JobCard({
       meta: 'text-gray-600 text-sm flex items-center gap-1.5', // Changed from 500 to 600
       salary: 'text-green-600 font-semibold',
       badge: 'bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium',
+      expiredBadge: 'bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full font-medium',
       button: 'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
       buttonPrimary: 'bg-primary-600 text-white hover:bg-primary-700 shadow-md shadow-primary-500/20',
       buttonSecondary: 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200 hover:border-gray-400', // More visible
@@ -101,17 +107,31 @@ export function JobCard({
     <div className={`${theme.card} ${className}`}>
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-3">
-        <div className="flex-1 min-w-0">
-          <h3
-            className={`${theme.title} cursor-pointer truncate`}
-            onClick={() => onView && onView(job)}
-          >
-            {title}
-          </h3>
-          <p className={theme.company}>
-            <Building2 className="w-4 h-4" />
-            {company}
-          </p>
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          {/* Company Logo or Fallback */}
+          {companyLogo ? (
+            <img
+              src={companyLogo}
+              alt={company}
+              className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+            />
+          ) : (
+            <div className={`w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center text-sm font-bold ${variant === 'dark' ? 'bg-gradient-to-br from-pink-500 to-violet-500 text-white' : 'bg-gradient-to-br from-primary-400 to-primary-600 text-white'}`}>
+              {company?.charAt(0) || '?'}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h3
+              className={`${theme.title} cursor-pointer truncate`}
+              onClick={() => onView && onView(job)}
+            >
+              {title}
+            </h3>
+            <p className={theme.company}>
+              <Building2 className="w-4 h-4" />
+              {company}
+            </p>
+          </div>
         </div>
 
         {onSave && (
@@ -151,7 +171,19 @@ export function JobCard({
             {formatDate(postedAt)}
           </span>
         )}
-        {fresher && (
+        {expiresAt && (
+          <span className={theme.meta}>
+            <Calendar className="w-4 h-4" />
+            Expires: {formatDate(expiresAt)}
+          </span>
+        )}
+        {isExpired && (
+          <span className={theme.expiredBadge}>
+            <AlertTriangle className="w-3 h-3 inline mr-1" />
+            Expired
+          </span>
+        )}
+        {fresher && !isExpired && (
           <span className={theme.badge}>Fresher Welcome</span>
         )}
       </div>
