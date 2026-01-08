@@ -1,6 +1,7 @@
 package com.DEVision.JobApplicant.applicant.internal.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,8 @@ import com.DEVision.JobApplicant.applicant.internal.dto.AddEducationRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillsRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddWorkExperienceRequest;
+import com.DEVision.JobApplicant.applicant.internal.dto.ApplicantListItemResponse;
+import com.DEVision.JobApplicant.applicant.internal.dto.ApplicantSearchResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.EducationResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioItemResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioResponse;
@@ -25,6 +28,7 @@ import com.DEVision.JobApplicant.applicant.internal.dto.WorkExperienceResponse;
 import com.DEVision.JobApplicant.applicant.service.ApplicantService;
 import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
+import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.model.PlanType;
 
 import java.util.List;
@@ -58,6 +62,57 @@ public class ApplicantInternalService {
         Applicant applicant = applicantService.getApplicantById(id);
         return applicant != null ? toProfileResponse(applicant) : null;
     }
+    
+    /**
+     * Search applicants with pagination and filters
+     * @param keyword Search keyword for firstName, lastName, or city
+     * @param country Filter by country (can be country code or enum name)
+     * @param skill Filter by technical skill
+     * @param page Page number (0-based)
+     * @param size Page size (default: 10, max: 100)
+     * @param sortBy Field to sort by (default: createdAt)
+     * @param sortDirection Sort direction (asc or desc, default: desc)
+     * @return Paginated response with applicants
+     */
+    public ApplicantSearchResponse searchApplicants(String keyword, String country, String skill,
+                                                    int page, int size, String sortBy, String sortDirection) {
+        // Validate and sanitize page size
+        if (size < 1) size = 10;
+        if (size > 100) size = 100;
+        if (page < 0) page = 0;
+        
+        // Default sort values
+        if (sortBy == null || sortBy.trim().isEmpty()) {
+            sortBy = "createdAt";
+        }
+        if (sortDirection == null || sortDirection.trim().isEmpty()) {
+            sortDirection = "desc";
+        }
+        
+        // Parse country if provided
+        Country countryEnum = null;
+        if (country != null && !country.trim().isEmpty()) {
+            countryEnum = Country.fromCode(country.trim());
+        }
+        
+        // Call service method
+        Page<Applicant> applicantsPage = applicantService.searchApplicants(
+            keyword, countryEnum, skill, page, size, sortBy, sortDirection
+        );
+        
+        // Convert to ApplicantListItemResponse list (excludes userId)
+        List<ApplicantListItemResponse> applicantListItems = applicantsPage.getContent().stream()
+            .map(applicant -> toApplicantListItemResponse(applicant))
+            .collect(Collectors.toList());
+        
+        return new ApplicantSearchResponse(
+            applicantListItems,
+            applicantsPage.getNumber(),
+            applicantsPage.getSize(),
+            applicantsPage.getTotalElements(),
+            applicantsPage.getTotalPages()
+        );
+    }
 
     /**
      * Update user profile
@@ -66,13 +121,19 @@ public class ApplicantInternalService {
         Applicant updatedApplicant = new Applicant();
         updatedApplicant.setFirstName(request.getFirstName());
         updatedApplicant.setLastName(request.getLastName());
-        updatedApplicant.setCountry(request.getCountry());
+
         updatedApplicant.setPhoneNumber(request.getPhoneNumber());
         updatedApplicant.setAddress(request.getAddress());
         updatedApplicant.setCity(request.getCity());
         updatedApplicant.setObjectiveSummary(request.getObjectiveSummary());
 
         Applicant updated = applicantService.updateApplicant(id, updatedApplicant);
+        
+        // Update country in User if provided
+        if (request.getCountry() != null && updated != null) {
+            applicantService.updateUserCountry(updated.getUserId(), request.getCountry());
+        }
+        
         return updated != null ? toProfileResponse(updated) : null;
     }
 
@@ -229,13 +290,19 @@ public class ApplicantInternalService {
         Applicant updatedApplicant = new Applicant();
         updatedApplicant.setFirstName(request.getFirstName());
         updatedApplicant.setLastName(request.getLastName());
-        updatedApplicant.setCountry(request.getCountry());
+
         updatedApplicant.setPhoneNumber(request.getPhoneNumber());
         updatedApplicant.setAddress(request.getAddress());
         updatedApplicant.setCity(request.getCity());
         updatedApplicant.setObjectiveSummary(request.getObjectiveSummary());
 
         Applicant updated = applicantService.updateApplicant(applicant.getId(), updatedApplicant);
+        
+        // Update country in User if provided
+        if (request.getCountry() != null && updated != null) {
+            applicantService.updateUserCountry(updated.getUserId(), request.getCountry());
+        }
+        
         return updated != null ? toProfileResponse(updated) : null;
     }
 
@@ -539,18 +606,76 @@ public class ApplicantInternalService {
                 .collect(Collectors.toList())
             : List.of();
 
-        // Fetch user to get planType
-        User user = authRepository.findByEmail(applicant.getUserId());
+        // Fetch user to get planType and country
+        User user = authRepository.findById(applicant.getUserId()).orElse(null);
         PlanType planType = user != null && user.getPlanType() != null
             ? user.getPlanType()
             : PlanType.FREEMIUM;
+        Country country = user != null ? user.getCountry() : null;
 
         return new ProfileResponse(
             applicant.getId(),
             applicant.getUserId(),
             applicant.getFirstName(),
             applicant.getLastName(),
-            applicant.getCountry(),
+            country,
+            applicant.getPhoneNumber(),
+            applicant.getAddress(),
+            applicant.getCity(),
+            educationResponses,
+            workExperienceResponses,
+            skills,
+            applicant.getObjectiveSummary(),
+            planType,
+            applicant.getAvatarUrl(),
+            portfolioImages,
+            portfolioVideos,
+            applicant.getCreatedAt(),
+            applicant.getUpdatedAt()
+        );
+    }
+    
+    private ApplicantListItemResponse toApplicantListItemResponse(Applicant applicant) {
+        List<EducationResponse> educationResponses = applicant.getEducation() != null
+            ? applicant.getEducation().stream()
+                .map(this::toEducationResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
+        List<WorkExperienceResponse> workExperienceResponses = applicant.getWorkExperience() != null
+            ? applicant.getWorkExperience().stream()
+                .map(this::toWorkExperienceResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
+        List<String> skills = applicant.getSkills() != null
+            ? applicant.getSkills()
+            : List.of();
+
+        List<PortfolioItemResponse> portfolioImages = applicant.getPortfolioImages() != null
+            ? applicant.getPortfolioImages().stream()
+                .map(this::toPortfolioItemResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
+        List<PortfolioItemResponse> portfolioVideos = applicant.getPortfolioVideos() != null
+            ? applicant.getPortfolioVideos().stream()
+                .map(this::toPortfolioItemResponse)
+                .collect(Collectors.toList())
+            : List.of();
+
+        // Fetch user to get planType and country
+        User user = authRepository.findById(applicant.getUserId()).orElse(null);
+        PlanType planType = user != null && user.getPlanType() != null
+            ? user.getPlanType()
+            : PlanType.FREEMIUM;
+        Country country = user != null ? user.getCountry() : null;
+
+        return new ApplicantListItemResponse(
+            applicant.getId(),
+            applicant.getFirstName(),
+            applicant.getLastName(),
+            country,
             applicant.getPhoneNumber(),
             applicant.getAddress(),
             applicant.getCity(),

@@ -7,6 +7,8 @@ import com.DEVision.JobApplicant.applicant.entity.Applicant;
 import com.DEVision.JobApplicant.applicant.external.dto.ApplicantDto;
 import com.DEVision.JobApplicant.applicant.external.dto.CreateApplicantRequest;
 import com.DEVision.JobApplicant.applicant.service.ApplicantService;
+import com.DEVision.JobApplicant.auth.entity.User;
+import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 
 /**
  * External service for other backend modules to interact with applicants
@@ -17,6 +19,9 @@ public class ApplicantExternalService {
 
     @Autowired
     private ApplicantService applicantService;
+    
+    @Autowired
+    private AuthRepository authRepository;
 
     /**
      * PRIMARY METHOD: Create applicant profile
@@ -25,7 +30,6 @@ public class ApplicantExternalService {
     public ApplicantDto createApplicant(CreateApplicantRequest request) {
         Applicant applicant = new Applicant();
         applicant.setUserId(request.getUserId());
-        applicant.setCountry(request.getCountry());
         applicant.setFirstName(request.getFirstName());
         applicant.setLastName(request.getLastName());
         applicant.setPhoneNumber(request.getPhoneNumber());
@@ -33,6 +37,11 @@ public class ApplicantExternalService {
         applicant.setCity(request.getCity());
 
         Applicant saved = applicantService.createApplicant(applicant);
+        
+        if (request.getCountry() != null) {
+            applicantService.updateUserCountry(request.getUserId(), request.getCountry());
+        }
+        
         return toDto(saved);
     }
 
@@ -72,14 +81,16 @@ public class ApplicantExternalService {
         return false;
     }
 
-    // Convert entity to DTO
     private ApplicantDto toDto(Applicant applicant) {
+        User user = authRepository.findById(applicant.getUserId()).orElse(null);
+        com.DEVision.JobApplicant.common.country.model.Country country = user != null ? user.getCountry() : null;
+        
         return new ApplicantDto(
             applicant.getId(),
             applicant.getUserId(),
             applicant.getFirstName(),
             applicant.getLastName(),
-            applicant.getCountry(),
+            country,
             applicant.getPhoneNumber(),
             applicant.getAddress(),
             applicant.getCity(),

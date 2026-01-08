@@ -39,6 +39,7 @@ import JobDetailPage from '../pages/job/JobDetailPage';
 import SubscriptionPage from '../pages/subscription/SubscriptionPage';
 import PaymentPage from '../pages/subscription/PaymentPage';
 import SearchProfilePage from '../pages/subscription/SearchProfilePage';
+import NotificationsPage from '../pages/dashboard/NotificationsPage';
 
 // Admin Pages
 import AdminLoginPage from '../pages/admin/AdminLoginPage';
@@ -214,6 +215,10 @@ const router = createBrowserRouter([
       {
         path: 'subscription/search-profile',
         element: <SearchProfilePage />,
+      },
+      {
+        path: 'notifications',
+        element: <NotificationsPage />,
       },
       {
         path: 'analytics',

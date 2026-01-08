@@ -3,6 +3,10 @@ package com.DEVision.JobApplicant.applicant.service;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,10 +19,14 @@ import com.DEVision.JobApplicant.applicant.external.service.ApplicantProfileEven
 import com.DEVision.JobApplicant.applicant.internal.dto.ProfileResponse;
 import com.DEVision.JobApplicant.applicant.internal.service.ApplicantInternalService;
 import com.DEVision.JobApplicant.applicant.repository.ApplicantRepository;
+import com.DEVision.JobApplicant.auth.entity.User;
+import com.DEVision.JobApplicant.auth.repository.AuthRepository;
+import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.storage.service.FileStorageService;
 import com.DEVision.JobApplicant.common.storage.dto.FileUploadResult;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -37,6 +45,9 @@ public class ApplicantService {
     
     @Autowired
     private ApplicantRepository applicantRepository;
+    
+    @Autowired
+    private AuthRepository authRepository;
     
     @Autowired
     private FileStorageService fileStorageService;
@@ -75,11 +86,7 @@ public class ApplicantService {
             if (updatedApplicant.getLastName() != null) {
                 applicant.setLastName(updatedApplicant.getLastName());
             }
-            boolean countryUpdated = false;
-            if (updatedApplicant.getCountry() != null) {
-                applicant.setCountry(updatedApplicant.getCountry());
-                countryUpdated = true;
-            }
+
             if (updatedApplicant.getPhoneNumber() != null) {
                 applicant.setPhoneNumber(updatedApplicant.getPhoneNumber());
             }
@@ -95,17 +102,27 @@ public class ApplicantService {
 
             applicant.setUpdatedAt(LocalDateTime.now());
             
-            Applicant saved = applicantRepository.save(applicant);
-            
-            // Send Kafka event if country was updated
-            if (countryUpdated) {
-                sendProfileEvent(saved, "COUNTRY_UPDATED");
-            }
-            
-            return saved;
+            return applicantRepository.save(applicant);
         }
         
         return null;
+    }
+    
+    /**
+     * Update country in User account
+     * @param userId User ID
+     * @param country Country to set
+     * @return true if updated, false if user not found
+     */
+    public boolean updateUserCountry(String userId, Country country) {
+        Optional<User> userOpt = authRepository.findById(userId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.setCountry(country);
+            authRepository.save(user);
+            return true;
+        }
+        return false;
     }
     
     // Education Management
@@ -610,6 +627,64 @@ public class ApplicantService {
         event.setCreatedAt(profile.getCreatedAt());
         event.setUpdatedAt(profile.getUpdatedAt());
         return event;
+    }
+    
+    /**
+     * Search applicants with pagination and filters
+     * @param keyword Search keyword for firstName, lastName, or city
+     * @param country Filter by country (now stored in User, not Applicant)
+     * @param skill Filter by technical skill
+     * @param page Page number (0-based)
+     * @param size Page size
+     * @param sortBy Field to sort by (default: createdAt)
+     * @param sortDirection Sort direction (asc or desc)
+     * @return Page of applicants matching the criteria
+     */
+    public Page<Applicant> searchApplicants(String keyword, Country country, String skill,
+                                            int page, int size, String sortBy, String sortDirection) {
+        // Create sort object
+        Sort sort = sortDirection.equalsIgnoreCase("asc") 
+            ? Sort.by(sortBy).ascending() 
+            : Sort.by(sortBy).descending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+        boolean hasCountry = country != null;
+        boolean hasSkill = skill != null && !skill.trim().isEmpty();
+        
+        // If country filter is provided, get user IDs by country first (country is now in User)
+        List<String> userIdsByCountry = null;
+        if (hasCountry) {
+            List<User> usersByCountry = authRepository.findByCountry(country);
+            userIdsByCountry = usersByCountry.stream()
+                .map(User::getId)
+                .collect(java.util.stream.Collectors.toList());
+            
+            // If no users found for this country, return empty page
+            if (userIdsByCountry.isEmpty()) {
+                return Page.empty(pageable);
+            }
+        }
+        
+        // Determine which query to use based on filters
+        if (hasKeyword && hasCountry && hasSkill) {
+            return applicantRepository.searchByKeywordAndUserIdInAndSkill(keyword.trim(), userIdsByCountry, skill.trim(), pageable);
+        } else if (hasKeyword && hasCountry) {
+            return applicantRepository.searchByKeywordAndUserIdIn(keyword.trim(), userIdsByCountry, pageable);
+        } else if (hasKeyword && hasSkill) {
+            return applicantRepository.searchByKeywordAndSkill(keyword.trim(), skill.trim(), pageable);
+        } else if (hasCountry && hasSkill) {
+            return applicantRepository.findByUserIdInAndSkillsContainingIgnoreCase(userIdsByCountry, skill.trim(), pageable);
+        } else if (hasKeyword) {
+            return applicantRepository.searchByKeyword(keyword.trim(), pageable);
+        } else if (hasCountry) {
+            return applicantRepository.findByUserIdIn(userIdsByCountry, pageable);
+        } else if (hasSkill) {
+            return applicantRepository.findBySkillsContainingIgnoreCase(skill.trim(), pageable);
+        } else {
+            return applicantRepository.findAll(pageable);
+        }
     }
 }
 

@@ -226,5 +226,160 @@ public class NotificationController {
             return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    
+    // ===== /me Endpoints - Current User Operations =====
+    
+    @Operation(
+        summary = "Get my notifications",
+        description = "Retrieve notifications for the current authenticated user with metadata (total count and unread count). " +
+                     "Uses JWT token to identify user. " +
+                     "Optional query parameter 'unread=true' to filter only unread notifications."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Notifications retrieved with metadata"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @GetMapping("/me")
+    public ResponseEntity<?> getMyNotifications(
+            @Parameter(description = "Filter to show only unread notifications", required = false)
+            @RequestParam(required = false, defaultValue = "false") boolean unread) {
+        try {
+            NotificationListResponse response = internalService.getMyNotifications(unread);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            System.err.println("Error fetching my notifications: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @Operation(
+        summary = "Mark my notification as read",
+        description = "Mark a specific notification as read for the current authenticated user. " +
+                     "Updates unread count. Only allows marking own notifications."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Marked as read"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "403", description = "Not authorized to mark this notification"),
+        @ApiResponse(responseCode = "404", description = "Notification not found"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @PatchMapping("/me/{notificationId}/read")
+    public ResponseEntity<?> markMyNotificationAsRead(
+            @Parameter(description = "Notification ID to mark as read")
+            @PathVariable String notificationId) {
+        try {
+            NotificationResponse response = internalService.markMyNotificationAsRead(notificationId);
+            if (response != null) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Notification not found");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+        } catch (Exception e) {
+            System.err.println("Error marking my notification as read: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @Operation(
+        summary = "Mark all my notifications as read",
+        description = "Mark all notifications as read for the current authenticated user. " +
+                     "Typically used by 'Mark all read' button. Uses JWT token to identify user."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "All notifications marked as read"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @PatchMapping("/me/read-all")
+    public ResponseEntity<?> markMyAllAsRead() {
+        try {
+            internalService.markMyAllAsRead();
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "All notifications marked as read");
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            System.err.println("Error marking all as read: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @Operation(
+        summary = "Delete my notification",
+        description = "Delete a specific notification for the current authenticated user. " +
+                     "Only allows deleting own notifications."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Notification deleted"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "403", description = "Not authorized to delete this notification"),
+        @ApiResponse(responseCode = "404", description = "Notification not found"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @DeleteMapping("/me/{notificationId}")
+    public ResponseEntity<?> deleteMyNotification(
+            @Parameter(description = "Notification ID to delete")
+            @PathVariable String notificationId) {
+        try {
+            boolean deleted = internalService.deleteMyNotification(notificationId);
+            Map<String, String> response = new HashMap<>();
+            
+            if (deleted) {
+                response.put("message", "Notification deleted successfully");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("message", "Notification not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+        } catch (Exception e) {
+            System.err.println("Error deleting my notification: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @Operation(
+        summary = "Delete all my notifications",
+        description = "Delete all notifications for the current authenticated user. " +
+                     "Use with caution - this cannot be undone. Uses JWT token to identify user."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "All notifications deleted"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @DeleteMapping("/me")
+    public ResponseEntity<?> deleteMyAllNotifications() {
+        try {
+            internalService.deleteMyAllNotifications();
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "All notifications deleted successfully");
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            System.err.println("Error deleting all my notifications: " + e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
 

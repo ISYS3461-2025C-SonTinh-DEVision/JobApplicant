@@ -1,3 +1,4 @@
+
 /**
  * Notification Service
  * 
@@ -190,7 +191,6 @@ class NotificationService {
             throw error;
         }
     }
-
     /**
      * Mark all notifications as read
      * @returns {Promise<Object>} Result
@@ -244,7 +244,6 @@ class NotificationService {
             throw error;
         }
     }
-
     /**
      * Delete all notifications
      * @returns {Promise<Object>} Result
@@ -288,14 +287,49 @@ class NotificationService {
      * Simulate a job match notification (for premium users)
      * @param {Object} job - Matched job details
      */
-    simulateJobMatchNotification(job) {
-        return this.addMockNotification({
-            type: NOTIFICATION_TYPES.JOB_MATCH,
-            title: 'New Job Match!',
-            content: `A new job "${job.title}" at ${job.company} matches your search profile.`,
-            jobId: job.id,
-            metadata: job,
-        });
+    /**
+     * Simulate a random notification (for testing)
+     */
+    simulateRandomNotification() {
+        const types = [
+            NOTIFICATION_TYPES.JOB_MATCH,
+            NOTIFICATION_TYPES.APPLICATION_UPDATE,
+            NOTIFICATION_TYPES.PROFILE_VIEW
+        ];
+        const type = types[Math.floor(Math.random() * types.length)];
+
+        let notificationData = {};
+
+        switch (type) {
+            case NOTIFICATION_TYPES.JOB_MATCH:
+                notificationData = {
+                    type,
+                    title: 'New Job Match!',
+                    content: 'A new job "Senior React Developer" at TechCorp matches your profile.',
+                    jobId: `job_${Date.now()}`,
+                };
+                break;
+            case NOTIFICATION_TYPES.APPLICATION_UPDATE:
+                const statuses = ['viewed', 'shortlisted', 'rejected', 'interview'];
+                const status = statuses[Math.floor(Math.random() * statuses.length)];
+                notificationData = {
+                    type,
+                    title: 'Application Update',
+                    content: `Your application for "Frontend Developer" has been ${status}.`,
+                    applicationId: `app_${Date.now()}`,
+                };
+                break;
+            case NOTIFICATION_TYPES.PROFILE_VIEW:
+                notificationData = {
+                    type,
+                    title: 'Profile Viewed',
+                    content: 'A recruiter from a top tech company viewed your profile.',
+                    companyId: `comp_${Date.now()}`,
+                };
+                break;
+        }
+
+        return this.addMockNotification(notificationData);
     }
 
     /**
@@ -389,5 +423,4 @@ class NotificationService {
 const notificationService = new NotificationService();
 export default notificationService;
 
-// Export class for testing
-export { NotificationService, MOCK_NOTIFICATIONS };
+

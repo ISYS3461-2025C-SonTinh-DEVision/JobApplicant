@@ -22,7 +22,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Service
 public class OAuth2Service {
 
-    @Value("${spring.security.oauth2.client.registration.google.client-id:}")
+    // Try multiple sources for Google Client ID:
+    // 1. env.GOOGLE_CLIENT_ID (spring-dotenv format)
+    // 2. Direct GOOGLE_CLIENT_ID environment variable
+    // 3. spring.security property (application.yml)
+    @Value("${env.GOOGLE_CLIENT_ID:${GOOGLE_CLIENT_ID:${spring.security.oauth2.client.registration.google.client-id:}}}")
     private String googleClientId;
 
     private final RestTemplate restTemplate = new RestTemplate();

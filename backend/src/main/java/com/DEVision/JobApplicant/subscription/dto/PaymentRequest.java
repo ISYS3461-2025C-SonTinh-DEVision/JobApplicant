@@ -2,11 +2,13 @@ package com.DEVision.JobApplicant.subscription.dto;
 
 import java.math.BigDecimal;
 
-// Payment request to JM system (can be changed based on JM API)
+// Payment request to JM system
 public record PaymentRequest(
-        String userId,
+        String email,
         BigDecimal amount,
-        String currency
+        String currency,
+        String paymentMethod,
+        String subscriptionType
 ) {
 }
 
