@@ -71,8 +71,8 @@ public class SecurityConfig {
 						.requestMatchers("/api/job-posts/**", "/api/companies/**", "/api/jm/company/**").permitAll()
 						// Swagger/OpenAPI documentation endpoints
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-						// Notification endpoints (for testing - consider requiring auth in production)
-						.requestMatchers("/api/notifications/**").permitAll()
+						// Notification endpoints - require authentication (user-specific data)
+								.requestMatchers("/api/notifications/**").authenticated()
 						// WebSocket endpoint
 						.requestMatchers("/ws/**").permitAll()
 						// Admin endpoints
