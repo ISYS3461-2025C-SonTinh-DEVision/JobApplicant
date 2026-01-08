@@ -212,6 +212,21 @@ class NotificationService {
     }
 
     /**
+     * Simulate a job match for testing purposes
+     * Creates a simulated job post that matches the user's search profile
+     * @returns {Promise<Object>} Simulated matched job post
+     */
+    async simulateJobMatch() {
+        try {
+            const result = await httpUtil.post(`${API_ENDPOINTS.SEARCH_PROFILE.GET}/simulate-job-match`);
+            return { success: true, data: result };
+        } catch (error) {
+            console.error('Error simulating job match:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Mark a notification as read
      * @param {string} notificationId - Notification ID
      * @returns {Promise<Object>} Updated notification

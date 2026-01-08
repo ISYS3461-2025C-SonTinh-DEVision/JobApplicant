@@ -65,5 +65,12 @@ public class MatchedJobPostService {
     public boolean isJobPostMatched(String userId, String jobPostId) {
         return matchedJobPostRepository.existsByUserIdAndJobPostId(userId, jobPostId);
     }
+
+    /**
+     * Save a matched job post (used by simulation endpoint)
+     */
+    public MatchedJobPost saveMatchedJobPost(MatchedJobPost matchedJobPost) {
+        return matchedJobPostRepository.save(matchedJobPost);
+    }
 }
 

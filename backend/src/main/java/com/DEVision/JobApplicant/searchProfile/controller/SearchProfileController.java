@@ -188,6 +188,70 @@ public class SearchProfileController {
         }
     }
 
+    /**
+     * Simulate a job match for testing purposes
+     * Creates a simulated job post that matches the user's search profile and triggers matching
+     */
+    @PostMapping("/me/simulate-job-match")
+    public ResponseEntity<?> simulateJobMatch() {
+        System.out.println("========== DEBUG: POST /me/simulate-job-match endpoint called ==========");
+        try {
+            String userId = getCurrentUserId();
+            System.out.println("DEBUG: userId = " + userId);
+            
+            // Get user's search profile
+            List<SearchProfileDto> profiles = searchProfileService.getSearchProfilesByUserId(userId);
+            if (profiles == null || profiles.isEmpty()) {
+                return ResponseEntity.badRequest().body("No search profile found. Please create a search profile first.");
+            }
+            
+            SearchProfileDto profile = profiles.get(0);
+            System.out.println("DEBUG: Found profile with skills: " + profile.desiredSkills());
+            
+            // Create a simulated job post that matches the user's profile
+            MatchedJobPost simulatedMatch = new MatchedJobPost();
+            simulatedMatch.setUserId(userId);
+            simulatedMatch.setJobPostId("sim-" + System.currentTimeMillis());
+            simulatedMatch.setJobTitle(profile.jobTitles() != null && !profile.jobTitles().isEmpty() 
+                ? profile.jobTitles().get(0) + " at Tech Startup"
+                : "Software Engineer at Tech Startup");
+            simulatedMatch.setJobDescription("This is a simulated job post for testing the notification system. " +
+                "The job matches your search profile preferences.");
+            simulatedMatch.setLocation(profile.desiredCountry() != null ? profile.desiredCountry() : "Vietnam");
+            simulatedMatch.setRequiredSkills(profile.desiredSkills());
+            simulatedMatch.setMatchedSkills(profile.desiredSkills());
+            simulatedMatch.setMatchScore(85.0 + Math.random() * 15); // 85-100% match
+            simulatedMatch.setSalaryMin(profile.minSalary());
+            simulatedMatch.setSalaryMax(profile.maxSalary());
+            simulatedMatch.setSalaryCurrency("USD");
+            simulatedMatch.setPostedDate(java.time.Instant.now());
+            simulatedMatch.setIsNotified(false);
+            simulatedMatch.setIsViewed(false);
+            
+            // Convert employment types for display
+            if (profile.employmentTypes() != null && !profile.employmentTypes().isEmpty()) {
+                simulatedMatch.setEmploymentTypes(
+                    profile.employmentTypes().stream()
+                        .map(et -> et.name())
+                        .collect(java.util.stream.Collectors.toList())
+                );
+            }
+            
+            // Save the simulated match
+            MatchedJobPost saved = matchedJobPostService.saveMatchedJobPost(simulatedMatch);
+            System.out.println("DEBUG: Saved simulated match with id: " + saved.getId());
+            
+            return ResponseEntity.ok(saved);
+        } catch (SecurityException e) {
+            System.out.println("DEBUG: SecurityException - " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        } catch (Exception e) {
+            System.out.println("DEBUG: Exception - " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
     // ===== Legacy Endpoints with userId parameter =====
 
     @PostMapping("/skills")

@@ -59,7 +59,7 @@ const ConnectionStatusBadge = ({ isConnected, isDark }) => {
 /**
  * Premium Status Banner
  */
-const PremiumBanner = ({ isPremium, isConnected, onCheckMatches, checkingMatches, isDark }) => {
+const PremiumBanner = ({ isPremium, isConnected, onCheckMatches, checkingMatches, onSimulate, simulatingJob, isDark }) => {
     const navigate = useNavigate();
 
     if (isPremium) {
@@ -124,6 +124,30 @@ const PremiumBanner = ({ isPremium, isConnected, onCheckMatches, checkingMatches
                         )}
                     </button>
                     <button
+                        onClick={onSimulate}
+                        disabled={simulatingJob}
+                        className={`
+                            flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all
+                            ${simulatingJob
+                                ? 'bg-green-600/50 text-white/70 cursor-not-allowed'
+                                : 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/30 hover:shadow-green-500/50'
+                            }
+                        `}
+                        title="Create a simulated job that matches your profile for testing"
+                    >
+                        {simulatingJob ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Creating...
+                            </>
+                        ) : (
+                            <>
+                                <Target className="w-4 h-4" />
+                                Simulate Job
+                            </>
+                        )}
+                    </button>
+                    <button
                         onClick={() => navigate('/dashboard/subscription')}
                         className={`
                             flex items-center gap-1 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
@@ -159,6 +183,7 @@ export default function NotificationsPage() {
     } = useNotifications();
     const { isDark } = useTheme();
     const [filter, setFilter] = useState('all'); // 'all' or 'unread'
+    const [simulatingJob, setSimulatingJob] = useState(false);
 
     const filteredList = filter === 'unread'
         ? notifications.filter(n => !n.read)
@@ -170,6 +195,25 @@ export default function NotificationsPage() {
             await checkForJobMatches();
         } catch (err) {
             console.error('Failed to check for matches:', err);
+        }
+    };
+
+    // Handle simulate job match for testing
+    const handleSimulateJob = async () => {
+        try {
+            setSimulatingJob(true);
+            // Import notification service
+            const { default: notificationService } = await import('../../services/NotificationService');
+            const result = await notificationService.simulateJobMatch();
+            if (result.success) {
+                // Refresh matches after simulation
+                await checkForJobMatches();
+                console.log('Successfully simulated job match:', result.data);
+            }
+        } catch (err) {
+            console.error('Failed to simulate job match:', err);
+        } finally {
+            setSimulatingJob(false);
         }
     };
 
@@ -236,6 +280,8 @@ export default function NotificationsPage() {
                 isConnected={isConnected}
                 onCheckMatches={handleCheckMatches}
                 checkingMatches={checkingMatches}
+                onSimulate={handleSimulateJob}
+                simulatingJob={simulatingJob}
                 isDark={isDark}
             />
 
