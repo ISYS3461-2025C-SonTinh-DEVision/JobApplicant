@@ -45,7 +45,6 @@ public class ApplicationHistoryResponse {
     public static class ApplicationHistoryStatistics {
         private long totalApplications;
         private long pendingCount;
-        private long reviewingCount;
         private long acceptedCount;
         private long rejectedCount;
         private long withdrawnCount;
@@ -54,11 +53,10 @@ public class ApplicationHistoryResponse {
         public ApplicationHistoryStatistics() {}
         
         public ApplicationHistoryStatistics(long totalApplications, long pendingCount, 
-                                           long reviewingCount, long acceptedCount, 
+                                           long acceptedCount, 
                                            long rejectedCount, long withdrawnCount) {
             this.totalApplications = totalApplications;
             this.pendingCount = pendingCount;
-            this.reviewingCount = reviewingCount;
             this.acceptedCount = acceptedCount;
             this.rejectedCount = rejectedCount;
             this.withdrawnCount = withdrawnCount;
@@ -79,14 +77,6 @@ public class ApplicationHistoryResponse {
         
         public void setPendingCount(long pendingCount) {
             this.pendingCount = pendingCount;
-        }
-        
-        public long getReviewingCount() {
-            return reviewingCount;
-        }
-        
-        public void setReviewingCount(long reviewingCount) {
-            this.reviewingCount = reviewingCount;
         }
         
         public long getAcceptedCount() {

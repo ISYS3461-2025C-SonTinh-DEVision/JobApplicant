@@ -61,10 +61,13 @@ public class SecurityConfig {
 								"/api/auth/oauth2/callback/google",
 								"/api/countries",
 								"/api/system/verify-token",
-								"/api/applications/job/**")
+								"/api/applications/job/**",
+								"/api/applications/{id}/status",
+								"/api/applicants",
+								"/api/applicants/{id}")
 						.permitAll()
 						// Job Manager proxy endpoints - public for job search (Requirement 4.1.x)
-						.requestMatchers("/api/job-posts/**", "/api/companies/**").permitAll()
+						.requestMatchers("/api/job-posts/**", "/api/companies/**", "/api/jm/company/**").permitAll()
 						// Swagger/OpenAPI documentation endpoints
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
 						// Notification endpoints (for testing - consider requiring auth in production)

@@ -244,7 +244,6 @@ public class ApplicationInternalService {
         // Calculate statistics
         long totalApplications = applications.size();
         long pendingCount = applicationService.countApplicationsByApplicantIdAndStatus(applicantId, Application.ApplicationStatus.PENDING);
-        long reviewingCount = applicationService.countApplicationsByApplicantIdAndStatus(applicantId, Application.ApplicationStatus.REVIEWING);
         long acceptedCount = applicationService.countApplicationsByApplicantIdAndStatus(applicantId, Application.ApplicationStatus.ACCEPTED);
         long rejectedCount = applicationService.countApplicationsByApplicantIdAndStatus(applicantId, Application.ApplicationStatus.REJECTED);
         long withdrawnCount = applicationService.countApplicationsByApplicantIdAndStatus(applicantId, Application.ApplicationStatus.WITHDRAWN);
@@ -252,7 +251,6 @@ public class ApplicationInternalService {
         // Create status counts map
         Map<Application.ApplicationStatus, Long> statusCounts = new HashMap<>();
         statusCounts.put(Application.ApplicationStatus.PENDING, pendingCount);
-        statusCounts.put(Application.ApplicationStatus.REVIEWING, reviewingCount);
         statusCounts.put(Application.ApplicationStatus.ACCEPTED, acceptedCount);
         statusCounts.put(Application.ApplicationStatus.REJECTED, rejectedCount);
         statusCounts.put(Application.ApplicationStatus.WITHDRAWN, withdrawnCount);
@@ -261,7 +259,6 @@ public class ApplicationInternalService {
             new ApplicationHistoryResponse.ApplicationHistoryStatistics(
                 totalApplications,
                 pendingCount,
-                reviewingCount,
                 acceptedCount,
                 rejectedCount,
                 withdrawnCount

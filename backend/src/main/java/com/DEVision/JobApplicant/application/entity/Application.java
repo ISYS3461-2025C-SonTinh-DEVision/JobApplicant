@@ -154,7 +154,6 @@ public class Application {
     
     public enum ApplicationStatus {
         PENDING,
-        REVIEWING,
         ACCEPTED,
         REJECTED,
         WITHDRAWN

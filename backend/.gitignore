@@ -37,3 +37,4 @@ build/
 
 ### ENV ###
 .env
+CLAUDE.md

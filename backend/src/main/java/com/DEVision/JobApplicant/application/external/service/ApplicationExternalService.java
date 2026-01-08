@@ -47,36 +47,23 @@ public class ApplicationExternalService {
     
     /**
      * Get all applications for a job post
-     * Used by job posting system to see who applied
-     * Automatically changes PENDING applications to REVIEWING when retrieved
+     * Used by job posting system to see who applied.
+     * This method is now read-only and does NOT change application status.
      */
     public List<ApplicationResponse> getApplicationsByJobPostId(String jobPostId) {
         List<Application> applications = applicationService.getApplicationsByJobPostId(jobPostId);
-        
-        // Automatically update PENDING applications to REVIEWING when job manager retrieves them
-        applications.stream()
-            .filter(app -> app.getStatus() == Application.ApplicationStatus.PENDING)
-            .forEach(app -> applicationService.updateApplicationStatus(app.getId(), Application.ApplicationStatus.REVIEWING));
-        
-        // Refresh the list to get updated statuses
-        applications = applicationService.getApplicationsByJobPostId(jobPostId);
-        
         return applications.stream()
             .map(this::toResponse)
             .collect(Collectors.toList());
     }
     
     /**
-     * Get application by ID
-     * Automatically changes PENDING application to REVIEWING when retrieved by job manager
+     * Get application by ID.
+     * This method is now read-only and does NOT change application status.
      */
     public ApplicationResponse getApplicationById(String id) {
         Application application = applicationService.getApplicationById(id);
         if (application != null) {
-            // Automatically update PENDING to REVIEWING when job manager views it
-            if (application.getStatus() == Application.ApplicationStatus.PENDING) {
-                application = applicationService.updateApplicationStatus(id, Application.ApplicationStatus.REVIEWING);
-            }
             return toResponse(application);
         }
         return null;
