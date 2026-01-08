@@ -64,7 +64,8 @@ public class SecurityConfig {
 								"/api/applications/job/**",
 								"/api/applications/{id}/status",
 								"/api/applicants",
-								"/api/applicants/{id}")
+								"/api/applicants/{id}",
+								"/api/applicants/user/{id}")
 						.permitAll()
 						// Job Manager proxy endpoints - public for job search (Requirement 4.1.x)
 						.requestMatchers("/api/job-posts/**", "/api/companies/**", "/api/jm/company/**").permitAll()
@@ -78,10 +79,10 @@ public class SecurityConfig {
 						.requestMatchers("/api/system/verify-token").permitAll()
 						// System-to-system endpoints (requires ROLE_SYSTEM or authenticated user)
 						.requestMatchers("/api/applications/job/**").hasAnyRole(
-							"SYSTEM",
-							RoleConfig.APPLICANT.getRoleName(), 
-							RoleConfig.COMPANY.getRoleName(), 
-							RoleConfig.ADMIN.getRoleName())
+								"SYSTEM",
+								RoleConfig.APPLICANT.getRoleName(),
+								RoleConfig.COMPANY.getRoleName(),
+								RoleConfig.ADMIN.getRoleName())
 						// Admin endpoints - permit all for now (can add ADMIN role check later)
 						.requestMatchers("/api/admin/**").permitAll()
 						// Protected auth endpoints - require authentication

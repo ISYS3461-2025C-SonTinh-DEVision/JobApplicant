@@ -26,8 +26,7 @@ import {
 import AuthService from '../../services/AuthService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
-import useHeadlessForm from '../../components/headless/HeadlessForm';
-import useHeadlessModal from '../../components/headless/HeadlessModal';
+import { useHeadlessForm, useHeadlessModal } from '../../components/headless';
 import { FormInput } from '../../components/reusable';
 
 // ==================== VALIDATION FUNCTIONS ====================
@@ -181,8 +180,8 @@ const OtpInputField = ({ value, onChange, onVerify, isVerifying, disabled, isDar
                     <div
                         key={i}
                         className={`w-11 h-14 flex items-center justify-center rounded-xl text-2xl font-bold border-2 transition-all ${value[i]
-                                ? (isDark ? 'border-primary-500 bg-primary-500/10 text-primary-400' : 'border-primary-500 bg-primary-50 text-primary-600')
-                                : (isDark ? 'border-dark-600 bg-dark-800 text-dark-300' : 'border-gray-300 bg-white text-gray-400')
+                            ? (isDark ? 'border-primary-500 bg-primary-500/10 text-primary-400' : 'border-primary-500 bg-primary-50 text-primary-600')
+                            : (isDark ? 'border-dark-600 bg-dark-800 text-dark-300' : 'border-gray-300 bg-white text-gray-400')
                             }`}
                     >
                         {value[i] || '•'}
@@ -212,8 +211,8 @@ const OtpInputField = ({ value, onChange, onVerify, isVerifying, disabled, isDar
                 onClick={handlePaste}
                 disabled={disabled || isVerifying || pasting}
                 className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isDark
-                        ? 'bg-dark-700 text-dark-300 hover:bg-dark-600 hover:text-white border border-dark-600'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                    ? 'bg-dark-700 text-dark-300 hover:bg-dark-600 hover:text-white border border-dark-600'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
                     } ${(disabled || isVerifying) ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
                 {pasting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clipboard className="w-4 h-4" />}

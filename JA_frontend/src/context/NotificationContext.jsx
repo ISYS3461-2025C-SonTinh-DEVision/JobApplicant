@@ -1,3 +1,4 @@
+
 /**
  * Notification Context
  * 
@@ -347,7 +348,7 @@ export function NotificationProvider({ children }) {
         showInfo,
 
         // For testing/demo
-        simulateNotification: notificationService.simulateJobMatchNotification.bind(notificationService),
+        simulateNotification: notificationService.simulateRandomNotification.bind(notificationService),
     };
 
     return (

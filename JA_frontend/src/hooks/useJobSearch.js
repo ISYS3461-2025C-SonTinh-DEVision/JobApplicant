@@ -2,6 +2,8 @@
 /**
  * useJobSearch Hook
  * Manages job fetching and search state
+ * 
+ * Uses Headless UI pattern internally via useHeadlessDataList for state management
  */
 import { useState, useCallback, useEffect } from 'react';
 import JobSearchService from '../services/JobSearchService';

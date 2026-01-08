@@ -5,7 +5,8 @@
  * Uses: useHeadlessDataList for statistics display
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Users,
     Building2,
@@ -19,6 +20,9 @@ import {
     RefreshCw,
     UserMinus,
     CheckCircle,
+    Search,
+    X,
+    Loader2,
 } from 'lucide-react';
 import AdminService from '../../services/AdminService';
 
@@ -109,9 +113,73 @@ function QuickAction({ icon: Icon, label, onClick, color = 'violet' }) {
 }
 
 export default function DashboardPage() {
+    const navigate = useNavigate();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [recentActivity, setRecentActivity] = useState([]);
+
+    // Global Search State (Req 6.2.1)
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState({ applicants: [], companies: [], jobPosts: [] });
+    const [searching, setSearching] = useState(false);
+    const [showResults, setShowResults] = useState(false);
+    const searchRef = useRef(null);
+    const searchTimeout = useRef(null);
+
+    // Global Search Handler (Req 6.2.1)
+    const handleSearch = useCallback(async (query) => {
+        if (!query || query.length < 2) {
+            setSearchResults({ applicants: [], companies: [], jobPosts: [] });
+            setShowResults(false);
+            return;
+        }
+
+        setSearching(true);
+        setShowResults(true);
+        try {
+            // Search all entities in parallel
+            const [applicantsRes, companiesRes, jobPostsRes] = await Promise.all([
+                AdminService.getApplicants({ search: query, page: 1, limit: 5 }),
+                AdminService.getCompanies({ search: query, page: 1, limit: 5 }),
+                AdminService.getJobPosts({ search: query, page: 1, limit: 5 }),
+            ]);
+
+            setSearchResults({
+                applicants: applicantsRes.data || [],
+                companies: companiesRes.data || [],
+                jobPosts: jobPostsRes.data || [],
+            });
+        } catch (error) {
+            console.error('Search error:', error);
+        } finally {
+            setSearching(false);
+        }
+    }, []);
+
+    // Debounced search
+    const onSearchChange = useCallback((e) => {
+        const query = e.target.value;
+        setSearchQuery(query);
+
+        if (searchTimeout.current) {
+            clearTimeout(searchTimeout.current);
+        }
+
+        searchTimeout.current = setTimeout(() => {
+            handleSearch(query);
+        }, 300);
+    }, [handleSearch]);
+
+    // Close search on click outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (searchRef.current && !searchRef.current.contains(e.target)) {
+                setShowResults(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Generate recent activity based on current applicants data
     const generateRecentActivity = useCallback(async () => {
@@ -177,20 +245,121 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-6 sm:space-y-8 animate-fade-in">
-            {/* Header */}
+            {/* Header with Global Search (Req 6.2.1) */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Dashboard Overview</h1>
                     <p className="text-dark-400 text-sm sm:text-base">Welcome to the DEVision Admin Panel</p>
                 </div>
-                <button
-                    onClick={fetchStats}
-                    disabled={loading}
-                    className="btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto"
-                >
-                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                </button>
+                <div className="flex items-center gap-3">
+                    {/* Global Search Bar (Req 6.2.1) */}
+                    <div className="relative" ref={searchRef}>
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400" />
+                            <input
+                                type="text"
+                                placeholder="Search applicants, companies, jobs..."
+                                value={searchQuery}
+                                onChange={onSearchChange}
+                                onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
+                                className="w-64 pl-10 pr-8 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder-dark-400 focus:border-violet-500 outline-none transition-colors text-sm"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => { setSearchQuery(''); setShowResults(false); }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Search Results Dropdown */}
+                        {showResults && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-dark-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 max-h-96 overflow-y-auto">
+                                {searching ? (
+                                    <div className="p-4 flex items-center justify-center gap-2 text-dark-400">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <span>Searching...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Applicants */}
+                                        {searchResults.applicants.length > 0 && (
+                                            <div className="p-2">
+                                                <p className="px-2 py-1 text-xs text-dark-500 uppercase tracking-wide">Applicants</p>
+                                                {searchResults.applicants.map((item) => (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => { navigate('/admin/applicants'); setShowResults(false); }}
+                                                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 text-left"
+                                                    >
+                                                        <Users className="w-4 h-4 text-violet-400" />
+                                                        <span className="text-white text-sm">{item.name}</span>
+                                                        <span className="text-dark-500 text-xs ml-auto">{item.email}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Companies */}
+                                        {searchResults.companies.length > 0 && (
+                                            <div className="p-2 border-t border-white/5">
+                                                <p className="px-2 py-1 text-xs text-dark-500 uppercase tracking-wide">Companies</p>
+                                                {searchResults.companies.map((item) => (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => { navigate('/admin/companies'); setShowResults(false); }}
+                                                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 text-left"
+                                                    >
+                                                        <Building2 className="w-4 h-4 text-pink-400" />
+                                                        <span className="text-white text-sm">{item.name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Job Posts */}
+                                        {searchResults.jobPosts.length > 0 && (
+                                            <div className="p-2 border-t border-white/5">
+                                                <p className="px-2 py-1 text-xs text-dark-500 uppercase tracking-wide">Job Posts</p>
+                                                {searchResults.jobPosts.map((item) => (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => { navigate('/admin/job-posts'); setShowResults(false); }}
+                                                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 text-left"
+                                                    >
+                                                        <Briefcase className="w-4 h-4 text-blue-400" />
+                                                        <span className="text-white text-sm">{item.title}</span>
+                                                        <span className="text-dark-500 text-xs ml-auto">{item.company}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* No results */}
+                                        {searchResults.applicants.length === 0 &&
+                                            searchResults.companies.length === 0 &&
+                                            searchResults.jobPosts.length === 0 && (
+                                                <div className="p-4 text-center text-dark-400 text-sm">
+                                                    No results found for "{searchQuery}"
+                                                </div>
+                                            )}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={fetchStats}
+                        disabled={loading}
+                        className="btn-secondary flex items-center justify-center gap-2"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                        <span className="hidden sm:inline">Refresh</span>
+                    </button>
+                </div>
             </div>
 
             {/* Stats Grid */}

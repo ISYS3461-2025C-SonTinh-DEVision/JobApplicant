@@ -20,8 +20,8 @@ import com.DEVision.JobApplicant.auth.config.AuthConfig;
 import com.DEVision.JobApplicant.jwt.JweUtil;
 
 @Component
-public class AuthRequestFilter extends OncePerRequestFilter { 
-	
+public class AuthRequestFilter extends OncePerRequestFilter {
+
 	@Autowired
 	private UserDetailsService userDetailsService;
 
@@ -30,7 +30,7 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 
 	@Autowired
 	private com.DEVision.JobApplicant.common.redis.RedisService redisService;
-	
+
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
@@ -39,39 +39,38 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		boolean isValidToken = false;
 
 		String requestPath = request.getServletPath();
-		
+
 		// DEBUG: Log the request path being checked
 		System.out.println("AuthRequestFilter checking path: " + requestPath);
 
 		// Public paths that don't require authentication
 		// Combined from both fe-myprofile-page (admin) and main (applications)
 		if (requestPath.equals("/api/auth/login") ||
-		    requestPath.equals("/api/auth/register") ||
-		    requestPath.equals("/api/auth/refresh") ||
-		    requestPath.equals("/api/auth/logout") ||
-		    requestPath.equals("/api/auth/activate") ||
-		    requestPath.equals("/api/auth/resend-activation") ||
-		    requestPath.equals("/api/auth/forgot-password") ||
-		    requestPath.equals("/api/auth/reset-password") ||
-		    requestPath.equals("/api/auth/oauth2/login") ||
-		    requestPath.equals("/api/auth/oauth2/google") ||
-		    requestPath.equals("/api/auth/oauth2/callback/google") ||
-		    requestPath.equals("/api/countries") ||
-		    requestPath.equals("/api/system/verify-token") ||
-		    requestPath.startsWith("/swagger-ui") ||
-		    requestPath.startsWith("/v3/api-docs") ||
-		    requestPath.startsWith("/api/notifications") ||
-		    requestPath.startsWith("/api/admin") ||
-		    requestPath.startsWith("/api/job-posts") ||
-		    requestPath.startsWith("/api/companies") ||
-		    requestPath.startsWith("/ws/") ||
-		    requestPath.startsWith("/api/system/verify-token") ||
-		    requestPath.startsWith("/api/applications/job/") ||
-		    requestPath.startsWith("/api/applications/{id}/status") ||
-			requestPath.startsWith("/api/applicants") ||
-			requestPath.startsWith("/api/applicants/{id}") ||
-			requestPath.startsWith("/api/applications/user/{id}")
-		) {
+				requestPath.equals("/api/auth/register") ||
+				requestPath.equals("/api/auth/refresh") ||
+				requestPath.equals("/api/auth/logout") ||
+				requestPath.equals("/api/auth/activate") ||
+				requestPath.equals("/api/auth/resend-activation") ||
+				requestPath.equals("/api/auth/forgot-password") ||
+				requestPath.equals("/api/auth/reset-password") ||
+				requestPath.equals("/api/auth/oauth2/login") ||
+				requestPath.equals("/api/auth/oauth2/google") ||
+				requestPath.equals("/api/auth/oauth2/callback/google") ||
+				requestPath.equals("/api/countries") ||
+				requestPath.equals("/api/system/verify-token") ||
+				requestPath.startsWith("/swagger-ui") ||
+				requestPath.startsWith("/v3/api-docs") ||
+				requestPath.startsWith("/api/notifications") ||
+				requestPath.startsWith("/api/admin") ||
+				requestPath.startsWith("/api/job-posts") ||
+				requestPath.startsWith("/api/companies") ||
+				requestPath.startsWith("/ws/") ||
+				requestPath.startsWith("/api/system/verify-token") ||
+				requestPath.startsWith("/api/applications/job/") ||
+				requestPath.startsWith("/api/applications/{id}/status") ||
+				requestPath.startsWith("/api/applicants") ||
+				requestPath.startsWith("/api/applicants/{id}") ||
+				requestPath.startsWith("/api/applicants/user/{id}")) {
 			System.out.println("AuthRequestFilter: Path " + requestPath + " is PUBLIC, skipping auth");
 			filterChain.doFilter(request, response);
 			return;
@@ -108,7 +107,8 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 				}
 			} catch (Exception redisException) {
 				// Redis unavailable - log warning and proceed without blacklist check
-				System.out.println("Warning: Redis unavailable, skipping token blacklist check: " + redisException.getMessage());
+				System.out.println(
+						"Warning: Redis unavailable, skipping token blacklist check: " + redisException.getMessage());
 			}
 		}
 
@@ -119,18 +119,16 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		}
 
 		if (token != null && isValidToken
-			&& SecurityContextHolder.getContext().getAuthentication() == null) {
+				&& SecurityContextHolder.getContext().getAuthentication() == null) {
 
 			String username = jweUtil.extractUsername(token);
 
 			UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-			UsernamePasswordAuthenticationToken usernamePasswordAuthToken =
-					new UsernamePasswordAuthenticationToken(
-							userDetails,
-							null,
-							userDetails.getAuthorities()
-					);
+			UsernamePasswordAuthenticationToken usernamePasswordAuthToken = new UsernamePasswordAuthenticationToken(
+					userDetails,
+					null,
+					userDetails.getAuthorities());
 
 			usernamePasswordAuthToken.setDetails(new WebAuthenticationDetailsSource()
 					.buildDetails(request));
@@ -138,8 +136,8 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 			SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthToken);
 
 			System.out.println(String.format("Authenticate Token Set:\n"
-							+ "Username: %s\n"
-							+ "Authority: %s\n",
+					+ "Username: %s\n"
+					+ "Authority: %s\n",
 					userDetails.getUsername(),
 					userDetails.getAuthorities().toString()));
 		}

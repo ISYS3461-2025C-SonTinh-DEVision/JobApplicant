@@ -25,7 +25,7 @@ import {
 import ProfileService from '../../services/ProfileService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
-import useHeadlessForm from '../../components/headless/HeadlessForm';
+import { useHeadlessForm } from '../../components/headless';
 import { FormInput, Card, PhoneInput, CountrySelect } from '../../components/reusable';
 
 /**
