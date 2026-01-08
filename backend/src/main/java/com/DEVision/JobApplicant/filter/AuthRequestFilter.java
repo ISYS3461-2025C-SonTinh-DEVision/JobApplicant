@@ -60,7 +60,6 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 				requestPath.equals("/api/system/verify-token") ||
 				requestPath.startsWith("/swagger-ui") ||
 				requestPath.startsWith("/v3/api-docs") ||
-				requestPath.startsWith("/api/notifications") ||
 				requestPath.startsWith("/api/admin") ||
 				requestPath.startsWith("/api/job-posts") ||
 				requestPath.startsWith("/api/companies") ||
