@@ -156,10 +156,11 @@ public class DataSeeder implements CommandLineRunner {
         user.setEnabled(true);
         user.setActivated(true);
         user.setPlanType(planType);
+        user.setCountry(country);
         User savedUser = authRepository.save(user);
 
         // Create Applicant profile
-        Applicant applicant = new Applicant(savedUser.getId(), country);
+        Applicant applicant = new Applicant(savedUser.getId());
         applicant.setFirstName(firstName);
         applicant.setLastName(lastName);
         applicant.setPhoneNumber(phone);
