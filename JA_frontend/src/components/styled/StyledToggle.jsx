@@ -71,14 +71,16 @@ export const StyledToggle = ({
         if (isChecked) {
             return 'bg-primary-500';
         }
-        return variant === 'dark' ? 'bg-dark-700' : 'bg-gray-200';
+        // Improved contrast: use lighter gray for OFF state
+        return variant === 'dark' ? 'bg-dark-600 border border-dark-500' : 'bg-gray-300';
     };
 
     const getLabelStyles = () => {
         if (variant === 'dark') {
-            return disabled ? 'text-dark-500' : 'text-dark-300';
+            // Improved contrast: use white for better visibility
+            return disabled ? 'text-dark-400' : 'text-white';
         }
-        return disabled ? 'text-gray-400' : 'text-gray-700';
+        return disabled ? 'text-gray-400' : 'text-gray-900';
     };
 
     return (
@@ -99,7 +101,7 @@ export const StyledToggle = ({
                         </span>
                     )}
                     {description && (
-                        <span className={`text-xs ${variant === 'dark' ? 'text-dark-500' : 'text-gray-500'}`}>
+                        <span className={`text-xs ${variant === 'dark' ? 'text-dark-300' : 'text-gray-600'}`}>
                             {description}
                         </span>
                     )}

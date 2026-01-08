@@ -48,32 +48,32 @@ export function JobCard({
 
   const themes = {
     dark: {
-      card: 'bg-dark-800/50 border border-dark-700 rounded-xl p-5 hover:border-dark-500 transition-all duration-200 group',
+      card: 'bg-dark-800 border border-dark-600 rounded-xl p-5 hover:border-primary-500/50 hover:shadow-lg hover:shadow-primary-500/10 transition-all duration-200 group',
       title: 'text-lg font-semibold text-white group-hover:text-primary-400 transition-colors',
-      company: 'text-dark-300 flex items-center gap-1.5',
-      meta: 'text-dark-400 text-sm flex items-center gap-1.5',
-      salary: 'text-accent-400 font-medium',
-      badge: 'bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded-full',
+      company: 'text-dark-200 flex items-center gap-1.5', // Lighter for visibility
+      meta: 'text-dark-300 text-sm flex items-center gap-1.5', // Changed from 400 to 300
+      salary: 'text-green-400 font-semibold', // More visible green
+      badge: 'bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded-full font-medium',
       button: 'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-      buttonPrimary: 'bg-primary-600 text-white hover:bg-primary-700',
-      buttonSecondary: 'bg-dark-700 text-dark-200 hover:bg-dark-600',
-      saveButton: 'p-2 rounded-lg hover:bg-dark-700 transition-colors',
+      buttonPrimary: 'bg-primary-600 text-white hover:bg-primary-700 shadow-md shadow-primary-500/20',
+      buttonSecondary: 'bg-dark-600 text-white border border-dark-500 hover:bg-dark-500 hover:border-dark-400', // Much more visible
+      saveButton: 'p-2 rounded-lg hover:bg-dark-600 transition-colors',
       savedIcon: 'text-primary-400',
-      unsavedIcon: 'text-dark-400 hover:text-white',
+      unsavedIcon: 'text-dark-300 hover:text-white',
     },
     light: {
-      card: 'bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-md transition-all duration-200 group',
+      card: 'bg-white border border-gray-200 rounded-xl p-5 hover:border-primary-300 hover:shadow-lg hover:shadow-primary-500/10 transition-all duration-200 group',
       title: 'text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors',
-      company: 'text-gray-600 flex items-center gap-1.5',
-      meta: 'text-gray-500 text-sm flex items-center gap-1.5',
-      salary: 'text-green-600 font-medium',
-      badge: 'bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full',
+      company: 'text-gray-700 flex items-center gap-1.5', // Darker for visibility
+      meta: 'text-gray-600 text-sm flex items-center gap-1.5', // Changed from 500 to 600
+      salary: 'text-green-600 font-semibold',
+      badge: 'bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium',
       button: 'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-      buttonPrimary: 'bg-primary-600 text-white hover:bg-primary-700',
-      buttonSecondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+      buttonPrimary: 'bg-primary-600 text-white hover:bg-primary-700 shadow-md shadow-primary-500/20',
+      buttonSecondary: 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200 hover:border-gray-400', // More visible
       saveButton: 'p-2 rounded-lg hover:bg-gray-100 transition-colors',
       savedIcon: 'text-primary-600',
-      unsavedIcon: 'text-gray-400 hover:text-gray-700',
+      unsavedIcon: 'text-gray-500 hover:text-gray-700',
     },
   };
 

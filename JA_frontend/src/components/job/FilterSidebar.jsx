@@ -77,6 +77,14 @@ const FilterSidebar = ({ filters, onFilterChange, onReset, className = '' }) => 
                         );
                     })}
                 </div>
+<<<<<<< Updated upstream
+=======
+                {Array.isArray(filters.employmentType) && filters.employmentType.length > 0 && (
+                    <p className={`text-xs mt-2 ${isDark ? 'text-primary-400' : 'text-primary-600'}`}>
+                        {filters.employmentType.length} type(s) selected
+                    </p>
+                )}
+>>>>>>> Stashed changes
             </div>
 
             {/* Location - Using Headless Select */}
@@ -97,7 +105,7 @@ const FilterSidebar = ({ filters, onFilterChange, onReset, className = '' }) => 
                 <h3 className={sectionTitleClass}>Salary Range ($)</h3>
                 <div className="flex items-center gap-2">
                     <div className="relative flex-1">
-                        <DollarSign className={`absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
+                        <DollarSign className={`absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 ${isDark ? 'text-dark-300' : 'text-gray-500'}`} />
                         <input
                             type="number"
                             placeholder="Min"
@@ -106,7 +114,7 @@ const FilterSidebar = ({ filters, onFilterChange, onReset, className = '' }) => 
                             className={`${inputClass} pl-8`}
                         />
                     </div>
-                    <span className={isDark ? 'text-dark-400' : 'text-gray-400'}>-</span>
+                    <span className={isDark ? 'text-dark-200' : 'text-gray-500'}>-</span>
                     <div className="relative flex-1">
                         <DollarSign className={`absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
                         <input
