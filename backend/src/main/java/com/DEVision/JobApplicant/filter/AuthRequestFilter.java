@@ -60,8 +60,6 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 				requestPath.startsWith("/swagger-ui") ||
 				requestPath.startsWith("/v3/api-docs") ||
 				requestPath.startsWith("/api/admin") ||
-				requestPath.startsWith("/api/job-posts") ||
-				requestPath.startsWith("/api/companies") ||
 				requestPath.startsWith("/ws/") ||
 				requestPath.startsWith("/api/applications/job/") ||
 				// Only specific public applicant endpoints (not /me which requires auth)

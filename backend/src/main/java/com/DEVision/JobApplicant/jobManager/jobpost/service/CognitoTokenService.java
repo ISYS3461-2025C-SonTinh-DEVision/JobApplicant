@@ -52,11 +52,15 @@ public class CognitoTokenService {
      * @throws RuntimeException if token fetch fails
      */
     public String getAccessToken() {
-        // Try to get cached token from Redis
-        String cachedToken = redisService.getCachedValue(REDIS_TOKEN_KEY);
-        if (cachedToken != null && !cachedToken.isEmpty()) {
-            System.out.println("Using cached Cognito token from Redis");
-            return cachedToken;
+        // Try to get cached token from Redis (handle Redis unavailability gracefully)
+        try {
+            String cachedToken = redisService.getCachedValue(REDIS_TOKEN_KEY);
+            if (cachedToken != null && !cachedToken.isEmpty()) {
+                System.out.println("Using cached Cognito token from Redis");
+                return cachedToken;
+            }
+        } catch (Exception redisException) {
+            System.out.println("Warning: Redis unavailable, skipping cache lookup: " + redisException.getMessage());
         }
 
         // Fetch new token from Cognito
@@ -70,7 +74,11 @@ public class CognitoTokenService {
      * @return New access token string
      */
     public String refreshToken() {
-        redisService.deleteCachedValue(REDIS_TOKEN_KEY);
+        try {
+            redisService.deleteCachedValue(REDIS_TOKEN_KEY);
+        } catch (Exception redisException) {
+            System.out.println("Warning: Redis unavailable, skipping cache deletion: " + redisException.getMessage());
+        }
         return fetchAndCacheToken();
     }
 
@@ -108,11 +116,15 @@ public class CognitoTokenService {
                 String accessToken = tokenResponse.getAccessToken();
                 long expiresIn = tokenResponse.getExpiresIn();
 
-                // Cache in Redis with TTL slightly less than actual expiry
+                // Cache in Redis with TTL slightly less than actual expiry (handle Redis unavailability)
                 long cacheTtlMinutes = Math.max((expiresIn - TOKEN_CACHE_BUFFER_SECONDS) / 60, 1);
-                redisService.cacheValue(REDIS_TOKEN_KEY, accessToken, cacheTtlMinutes);
-
-                System.out.println("Cognito token fetched and cached for " + cacheTtlMinutes + " minutes");
+                try {
+                    redisService.cacheValue(REDIS_TOKEN_KEY, accessToken, cacheTtlMinutes);
+                    System.out.println("Cognito token fetched and cached for " + cacheTtlMinutes + " minutes");
+                } catch (Exception redisException) {
+                    System.out.println("Warning: Redis unavailable, token not cached: " + redisException.getMessage());
+                    System.out.println("Cognito token fetched successfully (not cached)");
+                }
                 return accessToken;
             }
 

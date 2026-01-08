@@ -67,8 +67,6 @@ public class SecurityConfig {
 								"/api/applicants/{id}",
 								"/api/applicants/user/{id}")
 						.permitAll()
-						// Job Manager proxy endpoints - public for job search (Requirement 4.1.x)
-						.requestMatchers("/api/job-posts/**", "/api/companies/**", "/api/jm/company/**").permitAll()
 						// Swagger/OpenAPI documentation endpoints
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
 						// Notification endpoints - require authentication (user-specific data)
