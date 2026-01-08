@@ -46,7 +46,7 @@ public class SecurityConfig {
 				})
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests((requests) -> requests
-						// Public auth endpoints
+						// Public auth endpoints (no authentication required)
 						.requestMatchers(
 								"/api/auth/login",
 								"/api/auth/register",
@@ -75,16 +75,17 @@ public class SecurityConfig {
 						.requestMatchers("/api/notifications/**").permitAll()
 						// WebSocket endpoint
 						.requestMatchers("/ws/**").permitAll()
-						// System-to-system token verification endpoint (public for external systems)
-						.requestMatchers("/api/system/verify-token").permitAll()
-						// System-to-system endpoints (requires ROLE_SYSTEM or authenticated user)
+						// Admin endpoints
+						.requestMatchers("/api/admin/**").hasRole(RoleConfig.ADMIN.getRoleName())
+						// System-to-system endpoints: requires Cognito ROLE_SYSTEM or authenticated user with valid JWE
 						.requestMatchers("/api/applications/job/**").hasAnyRole(
-								"SYSTEM",
+								RoleConfig.SYSTEM.getRoleName(),
 								RoleConfig.APPLICANT.getRoleName(),
 								RoleConfig.COMPANY.getRoleName(),
 								RoleConfig.ADMIN.getRoleName())
 						// Admin endpoints - permit all for now (can add ADMIN role check later)
 						.requestMatchers("/api/admin/**").permitAll()
+
 						// Protected auth endpoints - require authentication
 						.requestMatchers("/api/auth/check-session").authenticated()
 						.requestMatchers("/api/auth/change-password").authenticated()

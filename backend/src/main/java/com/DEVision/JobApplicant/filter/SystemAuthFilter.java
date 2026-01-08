@@ -17,6 +17,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.DEVision.JobApplicant.common.config.SystemAuthConfig;
+import com.DEVision.JobApplicant.jwt.CognitoJwtVerifier;
 import com.DEVision.JobApplicant.jwt.JweTokenVerifier;
 import com.DEVision.JobApplicant.jwt.JweTokenVerifier.TokenVerificationResult;
 
@@ -37,6 +38,9 @@ public class SystemAuthFilter extends OncePerRequestFilter {
     
     @Autowired
     private JweTokenVerifier jweTokenVerifier;
+
+    @Autowired
+    private CognitoJwtVerifier cognitoJwtVerifier;
     
     private final RestTemplate restTemplate = new RestTemplate();
     
@@ -51,48 +55,57 @@ public class SystemAuthFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        
-        // Check for system authorization header
-        String systemAuthToken = request.getHeader(SystemAuthConfig.SYSTEM_AUTH_HEADER);
-        
-        if (systemAuthToken != null) {
-            boolean isValid = false;
-            
-            // Extract token from "Bearer <token>" format
-            String token = systemAuthToken;
-            if (systemAuthToken.startsWith("Bearer ")) {
-                token = systemAuthToken.substring(7);
-            }
-            
-            if (systemAuthConfig.isJobManagerConfigured() && 
-                systemAuthConfig.getJobManagerVerifyTokenUrl() != null && 
-                !systemAuthConfig.getJobManagerVerifyTokenUrl().isEmpty()) {
-                isValid = validateTokenWithJobManager(systemAuthToken);
-            }
-            
-            // Fallback: Try local verification (only works if JM encrypted with OUR public key)
-            // This is NOT the normal case - normally JM uses their own keys
-            if (!isValid && systemAuthConfig.isVerifyLocally()) {
-                isValid = validateTokenLocally(token);
-            }
-            
-            if (isValid) {
-                // Create authentication for system
-                UsernamePasswordAuthenticationToken authentication = 
-                    new UsernamePasswordAuthenticationToken(
-                        SystemAuthConfig.JOB_MANAGER_SYSTEM,
-                        null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_SYSTEM"))
-                    );
-                
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                
-                System.out.println("System-to-system authentication successful for: " + requestPath);
-            } else {
-                System.err.println("System-to-system authentication failed for: " + requestPath);
+
+        boolean isValid = false;
+
+        // 1) Prefer Cognito Bearer token on Authorization header
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String bearerToken = authHeader.substring(7);
+            isValid = cognitoJwtVerifier.validateAccessToken(bearerToken);
+        }
+
+        // 2) Fallback to existing X-System-Authorization header + JM verification
+        if (!isValid) {
+            String systemAuthToken = request.getHeader(SystemAuthConfig.SYSTEM_AUTH_HEADER);
+
+            if (systemAuthToken != null) {
+                // Extract token from "Bearer <token>" format
+                String token = systemAuthToken;
+                if (systemAuthToken.startsWith("Bearer ")) {
+                    token = systemAuthToken.substring(7);
+                }
+
+                if (systemAuthConfig.isJobManagerConfigured() &&
+                    systemAuthConfig.getJobManagerVerifyTokenUrl() != null &&
+                    !systemAuthConfig.getJobManagerVerifyTokenUrl().isEmpty()) {
+                    isValid = validateTokenWithJobManager(systemAuthToken);
+                }
+
+                // Fallback: Try local verification (only works if JM encrypted with OUR public key)
+                // This is NOT the normal case - normally JM uses their own keys
+                if (!isValid && systemAuthConfig.isVerifyLocally()) {
+                    isValid = validateTokenLocally(token);
+                }
             }
         }
-        
+
+        if (isValid) {
+            // Create authentication for system
+            UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(
+                    SystemAuthConfig.JOB_MANAGER_SYSTEM,
+                    null,
+                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_SYSTEM"))
+                );
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            System.out.println("System-to-system authentication successful for: " + requestPath);
+        } else {
+            System.err.println("System-to-system authentication failed for: " + requestPath);
+        }
+
         filterChain.doFilter(request, response);
     }
     
