@@ -1,6 +1,7 @@
 package com.DEVision.JobApplicant.applicant.internal.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import com.DEVision.JobApplicant.applicant.internal.dto.AddEducationRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillsRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddWorkExperienceRequest;
+import com.DEVision.JobApplicant.applicant.internal.dto.ApplicantSearchResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.EducationResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioItemResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioResponse;
@@ -25,6 +27,7 @@ import com.DEVision.JobApplicant.applicant.internal.dto.WorkExperienceResponse;
 import com.DEVision.JobApplicant.applicant.service.ApplicantService;
 import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
+import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.model.PlanType;
 
 import java.util.List;
@@ -57,6 +60,57 @@ public class ApplicantInternalService {
     public ProfileResponse getProfileById(String id) {
         Applicant applicant = applicantService.getApplicantById(id);
         return applicant != null ? toProfileResponse(applicant) : null;
+    }
+    
+    /**
+     * Search applicants with pagination and filters
+     * @param keyword Search keyword for firstName, lastName, or city
+     * @param country Filter by country (can be country code or enum name)
+     * @param skill Filter by technical skill
+     * @param page Page number (0-based)
+     * @param size Page size (default: 10, max: 100)
+     * @param sortBy Field to sort by (default: createdAt)
+     * @param sortDirection Sort direction (asc or desc, default: desc)
+     * @return Paginated response with applicants
+     */
+    public ApplicantSearchResponse searchApplicants(String keyword, String country, String skill,
+                                                    int page, int size, String sortBy, String sortDirection) {
+        // Validate and sanitize page size
+        if (size < 1) size = 10;
+        if (size > 100) size = 100;
+        if (page < 0) page = 0;
+        
+        // Default sort values
+        if (sortBy == null || sortBy.trim().isEmpty()) {
+            sortBy = "createdAt";
+        }
+        if (sortDirection == null || sortDirection.trim().isEmpty()) {
+            sortDirection = "desc";
+        }
+        
+        // Parse country if provided
+        Country countryEnum = null;
+        if (country != null && !country.trim().isEmpty()) {
+            countryEnum = Country.fromCode(country.trim());
+        }
+        
+        // Call service method
+        Page<Applicant> applicantsPage = applicantService.searchApplicants(
+            keyword, countryEnum, skill, page, size, sortBy, sortDirection
+        );
+        
+        // Convert to ProfileResponse list
+        List<ProfileResponse> profileResponses = applicantsPage.getContent().stream()
+            .map(this::toProfileResponse)
+            .collect(Collectors.toList());
+        
+        return new ApplicantSearchResponse(
+            profileResponses,
+            applicantsPage.getNumber(),
+            applicantsPage.getSize(),
+            applicantsPage.getTotalElements(),
+            applicantsPage.getTotalPages()
+        );
     }
 
     /**

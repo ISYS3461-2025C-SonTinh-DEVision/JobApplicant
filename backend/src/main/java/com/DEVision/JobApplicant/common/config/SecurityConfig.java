@@ -62,7 +62,8 @@ public class SecurityConfig {
 								"/api/countries",
 								"/api/system/verify-token",
 								"/api/applications/job/**",
-								"/api/applications/{id}/status")
+								"/api/applications/{id}/status",
+								"/api/applicants")
 						.permitAll()
 						// Job Manager proxy endpoints - public for job search (Requirement 4.1.x)
 						.requestMatchers("/api/job-posts/**", "/api/companies/**", "/api/jm/company/**").permitAll()
