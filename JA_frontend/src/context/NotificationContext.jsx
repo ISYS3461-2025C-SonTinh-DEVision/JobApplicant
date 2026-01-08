@@ -26,10 +26,14 @@ const MAX_TOASTS = 5;
 export function NotificationProvider({ children }) {
     const { currentUser, isAuthenticated } = useAuth();
 
+    // Check if user is premium (real-time notifications only for premium)
+    const isPremium = currentUser?.isPremium || currentUser?.subscriptionStatus === 'ACTIVE';
+
     // State
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [checkingMatches, setCheckingMatches] = useState(false);
     const [error, setError] = useState(null);
     const [toasts, setToasts] = useState([]);
 
@@ -284,14 +288,68 @@ export function NotificationProvider({ children }) {
         });
     }, [showToastInternal]);
 
-    // Connect to WebSocket when authenticated
+    /**
+     * Check for job matches manually (for non-premium users)
+     * Calls backend to check if any jobs match user's search profile
+     */
+    const checkForJobMatches = useCallback(async () => {
+        setCheckingMatches(true);
+        try {
+            const response = await notificationService.checkJobMatches();
+            if (response.success && response.data?.length > 0) {
+                // Add new job match notifications
+                const newNotifications = response.data.map(match => ({
+                    id: `match_${match.jobId}_${Date.now()}`,
+                    type: NOTIFICATION_TYPES.JOB_MATCH,
+                    title: 'Job Match Found!',
+                    content: `"${match.jobTitle}" at ${match.companyName} matches your profile.`,
+                    jobId: match.jobId,
+                    read: false,
+                    createdAt: new Date().toISOString(),
+                }));
+
+                setNotifications(prev => [...newNotifications, ...prev]);
+                setUnreadCount(prev => prev + newNotifications.length);
+
+                showToastInternal({
+                    type: 'success',
+                    title: 'Matches Found!',
+                    message: `Found ${newNotifications.length} job(s) matching your profile.`,
+                });
+
+                return { found: true, count: newNotifications.length };
+            } else {
+                showToastInternal({
+                    type: 'info',
+                    title: 'No New Matches',
+                    message: 'No new jobs match your search profile right now.',
+                });
+                return { found: false, count: 0 };
+            }
+        } catch (err) {
+            console.error('[NotificationContext] Error checking for matches:', err);
+            showToastInternal({
+                type: 'error',
+                title: 'Error',
+                message: 'Failed to check for job matches.',
+            });
+            throw err;
+        } finally {
+            setCheckingMatches(false);
+        }
+    }, [showToastInternal]);
+
+    // Connect to WebSocket when authenticated (only for premium users)
     useEffect(() => {
         if (isAuthenticated && !hasLoadedRef.current) {
             hasLoadedRef.current = true;
             loadNotifications();
-            wsConnect();
+            // Only connect WebSocket for premium users
+            if (isPremium) {
+                wsConnect();
+            }
         }
-    }, [isAuthenticated, loadNotifications, wsConnect]);
+    }, [isAuthenticated, isPremium, loadNotifications, wsConnect]);
 
     // Handle logout - reset state when auth changes to false
     useEffect(() => {
@@ -326,8 +384,12 @@ export function NotificationProvider({ children }) {
         notifications,
         unreadCount,
         loading,
+        checkingMatches,
         error,
         toasts,
+
+        // User status
+        isPremium,
 
         // WebSocket state
         connectionState,
@@ -340,6 +402,7 @@ export function NotificationProvider({ children }) {
         markAllAsRead,
         deleteNotification,
         clearAllNotifications,
+        checkForJobMatches,
 
         // Toast methods
         showToast,

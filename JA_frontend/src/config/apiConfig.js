@@ -116,12 +116,12 @@ export const API_ENDPOINTS = {
     CANCEL: '/api/subscription/cancel',
   },
 
-  // Search Profile endpoints
+  // Search Profile endpoints (using /me for JWT-based authentication)
   SEARCH_PROFILE: {
-    GET: '/api/search-profile',
-    CREATE: '/api/search-profile',
-    UPDATE: '/api/search-profile',
-    DELETE: '/api/search-profile',
+    GET: '/api/search-profiles/me',
+    CREATE: '/api/search-profiles/me',
+    UPDATE: '/api/search-profiles/me',
+    DELETE: '/api/search-profiles/me',
   },
 
   // Notification endpoints

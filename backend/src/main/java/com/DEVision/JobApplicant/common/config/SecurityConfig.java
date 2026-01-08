@@ -71,20 +71,24 @@ public class SecurityConfig {
 						.requestMatchers("/api/job-posts/**", "/api/companies/**", "/api/jm/company/**").permitAll()
 						// Swagger/OpenAPI documentation endpoints
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-						// Notification endpoints - require authentication (user-specific data)
-								.requestMatchers("/api/notifications/**").authenticated()
 						// WebSocket endpoint
 						.requestMatchers("/ws/**").permitAll()
 						// System-to-system token verification endpoint (public for external systems)
 						.requestMatchers("/api/system/verify-token").permitAll()
+						// Admin endpoints - permit all for now (can add ADMIN role check later)
+						.requestMatchers("/api/admin/**").permitAll()
+						// Search Profile endpoints - require authentication (Requirement 5.2.x)
+						.requestMatchers("/api/search-profiles/**").authenticated()
+						// Subscription endpoints - require authentication (Requirement 5.1.x)
+						.requestMatchers("/api/subscription/**").authenticated()
+						// Notification endpoints - require authentication (user-specific data)
+						.requestMatchers("/api/notifications/**").authenticated()
 						// System-to-system endpoints (requires ROLE_SYSTEM or authenticated user)
 						.requestMatchers("/api/applications/job/**").hasAnyRole(
 								"SYSTEM",
 								RoleConfig.APPLICANT.getRoleName(),
 								RoleConfig.COMPANY.getRoleName(),
 								RoleConfig.ADMIN.getRoleName())
-						// Admin endpoints - permit all for now (can add ADMIN role check later)
-						.requestMatchers("/api/admin/**").permitAll()
 						// Protected auth endpoints - require authentication
 						.requestMatchers("/api/auth/check-session").authenticated()
 						.requestMatchers("/api/auth/change-password").authenticated()

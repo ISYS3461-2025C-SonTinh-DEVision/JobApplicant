@@ -25,7 +25,8 @@ public class SearchProfileService {
 
     public SearchProfileDto createSearchProfile(String userId, SearchProfileRequest request) {
         List<String> desiredSkills = sanitizeStrings(request.desiredSkills());
-        validateSkills(desiredSkills);
+        // Skip skill validation - allow free-form skill input from users
+        // validateSkills(desiredSkills);
         validateSalaryRange(request);
 
         SearchProfile profile = new SearchProfile();
@@ -48,7 +49,8 @@ public class SearchProfileService {
                 .orElseThrow(() -> new ResourceNotFoundException("Search profile not found for id: " + id));
 
         List<String> desiredSkills = sanitizeStrings(request.desiredSkills());
-        validateSkills(desiredSkills);
+        // Skip skill validation - allow free-form skill input from users
+        // validateSkills(desiredSkills);
         validateSalaryRange(request);
 
         applyRequest(existingProfile, request, desiredSkills);

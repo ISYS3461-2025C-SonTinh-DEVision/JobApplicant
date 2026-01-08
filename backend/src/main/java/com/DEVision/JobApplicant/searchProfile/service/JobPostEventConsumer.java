@@ -3,8 +3,8 @@ package com.DEVision.JobApplicant.searchProfile.service;
 import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.common.model.PlanType;
-import com.DEVision.JobApplicant.notification.entity.Notification;
-import com.DEVision.JobApplicant.notification.service.NotificationService;
+import com.DEVision.JobApplicant.notification.external.dto.NotificationRequest;
+import com.DEVision.JobApplicant.notification.external.service.NotificationExternalService;
 import com.DEVision.JobApplicant.searchProfile.dto.JobPostEvent;
 import com.DEVision.JobApplicant.searchProfile.entity.MatchedJobPost;
 import com.DEVision.JobApplicant.searchProfile.repository.MatchedJobPostRepository;
@@ -20,6 +20,7 @@ import java.util.List;
 /**
  * Kafka consumer for job post events
  * Consumes job post events and matches them with applicant profiles
+ * Sends real-time WebSocket notifications to premium users
  */
 @Component
 public class JobPostEventConsumer {
@@ -35,7 +36,7 @@ public class JobPostEventConsumer {
     private MatchedJobPostRepository matchedJobPostRepository;
 
     @Autowired
-    private NotificationService notificationService;
+    private NotificationExternalService notificationExternalService;
 
     @Autowired
     private AuthRepository authRepository;
@@ -60,7 +61,7 @@ public class JobPostEventConsumer {
     }
 
     /**
-     * Notify premium users about new matched job posts
+     * Notify premium users about new matched job posts via WebSocket
      */
     private void notifyPremiumUsers(JobPostEvent jobPost) {
         try {
@@ -75,16 +76,17 @@ public class JobPostEventConsumer {
                     User user = authRepository.findById(matchedJobPost.getUserId()).orElse(null);
 
                     if (user != null && user.getPlanType() == PlanType.PREMIUM) {
-                        // Create notification for premium user
-                        Notification notification = new Notification(
+                        // Create notification request for premium user (saves to DB + sends via WebSocket)
+                        NotificationRequest notificationRequest = new NotificationRequest(
                                 matchedJobPost.getUserId(),
-                                "New Job Match Found!",
+                                "Job Match Found!",
                                 String.format("A new job post '%s' matches your profile (%.1f%% match). Check it out!",
-                                        jobPost.getTitle(), matchedJobPost.getMatchScore())
+                                        jobPost.getTitle(), matchedJobPost.getMatchScore()),
+                                "job_match"
                         );
-                        notification.setType("job_match");
 
-                        notificationService.createNotification(notification);
+                        // Use external service for DB save + WebSocket push
+                        notificationExternalService.sendNotification(notificationRequest);
 
                         // Mark as notified
                         matchedJobPost.setIsNotified(true);

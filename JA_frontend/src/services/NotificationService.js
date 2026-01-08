@@ -67,7 +67,7 @@ const MOCK_NOTIFICATIONS = [
 
 class NotificationService {
     constructor() {
-        this.useMock = true; // Toggle for development
+        this.useMock = false; // Use real API (set to true only for testing without backend)
         this._mockNotifications = [...MOCK_NOTIFICATIONS];
         this._listeners = new Set();
     }
@@ -109,9 +109,12 @@ class NotificationService {
         }
 
         try {
-            const userId = this._getCurrentUserId();
-            const response = await httpUtil.get(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/user/${userId}`);
-            return response;
+            // Use /me endpoint with JWT authentication
+            const response = await httpUtil.get(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/me`);
+            return {
+                success: true,
+                data: response,
+            };
         } catch (error) {
             console.error('Error fetching notifications:', error);
             throw error;
@@ -133,8 +136,12 @@ class NotificationService {
         }
 
         try {
-            const userId = this._getCurrentUserId();
-            return await httpUtil.get(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/user/${userId}/unread`);
+            // Use /me endpoint with unread filter
+            const response = await httpUtil.get(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/me?unread=true`);
+            return {
+                success: true,
+                data: response.notifications || [],
+            };
         } catch (error) {
             console.error('Error fetching unread notifications:', error);
             throw error;
@@ -152,12 +159,55 @@ class NotificationService {
         }
 
         try {
-            const userId = this._getCurrentUserId();
-            const response = await httpUtil.get(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/user/${userId}/unread-count`);
-            return response.unreadCount || 0;
+            // Get unread count from /me endpoint
+            const response = await httpUtil.get(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/me?unread=true`);
+            return response.unreadCount || (response.notifications?.length || 0);
         } catch (error) {
             console.error('Error fetching unread count:', error);
             return 0;
+        }
+    }
+
+    /**
+     * Check for job matches based on user's search profile
+     * (For non-premium users who check manually)
+     * @returns {Promise<Object>} Matching jobs
+     */
+    async checkJobMatches() {
+        if (this.useMock) {
+            await this._delay(800);
+
+            // Simulate finding some matches
+            const mockMatches = [
+                {
+                    jobId: `job_${Date.now()}_1`,
+                    jobTitle: 'Senior React Developer',
+                    companyName: 'TechCorp Vietnam',
+                    location: 'Ho Chi Minh City',
+                    salary: '$1,500 - $2,500',
+                },
+                {
+                    jobId: `job_${Date.now()}_2`,
+                    jobTitle: 'Full Stack Engineer',
+                    companyName: 'StartupXYZ',
+                    location: 'Singapore',
+                    salary: '$2,000 - $3,500',
+                },
+            ];
+
+            // Randomly return 0-2 matches
+            const matchCount = Math.floor(Math.random() * 3);
+            return {
+                success: true,
+                data: mockMatches.slice(0, matchCount),
+            };
+        }
+
+        try {
+            return await httpUtil.post(`${API_ENDPOINTS.SEARCH_PROFILE.GET}/check-matches`);
+        } catch (error) {
+            console.error('Error checking job matches:', error);
+            throw error;
         }
     }
 
@@ -185,7 +235,8 @@ class NotificationService {
         }
 
         try {
-            return await httpUtil.patch(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/${notificationId}/read`);
+            // Use /me endpoint for marking read
+            return await httpUtil.patch(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/me/${notificationId}/read`);
         } catch (error) {
             console.error('Error marking notification as read:', error);
             throw error;
@@ -210,8 +261,8 @@ class NotificationService {
         }
 
         try {
-            const userId = this._getCurrentUserId();
-            return await httpUtil.patch(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/user/${userId}/read-all`);
+            // Use /me endpoint for marking all read
+            return await httpUtil.patch(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/me/read-all`);
         } catch (error) {
             console.error('Error marking all as read:', error);
             throw error;

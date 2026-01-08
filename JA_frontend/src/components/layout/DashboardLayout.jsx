@@ -19,7 +19,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, User, Briefcase, Search, Bell, Settings,
   LogOut, Menu, X, ChevronDown, Crown,
-  FileText, TrendingUp, Sun, Moon, PanelLeftClose, PanelLeft
+  FileText, TrendingUp, Sun, Moon, PanelLeftClose, PanelLeft, Target
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
@@ -236,6 +236,7 @@ export default function DashboardLayout() {
     { to: '/dashboard/notifications', icon: Bell, label: 'Notifications', badge: unreadCount > 0 ? unreadCount : undefined },
     { to: '/dashboard/applications', icon: FileText, label: 'Applications', badge: '2' },
     { to: '/dashboard/jobs', icon: Search, label: 'Find Jobs' },
+    { to: '/dashboard/search-profile', icon: Target, label: 'Search Profile' },
     { to: '/dashboard/subscription', icon: Crown, label: 'Premium', highlight: true },
     { to: '/dashboard/analytics', icon: TrendingUp, label: 'Analytics' },
   ];
