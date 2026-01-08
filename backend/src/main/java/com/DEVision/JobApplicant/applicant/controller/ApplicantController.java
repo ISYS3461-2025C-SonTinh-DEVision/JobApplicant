@@ -19,6 +19,7 @@ import com.DEVision.JobApplicant.applicant.internal.dto.AddEducationRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddSkillsRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.AddWorkExperienceRequest;
+import com.DEVision.JobApplicant.applicant.internal.dto.ApplicantSearchResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.EducationResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioItemResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioResponse;
@@ -44,6 +45,57 @@ public class ApplicantController {
 
     @Autowired
     private ApplicantInternalService internalService;
+
+    // ===== Public Search Endpoint =====
+
+    @Operation(
+        summary = "Get all applicants with search, pagination, and filters",
+        description = "Retrieve a paginated list of applicants. Supports search by name/city, " +
+                      "and filtering by country/location and technical skills."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Applicants retrieved successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @GetMapping
+    public ResponseEntity<?> getAllApplicants(
+            @Parameter(description = "Search keyword (searches firstName, lastName, city)")
+            @RequestParam(required = false) String keyword,
+            
+            @Parameter(description = "Filter by country/location (country code e.g., 'VN', 'US' or enum name e.g., 'VIETNAM')")
+            @RequestParam(required = false) String country,
+            
+            @Parameter(description = "Filter by technical skill (case-insensitive)")
+            @RequestParam(required = false) String skill,
+            
+            @Parameter(description = "Page number (0-based, default: 0)")
+            @RequestParam(defaultValue = "0") int page,
+            
+            @Parameter(description = "Page size (default: 10, max: 100)")
+            @RequestParam(defaultValue = "10") int size,
+            
+            @Parameter(description = "Sort by field (default: createdAt)")
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            
+            @Parameter(description = "Sort direction: 'asc' or 'desc' (default: desc)")
+            @RequestParam(defaultValue = "desc") String sortDirection) {
+        try {
+            ApplicantSearchResponse response = internalService.searchApplicants(
+                keyword, country, skill, page, size, sortBy, sortDirection
+            );
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            System.err.println("Error searching applicants: " + e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "An error occurred while searching applicants");
+            return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
     // ===== /api/me Endpoints - Current User Operations =====
 

@@ -3,6 +3,10 @@ package com.DEVision.JobApplicant.applicant.service;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,6 +19,7 @@ import com.DEVision.JobApplicant.applicant.external.service.ApplicantProfileEven
 import com.DEVision.JobApplicant.applicant.internal.dto.ProfileResponse;
 import com.DEVision.JobApplicant.applicant.internal.service.ApplicantInternalService;
 import com.DEVision.JobApplicant.applicant.repository.ApplicantRepository;
+import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.storage.service.FileStorageService;
 import com.DEVision.JobApplicant.common.storage.dto.FileUploadResult;
 
@@ -610,6 +615,50 @@ public class ApplicantService {
         event.setCreatedAt(profile.getCreatedAt());
         event.setUpdatedAt(profile.getUpdatedAt());
         return event;
+    }
+    
+    /**
+     * Search applicants with pagination and filters
+     * @param keyword Search keyword for firstName, lastName, or city
+     * @param country Filter by country
+     * @param skill Filter by technical skill
+     * @param page Page number (0-based)
+     * @param size Page size
+     * @param sortBy Field to sort by (default: createdAt)
+     * @param sortDirection Sort direction (asc or desc)
+     * @return Page of applicants matching the criteria
+     */
+    public Page<Applicant> searchApplicants(String keyword, Country country, String skill,
+                                            int page, int size, String sortBy, String sortDirection) {
+        // Create sort object
+        Sort sort = sortDirection.equalsIgnoreCase("asc") 
+            ? Sort.by(sortBy).ascending() 
+            : Sort.by(sortBy).descending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+        boolean hasCountry = country != null;
+        boolean hasSkill = skill != null && !skill.trim().isEmpty();
+        
+        // Determine which query to use based on filters
+        if (hasKeyword && hasCountry && hasSkill) {
+            return applicantRepository.searchByKeywordAndCountryAndSkill(keyword.trim(), country, skill.trim(), pageable);
+        } else if (hasKeyword && hasCountry) {
+            return applicantRepository.searchByKeywordAndCountry(keyword.trim(), country, pageable);
+        } else if (hasKeyword && hasSkill) {
+            return applicantRepository.searchByKeywordAndSkill(keyword.trim(), skill.trim(), pageable);
+        } else if (hasCountry && hasSkill) {
+            return applicantRepository.findByCountryAndSkillsContainingIgnoreCase(country, skill.trim(), pageable);
+        } else if (hasKeyword) {
+            return applicantRepository.searchByKeyword(keyword.trim(), pageable);
+        } else if (hasCountry) {
+            return applicantRepository.findByCountry(country, pageable);
+        } else if (hasSkill) {
+            return applicantRepository.findBySkillsContainingIgnoreCase(skill.trim(), pageable);
+        } else {
+            return applicantRepository.findAll(pageable);
+        }
     }
 }
 
