@@ -730,6 +730,12 @@ export default function DashboardHome() {
 
         {/* Right Column */}
         <div className="space-y-6">
+          {/* Profile Completion - moved to top for visibility */}
+          <ProfileCompletionCard
+            completion={profileCompletion}
+            onComplete={() => navigate('/dashboard/profile/edit')}
+          />
+
           {/* Quick Actions */}
           <div className={`
             rounded-2xl border p-6
@@ -843,12 +849,6 @@ export default function DashboardHome() {
               </div>
             </div>
           )}
-
-          {/* Profile Completion */}
-          <ProfileCompletionCard
-            completion={profileCompletion}
-            onComplete={() => navigate('/dashboard/profile/edit')}
-          />
         </div>
       </div>
     </div>
