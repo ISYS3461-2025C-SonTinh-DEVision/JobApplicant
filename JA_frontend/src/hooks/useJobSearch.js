@@ -5,15 +5,21 @@
  * 
  * Uses Headless UI pattern internally via useHeadlessDataList for state management
  * Note: Does NOT auto-fetch on mount - the component should call fetchJobs with proper filters
+ * 
+ * Also reports JM API connection status for visual indicator
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useContext } from 'react';
 import JobSearchService from '../services/JobSearchService';
+import JMConnectionContext from '../context/JMConnectionContext';
 
 export const useJobSearch = (initialFilters = {}) => {
     const [jobs, setJobs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [total, setTotal] = useState(0);
+
+    // JM Connection status reporting (optional - may be null if outside provider)
+    const jmConnection = useContext(JMConnectionContext);
 
     const fetchJobs = useCallback(async (filters = {}, append = false) => {
         setLoading(true);
@@ -26,15 +32,27 @@ export const useJobSearch = (initialFilters = {}) => {
 
             setJobs(prev => append ? [...prev, ...data] : data);
             setTotal(totalCount);
+
+            // Report success to JM Connection context
+            if (jmConnection?.reportSuccess) {
+                jmConnection.reportSuccess();
+            }
+
             return data;
         } catch (err) {
             setError(err.message || 'Failed to fetch jobs');
             if (!append) setJobs([]);
+
+            // Report error to JM Connection context
+            if (jmConnection?.reportError) {
+                jmConnection.reportError(err.message || 'Connection failed');
+            }
+
             return [];
         } finally {
             setLoading(false);
         }
-    }, [initialFilters]);
+    }, [initialFilters, jmConnection]);
 
     // Note: Removed initial fetch - component should control when to fetch with proper filters
     // This prevents duplicate API calls when component has its own fetch effect
