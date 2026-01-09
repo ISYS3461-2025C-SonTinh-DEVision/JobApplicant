@@ -147,7 +147,7 @@ function AdminSidebar({ isOpen, onClose }) {
 function AdminHeader({ onMenuClick }) {
     return (
         <header className="sticky top-0 z-30 bg-dark-900/95 backdrop-blur-xl border-b border-white/10">
-            <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
                 <button
                     onClick={onMenuClick}
                     className="lg:hidden p-2 text-dark-400 hover:text-white rounded-lg hover:bg-white/5"
@@ -175,10 +175,10 @@ export default function AdminLayout() {
             />
 
             {/* Main content */}
-            <div className="flex-1 flex flex-col min-h-screen lg:ml-0">
+            <div className="flex-1 flex flex-col min-h-screen lg:ml-0 overflow-x-hidden">
                 <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
 
-                <main className="flex-1 p-6">
+                <main className="flex-1 p-4 sm:p-6">
                     <Outlet />
                 </main>
             </div>
