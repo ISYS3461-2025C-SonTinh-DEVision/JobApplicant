@@ -125,6 +125,18 @@ public class CallJobPostService implements JobPostServiceInf {
             logger.info("Fresher filter enabled, will filter server-side");
         }
         
+        // Full-Text Search (FTS) - JM API may only search title, we need to search
+        // title, description, AND requiredSkills as per requirement
+        String searchQuery = searchRequest.getSearch();
+        boolean isFTSEnabled = searchQuery != null && !searchQuery.trim().isEmpty();
+        if (isFTSEnabled) {
+            // Remove search from JM API query - we'll do comprehensive FTS on backend
+            queryParams.remove("search");
+            queryParams.remove("title");
+            queryParams.remove("skill");
+            logger.info("Full-Text Search enabled for: '{}', will search title/description/skills server-side", searchQuery);
+        }
+        
         String url = buildUrlWithQueryParams(externalUrl.getJobPostsUrl(), queryParams);
         HttpEntity<Void> entity = new HttpEntity<>(createAuthHeaders());
         
@@ -173,6 +185,20 @@ public class CallJobPostService implements JobPostServiceInf {
                     .filter(job -> Boolean.TRUE.equals(job.getIsFresherFriendly()))
                     .collect(Collectors.toList());
                 logger.info("Fresher filter: {}/{} jobs matched", filteredJobs.size(), beforeCount);
+            }
+            
+            // Apply Full-Text Search (FTS) if enabled
+            // Searches across: Title, Description, and Required Skills fields
+            if (isFTSEnabled) {
+                String searchLower = searchQuery.toLowerCase().trim();
+                // Split search query into tokens for better matching
+                String[] searchTokens = searchLower.split("\\s+");
+                
+                int beforeCount = filteredJobs.size();
+                filteredJobs = filteredJobs.stream()
+                    .filter(job -> matchesFTS(job, searchTokens))
+                    .collect(Collectors.toList());
+                logger.info("FTS '{}': {}/{} jobs matched", searchQuery, filteredJobs.size(), beforeCount);
             }
             
             // Update the response with filtered jobs
@@ -270,5 +296,50 @@ public class CallJobPostService implements JobPostServiceInf {
         });
         
         return uriBuilder.toUriString();
+    }
+    
+    /**
+     * Full-Text Search (FTS) matcher
+     * Searches across Title, Description, and Required Skills fields
+     * Returns true if ANY search token is found in ANY of these fields
+     * 
+     * @param job The job post to check
+     * @param searchTokens Array of lowercase search terms
+     * @return true if the job matches the search criteria
+     */
+    private boolean matchesFTS(JobPostDto job, String[] searchTokens) {
+        // Build searchable text from title, description, and skills
+        StringBuilder searchableText = new StringBuilder();
+        
+        // Add title
+        if (job.getTitle() != null) {
+            searchableText.append(job.getTitle().toLowerCase()).append(" ");
+        }
+        
+        // Add description
+        if (job.getDescription() != null) {
+            searchableText.append(job.getDescription().toLowerCase()).append(" ");
+        }
+        
+        // Add required skills
+        List<String> skills = job.getRequiredSkills();
+        if (skills != null && !skills.isEmpty()) {
+            for (String skill : skills) {
+                if (skill != null) {
+                    searchableText.append(skill.toLowerCase()).append(" ");
+                }
+            }
+        }
+        
+        String fullText = searchableText.toString();
+        
+        // Check if ANY search token is found in the searchable text
+        for (String token : searchTokens) {
+            if (fullText.contains(token)) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 }

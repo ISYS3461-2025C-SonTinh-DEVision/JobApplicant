@@ -6,6 +6,7 @@ import FilterSidebar from '../../components/job/FilterSidebar';
 import ApplicationModal from '../../components/job/ApplicationModal';
 import { useJobSearch } from '../../hooks/useJobSearch';
 import { useJobPagination } from '../../hooks/useJobPagination';
+import { useDebounce } from '../../hooks/useDebounce';
 import { useTheme } from '../../context/ThemeContext';
 
 const JobListPage = () => {
@@ -25,6 +26,10 @@ const JobListPage = () => {
         fresher: false,
         search: ''
     });
+
+    // Debounce search input - waits 500ms after user stops typing
+    // This prevents excessive API calls on every keystroke
+    const debouncedSearch = useDebounce(filters.search, 500);
 
     const [showFilters, setShowFilters] = useState(false); // Collapsed by default
 
@@ -59,10 +64,12 @@ const JobListPage = () => {
     }, [resetPagination]);
 
     // 2. Main Data Fetch Effect - True Lazy Loading (Requirement 4.2.4)
+    // Uses debouncedSearch to prevent API calls on every keystroke
     useEffect(() => {
         const fetch = async () => {
             const queryParams = {
                 ...filters,
+                search: debouncedSearch, // Use debounced value for API call
                 page,
                 size
             };
@@ -82,7 +89,7 @@ const JobListPage = () => {
 
         fetch();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, size, filters.employmentType, filters.location, filters.minSalary, filters.maxSalary, filters.fresher, filters.search]);
+    }, [page, size, filters.employmentType, filters.location, filters.minSalary, filters.maxSalary, filters.fresher, debouncedSearch]);
 
     const handleViewJob = (job) => {
         navigate(`/jobs/${job.id}`);
