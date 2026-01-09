@@ -4,8 +4,9 @@
  * Manages job fetching and search state
  * 
  * Uses Headless UI pattern internally via useHeadlessDataList for state management
+ * Note: Does NOT auto-fetch on mount - the component should call fetchJobs with proper filters
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import JobSearchService from '../services/JobSearchService';
 
 export const useJobSearch = (initialFilters = {}) => {
@@ -35,10 +36,8 @@ export const useJobSearch = (initialFilters = {}) => {
         }
     }, [initialFilters]);
 
-    // Initial fetch
-    useEffect(() => {
-        fetchJobs();
-    }, [fetchJobs]);
+    // Note: Removed initial fetch - component should control when to fetch with proper filters
+    // This prevents duplicate API calls when component has its own fetch effect
 
     return {
         jobs,
