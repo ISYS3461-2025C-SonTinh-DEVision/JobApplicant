@@ -58,7 +58,7 @@ const JobListPage = () => {
         resetPagination();
     }, [resetPagination]);
 
-    // 2. Main Data Fetch Effect
+    // 2. Main Data Fetch Effect - True Lazy Loading (Requirement 4.2.4)
     useEffect(() => {
         const fetch = async () => {
             const queryParams = {
@@ -72,18 +72,17 @@ const JobListPage = () => {
             const data = await fetchJobs(queryParams, isAppend);
 
             if (data) {
-                updateHasMore(9999, data.length === size ? 999 : 9999);
+                // True lazy loading: has more if we got a full page of results
+                // If less than 'size' results returned, we've reached the end
+                const receivedCount = Array.isArray(data) ? data.length : 0;
+                const moreAvailable = receivedCount >= size;
+                updateHasMore(moreAvailable ? 1 : 0, moreAvailable ? 0 : 1);
             }
         };
 
         fetch();
-
-    }, [page, size, filters.employmentType, filters.location, filters.minSalary, filters.maxSalary, filters.fresher, filters.search, fetchJobs, updateHasMore]);
-
-
-    useEffect(() => {
-        updateHasMore(total, jobs.length);
-    }, [total, jobs.length, updateHasMore]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, size, filters.employmentType, filters.location, filters.minSalary, filters.maxSalary, filters.fresher, filters.search]);
 
     const handleViewJob = (job) => {
         navigate(`/jobs/${job.id}`);

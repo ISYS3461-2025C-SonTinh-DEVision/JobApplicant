@@ -65,7 +65,12 @@ public class SecurityConfig {
 								"/api/applications/{id}/status",
 								"/api/applicants",
 								"/api/applicants/{id}",
-								"/api/applicants/user/{id}")
+								"/api/applicants/user/{id}",
+								// Public job search endpoints (no auth required for searching)
+								"/api/job-posts",
+								"/api/job-posts/**",
+								"/api/companies",
+								"/api/companies/**")
 						.permitAll()
 						// Swagger/OpenAPI documentation endpoints
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()

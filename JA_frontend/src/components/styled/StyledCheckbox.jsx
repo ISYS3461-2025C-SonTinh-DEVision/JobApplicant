@@ -1,24 +1,17 @@
 /**
- * Styled Checkbox Component
+ * Styled Checkbox Component - Minimal Version
  * 
- * Pre-styled version of headless Checkbox using DEVision design system.
- * 
+ * Pre-styled checkbox using DEVision design system.
  * Architecture: A.3.a (Ultimo Frontend) - Headless UI with styled layer
  * 
- * Usage:
- * <StyledCheckbox
- *   checked={isChecked}
- *   onChange={setChecked}
- *   label="Remember me"
- * />
+ * Uses headless Checkbox for logic, adds styling on top.
  */
 import React from 'react';
 import { Checkbox, useCheckbox } from '../headless/checkbox';
 import { Check, Minus } from 'lucide-react';
 
 export const StyledCheckbox = ({
-    checked,
-    defaultChecked = false,
+    checked = false,
     onChange,
     disabled = false,
     indeterminate = false,
@@ -29,50 +22,33 @@ export const StyledCheckbox = ({
     variant = 'dark',
     size = 'md',
     className = '',
-    ...props
 }) => {
     // Size variants
     const sizes = {
-        sm: {
-            box: 'w-4 h-4',
-            icon: 'w-2.5 h-2.5',
-            text: 'text-sm',
-            descText: 'text-xs',
-        },
-        md: {
-            box: 'w-5 h-5',
-            icon: 'w-3.5 h-3.5',
-            text: 'text-sm',
-            descText: 'text-xs',
-        },
-        lg: {
-            box: 'w-6 h-6',
-            icon: 'w-4 h-4',
-            text: 'text-base',
-            descText: 'text-sm',
-        },
+        sm: { box: 'w-4 h-4', icon: 'w-2.5 h-2.5', text: 'text-sm', descText: 'text-xs' },
+        md: { box: 'w-5 h-5', icon: 'w-3.5 h-3.5', text: 'text-sm', descText: 'text-xs' },
+        lg: { box: 'w-6 h-6', icon: 'w-4 h-4', text: 'text-base', descText: 'text-sm' },
     };
-
     const sizeStyles = sizes[size] || sizes.md;
 
-    // Get styles based on variant
+    // Box styling based on state and variant
     const getBoxStyles = (isChecked) => {
+        const base = 'flex items-center justify-center flex-shrink-0 border rounded transition-all duration-200';
+
         if (variant === 'dark') {
-            if (isChecked) {
-                return 'bg-primary-500 border-primary-500';
-            }
-            return 'bg-dark-700 border-dark-600 hover:border-dark-500';
-        } else {
-            if (isChecked) {
-                return 'bg-primary-500 border-primary-500';
-            }
-            return 'bg-white border-gray-300 hover:border-gray-400';
+            return isChecked
+                ? `${base} bg-primary-500 border-primary-500`
+                : `${base} bg-dark-700 border-dark-600 hover:border-dark-500`;
         }
+        return isChecked
+            ? `${base} bg-primary-500 border-primary-500`
+            : `${base} bg-white border-gray-300 hover:border-gray-400`;
     };
 
+    // Label text styling
     const getLabelStyles = () => {
         if (variant === 'dark') {
-            return disabled ? 'text-dark-500' : 'text-dark-300 group-hover:text-white';
+            return disabled ? 'text-dark-500' : 'text-dark-300';
         }
         return disabled ? 'text-gray-400' : 'text-gray-700';
     };
@@ -80,33 +56,27 @@ export const StyledCheckbox = ({
     return (
         <Checkbox
             checked={checked}
-            defaultChecked={defaultChecked}
             onChange={onChange}
             disabled={disabled}
             indeterminate={indeterminate}
             name={name}
             value={value}
-            className={`${className}`}
-            {...props}
         >
-            {({ isChecked, getCheckboxProps, getLabelProps }) => (
-                <label
-                    {...getLabelProps()}
-                    className={`
-                        flex items-start gap-3 cursor-pointer group select-none
-                        ${disabled ? 'cursor-not-allowed opacity-60' : ''}
-                    `}
+            {({ isChecked, getContainerProps, getBoxProps, getInputProps }) => (
+                <div
+                    {...getContainerProps({
+                        className: `
+                            flex items-start gap-3 select-none
+                            ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
+                            ${className}
+                        `.trim(),
+                    })}
                 >
-                    {/* Custom checkbox box */}
+                    {/* Checkbox visual box */}
                     <div
-                        {...getCheckboxProps()}
-                        className={`
-                            ${sizeStyles.box}
-                            flex items-center justify-center
-                            border rounded transition-all duration-200
-                            ${getBoxStyles(isChecked)}
-                            ${disabled ? '' : 'focus:ring-2 focus:ring-primary-500/40 focus:ring-offset-1'}
-                        `}
+                        {...getBoxProps({
+                            className: `${sizeStyles.box} ${getBoxStyles(isChecked)}`,
+                        })}
                     >
                         {isChecked && !indeterminate && (
                             <Check className={`${sizeStyles.icon} text-white`} strokeWidth={3} />
@@ -132,24 +102,15 @@ export const StyledCheckbox = ({
                         </div>
                     )}
 
-                    {/* Hidden native input for form submission */}
-                    <input
-                        type="checkbox"
-                        name={name}
-                        value={value}
-                        checked={isChecked}
-                        disabled={disabled}
-                        onChange={() => { }} // Handled by getCheckboxProps
-                        className="sr-only"
-                        aria-hidden="true"
-                    />
-                </label>
+                    {/* Hidden input for form submission */}
+                    <input {...getInputProps()} />
+                </div>
             )}
         </Checkbox>
     );
 };
 
-// Re-export base components for composition
+// Re-export headless components for composition
 export { Checkbox, useCheckbox } from '../headless/checkbox';
 
 export default StyledCheckbox;

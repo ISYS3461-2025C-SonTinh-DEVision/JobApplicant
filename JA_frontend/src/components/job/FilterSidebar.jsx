@@ -8,29 +8,56 @@
  * - Uses StyledSelect for location dropdown
  * - Uses StyledToggle for fresher friendly switch
  * - Default location: Vietnam (Requirement 4.3.1)
+ * - Location filter uses 195+ countries from countries.js
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { MapPin, DollarSign, Filter } from 'lucide-react';
 import { StyledCheckbox, StyledToggle, StyledSelect } from '../styled';
+import { COUNTRIES } from '../../data/countries';
 
 const EMP_TYPES = [
-    { value: 'Full-time', label: 'Full-time' },
-    { value: 'Part-time', label: 'Part-time' },
-    { value: 'Internship', label: 'Internship' },
-    { value: 'Contract', label: 'Contract' }
+    { value: 'FULLTIME', label: 'Full-time' },
+    { value: 'PARTTIME', label: 'Part-time' },
+    { value: 'INTERNSHIP', label: 'Internship' },
+    { value: 'CONTRACT', label: 'Contract' },
+    { value: 'FREELANCE', label: 'Freelance' }
 ];
 
-const LOCATIONS = [
-    { value: '', label: 'All Locations' },
-    { value: 'Vietnam', label: 'Vietnam' },
-    { value: 'Thailand', label: 'Thailand' },
-    { value: 'Singapore', label: 'Singapore' },
-    { value: 'Malaysia', label: 'Malaysia' }
-];
+// Popular countries to show first
+const POPULAR_COUNTRY_CODES = ['VN', 'SG', 'TH', 'MY', 'ID', 'PH', 'JP', 'KR', 'AU', 'US', 'GB', 'DE', 'CA', 'IN'];
 
 const FilterSidebar = ({ filters, onFilterChange, onReset, className = '' }) => {
     const { isDark } = useTheme();
+
+    // Build location options from countries.js data
+    const LOCATIONS = useMemo(() => {
+        // Start with special options
+        const locations = [
+            { value: '', label: 'All Locations' },
+            { value: 'Remote', label: '🌍 Remote / Worldwide' },
+        ];
+
+        // Popular countries first
+        const popularCountries = POPULAR_COUNTRY_CODES
+            .map(code => COUNTRIES.find(c => c.value === code))
+            .filter(Boolean)
+            .map(c => ({
+                value: c.label, // Use country name as value for backend matching
+                label: `${c.flag} ${c.label}`
+            }));
+
+        // All other countries
+        const otherCountries = COUNTRIES
+            .filter(c => !POPULAR_COUNTRY_CODES.includes(c.value))
+            .sort((a, b) => a.label.localeCompare(b.label))
+            .map(c => ({
+                value: c.label, // Use country name as value for backend matching
+                label: `${c.flag} ${c.label}`
+            }));
+
+        return [...locations, ...popularCountries, ...otherCountries];
+    }, []);
 
     const handleChange = (key, value) => {
         onFilterChange({ ...filters, [key]: value });

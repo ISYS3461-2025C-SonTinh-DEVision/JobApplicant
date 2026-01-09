@@ -39,8 +39,33 @@ public class JobPostListResponse implements Serializable {
         return data != null && data.getData() != null ? data.getData() : null;
     }
     
+    /**
+     * Set jobs list - creates data wrapper if needed
+     * Used by LocationMappingService for filtered results
+     */
+    public void setJobs(List<JobPostDto> jobs) {
+        if (data == null) {
+            data = new DataWrapper();
+        }
+        data.setData(jobs);
+    }
+    
     public Integer getTotalCount() {
         return data != null && data.getMeta() != null ? data.getMeta().getTotal() : null;
+    }
+    
+    /**
+     * Set total count - creates data wrapper and meta if needed
+     * Used by LocationMappingService for filtered results
+     */
+    public void setTotalCount(int count) {
+        if (data == null) {
+            data = new DataWrapper();
+        }
+        if (data.getMeta() == null) {
+            data.setMeta(new Meta());
+        }
+        data.getMeta().setTotal(count);
     }
     
     public Integer getPage() {

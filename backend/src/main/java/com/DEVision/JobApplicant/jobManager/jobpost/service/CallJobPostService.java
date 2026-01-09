@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.DEVision.JobApplicant.jobManager.config.ExternalUrl;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.api.JobPostServiceInf;
@@ -18,6 +20,7 @@ import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostSingleRe
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Service for calling JM system Job Post API
@@ -25,9 +28,12 @@ import java.util.Map;
  * Supports all query parameters for filtering, searching, and pagination
  * 
  * Uses Cognito OAuth2 token for system-to-system authentication
+ * Uses LocationMappingService for smart country-to-city filtering
  */
 @Service
 public class CallJobPostService implements JobPostServiceInf {
+    
+    private static final Logger logger = LoggerFactory.getLogger(CallJobPostService.class);
     
     @Autowired
     private RestTemplate restTemplate;
@@ -37,6 +43,9 @@ public class CallJobPostService implements JobPostServiceInf {
     
     @Autowired
     private CognitoTokenService cognitoTokenService;
+    
+    @Autowired
+    private LocationMappingService locationMappingService;
     
     /**
      * Create HTTP headers with Cognito Bearer token for system-to-system auth
@@ -78,7 +87,45 @@ public class CallJobPostService implements JobPostServiceInf {
     
     @Override
     public JobPostListResponse searchJobPosts(JobPostSearchRequest searchRequest) {
-        String url = buildUrlWithQueryParams(externalUrl.getJobPostsUrl(), searchRequest.toQueryParams());
+        // Check if location filter is a country name
+        String locationFilter = searchRequest.getLocation();
+        boolean isCountryFilter = locationMappingService.isCountry(locationFilter);
+        
+        // Check if multiple employment types are selected (JM API only supports single value)
+        List<String> employmentTypes = searchRequest.getEmploymentType();
+        boolean isMultiEmploymentTypeFilter = employmentTypes != null && employmentTypes.size() > 1;
+        
+        // Check if fresher filter is enabled (JM API doesn't support this param)
+        Boolean fresherFriendly = searchRequest.getFresherFriendly();
+        boolean isFresherFilter = fresherFriendly != null && fresherFriendly;
+        
+        // Build query params
+        Map<String, Object> queryParams = searchRequest.toQueryParams();
+        
+        // If it's a country, remove location from query params (we'll filter after fetch)
+        if (isCountryFilter) {
+            queryParams.remove("location");
+            logger.info("Smart location filtering: '{}' detected as country, will filter {} cities server-side", 
+                locationFilter, locationMappingService.getLocationTermsForCountry(locationFilter).size());
+        }
+        
+        // If multiple employment types, remove from query params (we'll filter after fetch)
+        // JM API only accepts single employmentType value
+        if (isMultiEmploymentTypeFilter) {
+            queryParams.remove("employmentType");
+            logger.info("Multi employment type filtering: {} types selected, will filter server-side", 
+                employmentTypes.size());
+        }
+        
+        // Remove fresher filter - JM API doesn't support it, we'll filter on backend
+        // Also remove isFresher which might be added by serialization
+        queryParams.remove("fresherFriendly");
+        queryParams.remove("isFresher");
+        if (isFresherFilter) {
+            logger.info("Fresher filter enabled, will filter server-side");
+        }
+        
+        String url = buildUrlWithQueryParams(externalUrl.getJobPostsUrl(), queryParams);
         HttpEntity<Void> entity = new HttpEntity<>(createAuthHeaders());
         
         ResponseEntity<JobPostListResponse> response = restTemplate.exchange(
@@ -87,11 +134,67 @@ public class CallJobPostService implements JobPostServiceInf {
             entity,
             JobPostListResponse.class
         );
-        return response.getBody();
+        
+        JobPostListResponse result = response.getBody();
+        
+        if (result != null && result.getJobs() != null) {
+            List<JobPostDto> filteredJobs = result.getJobs();
+            
+            // Apply country-level filtering if needed
+            if (isCountryFilter) {
+                filteredJobs = filteredJobs.stream()
+                    .filter(job -> locationMappingService.locationMatchesCountry(job.getLocation(), locationFilter))
+                    .collect(Collectors.toList());
+                logger.info("Location filter '{}': {}/{} jobs matched", locationFilter, filteredJobs.size(), result.getJobs().size());
+            }
+            
+            // Apply multi-employment-type filtering if needed
+            if (isMultiEmploymentTypeFilter) {
+                List<String> upperCaseTypes = employmentTypes.stream()
+                    .map(String::toUpperCase)
+                    .collect(Collectors.toList());
+                    
+                filteredJobs = filteredJobs.stream()
+                    .filter(job -> {
+                        List<String> jobTypes = job.getEmploymentType();
+                        if (jobTypes == null || jobTypes.isEmpty()) return false;
+                        // Check if any of the job's employment types match any selected type
+                        return jobTypes.stream()
+                            .anyMatch(jt -> upperCaseTypes.contains(jt.toUpperCase()));
+                    })
+                    .collect(Collectors.toList());
+                logger.info("Employment type filter {}: {}/{} jobs matched", employmentTypes, filteredJobs.size(), result.getJobs().size());
+            }
+            
+            // Apply fresher-friendly filtering if needed
+            if (isFresherFilter) {
+                int beforeCount = filteredJobs.size();
+                filteredJobs = filteredJobs.stream()
+                    .filter(job -> Boolean.TRUE.equals(job.getIsFresherFriendly()))
+                    .collect(Collectors.toList());
+                logger.info("Fresher filter: {}/{} jobs matched", filteredJobs.size(), beforeCount);
+            }
+            
+            // Update the response with filtered jobs
+            result.setJobs(filteredJobs);
+            result.setTotalCount(filteredJobs.size());
+        }
+        
+        return result;
     }
     
     @Override
     public JobPostListResponse searchJobPosts(Map<String, Object> queryParams) {
+        // Check if location filter is a country name
+        String locationFilter = queryParams.get("location") != null ? queryParams.get("location").toString() : null;
+        boolean isCountryFilter = locationMappingService.isCountry(locationFilter);
+        
+        // If it's a country, remove location from query params (we'll filter after fetch)
+        if (isCountryFilter) {
+            queryParams.remove("location");
+            logger.info("Smart location filtering: '{}' detected as country, will filter server-side", locationFilter);
+        }
+        
         // Enforce minimum limit of 20 (JM API requirement)
         if (queryParams.containsKey("limit")) {
             Object limitObj = queryParams.get("limit");
@@ -119,7 +222,24 @@ public class CallJobPostService implements JobPostServiceInf {
             entity,
             JobPostListResponse.class
         );
-        return response.getBody();
+        
+        JobPostListResponse result = response.getBody();
+        
+        // Apply country-level filtering if needed
+        if (result != null && isCountryFilter && result.getJobs() != null) {
+            List<JobPostDto> filteredJobs = result.getJobs().stream()
+                .filter(job -> locationMappingService.locationMatchesCountry(job.getLocation(), locationFilter))
+                .collect(Collectors.toList());
+            
+            int originalCount = result.getJobs().size();
+            logger.info("Location filter '{}': {}/{} jobs matched", locationFilter, filteredJobs.size(), originalCount);
+            
+            // Update the response with filtered jobs
+            result.setJobs(filteredJobs);
+            result.setTotalCount(filteredJobs.size());
+        }
+        
+        return result;
     }
     
     /**
@@ -134,13 +254,21 @@ public class CallJobPostService implements JobPostServiceInf {
         
         queryParams.forEach((key, value) -> {
             if (value != null) {
-                // UriComponentsBuilder handles List types automatically
-                // It will create multiple query params like ?employmentType=Full-time&employmentType=Part-time
-                uriBuilder.queryParam(key, value);
+                // Handle List types - add each item as separate query param
+                if (value instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Object> listValue = (List<Object>) value;
+                    for (Object item : listValue) {
+                        if (item != null) {
+                            uriBuilder.queryParam(key, item.toString());
+                        }
+                    }
+                } else {
+                    uriBuilder.queryParam(key, value.toString());
+                }
             }
         });
         
         return uriBuilder.toUriString();
     }
 }
-

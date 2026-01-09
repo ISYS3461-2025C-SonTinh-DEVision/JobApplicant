@@ -4,13 +4,13 @@
  * 
  * Architecture: A.2.c - REST HTTP Helper Class pattern
  * Security: Calls JA backend proxy instead of direct JM API
+ * Location: Backend handles smart country-to-city filtering
  */
 
 import { mockApiClient } from './mockApiClient';
 import httpUtil from '../utils/httpUtil';
 import { API_ENDPOINTS } from '../config/apiConfig';
 import { transformJobPost, transformJobPostListResponse } from '../utils/jobTransformers';
-import { buildLocationSearchStrategy, locationMatchesCountry } from '../utils/locationMapping';
 
 // Flag to track if we should use mock (set automatically on API failure)
 let useMockFallback = false;
@@ -36,9 +36,6 @@ const JobSearchService = {
      * @returns {Promise<Object>} List of jobs with {data, total, page, totalPages}
      */
     getJobs: async (filters = {}) => {
-        // Determine location search strategy
-        const locationStrategy = buildLocationSearchStrategy(filters.location);
-
         // Try real API first (unless we already know it's down)
         if (!useMockFallback) {
             try {
@@ -53,18 +50,17 @@ const JobSearchService = {
                     queryParams.search = filters.search;
                 }
 
-                // Add location filter ONLY if it's not a country (city-level filter)
-                // For countries, we fetch all and filter client-side to match cities
-                if (locationStrategy.useApiFilter && locationStrategy.apiLocation) {
-                    queryParams.location = locationStrategy.apiLocation;
+                // Add location filter - backend handles smart country-to-city mapping
+                if (filters.location) {
+                    queryParams.location = filters.location;
                 }
 
-                // Add employment type filter - only if array has items or string is non-empty
+                // Add employment type filter - send as array for multiple values
                 if (filters.employmentType) {
                     if (Array.isArray(filters.employmentType)) {
-                        // Only add if array has items
+                        // Only add if array has items - pass array directly for proper repeated params
                         if (filters.employmentType.length > 0) {
-                            queryParams.employmentType = filters.employmentType.join(',');
+                            queryParams.employmentType = filters.employmentType;
                         }
                     } else if (filters.employmentType.trim()) {
                         // Only add if string is non-empty
@@ -86,20 +82,11 @@ const JobSearchService = {
                 }
 
                 // Call JA backend proxy endpoint
+                // Backend handles smart location filtering (country → cities matching)
                 const response = await httpUtil.get('/api/job-posts', queryParams);
 
                 // Transform response to frontend format
-                let result = transformJobPostListResponse(response);
-
-                // Apply client-side location filtering for country-level filters
-                if (locationStrategy.localFilter && result.data) {
-                    const originalCount = result.data.length;
-                    result.data = result.data.filter(job =>
-                        locationStrategy.localFilter(job.location)
-                    );
-                    console.log(`[JobSearchService] Location filter '${filters.location}': ${result.data.length}/${originalCount} jobs matched`);
-                    result.total = result.data.length;
-                }
+                const result = transformJobPostListResponse(response);
 
                 console.log('[JobSearchService] Fetched real job data:', result.total, 'jobs');
                 return result;
@@ -143,16 +130,11 @@ const JobSearchService = {
             }
 
             if (filters.location) {
-                // Use smart location mapping for mock data too
-                const locationStrategy = buildLocationSearchStrategy(filters.location);
-                if (locationStrategy.localFilter) {
-                    jobs = jobs.filter(job => locationStrategy.localFilter(job.location));
-                } else {
-                    const locTerm = filters.location.toLowerCase();
-                    jobs = jobs.filter(job =>
-                        job.location?.toLowerCase().includes(locTerm)
-                    );
-                }
+                // Simple string matching for mock data
+                const locTerm = filters.location.toLowerCase();
+                jobs = jobs.filter(job =>
+                    job.location?.toLowerCase().includes(locTerm)
+                );
             }
 
             if (filters.fresher === true) {

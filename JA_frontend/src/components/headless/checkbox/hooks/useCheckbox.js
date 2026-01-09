@@ -1,152 +1,103 @@
 /**
- * useCheckbox Hook
+ * useCheckbox Hook - Minimal Working Version
  * 
- * Headless hook for checkbox functionality.
- * 
+ * Headless hook for controlled checkbox functionality.
  * Architecture: A.3.a (Ultimo Frontend) - Headless UI Pattern
+ * 
+ * Design: Purely controlled component - no internal state.
+ * Parent must provide `checked` and `onChange` props.
  */
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useId } from 'react';
 
 export default function useCheckbox({
-    checked: controlledChecked,
-    defaultChecked = false,
-    onChange = null,
+    checked = false,
+    onChange,
     disabled = false,
     indeterminate = false,
     name = '',
     value = '',
 }) {
-    // State for uncontrolled mode
-    const [internalChecked, setInternalChecked] = useState(defaultChecked);
+    // Generate unique ID for accessibility
+    const generatedId = useId();
+    const checkboxId = name || generatedId;
 
-    // Ref for the input element
-    const inputRef = useRef(null);
+    // Toggle handler - simply calls onChange with opposite value
+    const handleToggle = useCallback((e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
 
-    // Controlled vs uncontrolled
-    const isControlled = controlledChecked !== undefined;
-    const isChecked = isControlled ? controlledChecked : internalChecked;
-
-    // Toggle handler
-    const toggle = useCallback(() => {
         if (disabled) return;
 
-        const newChecked = !isChecked;
-
-        if (!isControlled) {
-            setInternalChecked(newChecked);
-        }
-
+        // Call parent's onChange with the NEW state (opposite of current)
         if (onChange) {
-            onChange(newChecked, { name, value });
+            onChange(!checked);
         }
-    }, [disabled, isChecked, isControlled, onChange, name, value]);
+    }, [disabled, checked, onChange]);
 
-    // Set checked state directly
-    const setChecked = useCallback((newChecked) => {
-        if (disabled) return;
-
-        if (!isControlled) {
-            setInternalChecked(newChecked);
-        }
-
-        if (onChange) {
-            onChange(newChecked, { name, value });
-        }
-    }, [disabled, isControlled, onChange, name, value]);
-
-    // Handle change event from input
-    const handleChange = useCallback((e) => {
-        if (disabled) return;
-
-        const newChecked = e.target.checked;
-
-        if (!isControlled) {
-            setInternalChecked(newChecked);
-        }
-
-        if (onChange) {
-            onChange(newChecked, { name, value });
-        }
-    }, [disabled, isControlled, onChange, name, value]);
-
-    // Handle keyboard
+    // Keyboard handler
     const handleKeyDown = useCallback((e) => {
         if (disabled) return;
 
         if (e.key === ' ' || e.key === 'Enter') {
             e.preventDefault();
-            toggle();
+            e.stopPropagation();
+            handleToggle();
         }
-    }, [disabled, toggle]);
+    }, [disabled, handleToggle]);
 
-    // Focus the input
-    const focus = useCallback(() => {
-        if (inputRef.current) {
-            inputRef.current.focus();
-        }
-    }, []);
+    // Props for the clickable container
+    const getContainerProps = useCallback((userProps = {}) => ({
+        role: 'checkbox',
+        'aria-checked': indeterminate ? 'mixed' : checked,
+        'aria-disabled': disabled || undefined,
+        tabIndex: disabled ? -1 : 0,
+        onClick: handleToggle,
+        onKeyDown: handleKeyDown,
+        style: { cursor: disabled ? 'not-allowed' : 'pointer' },
+        ...userProps,
+    }), [checked, disabled, indeterminate, handleToggle, handleKeyDown]);
 
-    // Get props for the input element
-    const getInputProps = useCallback((props = {}) => ({
-        ref: inputRef,
+    // Props for the visual checkbox box (no click handler - parent handles)
+    const getBoxProps = useCallback((userProps = {}) => ({
+        'aria-hidden': true,
+        'data-checked': checked || undefined,
+        'data-disabled': disabled || undefined,
+        ...userProps,
+    }), [checked, disabled]);
+
+    // Props for hidden input
+    const getInputProps = useCallback((userProps = {}) => ({
         type: 'checkbox',
+        id: checkboxId,
         name,
         value,
-        checked: isChecked,
+        checked,
         disabled,
-        onChange: handleChange,
-        'aria-checked': indeterminate ? 'mixed' : isChecked,
-        ...props,
-    }), [name, value, isChecked, disabled, handleChange, indeterminate]);
-
-    // Get props for a custom checkbox element (div, button, etc.)
-    const getCheckboxProps = useCallback((props = {}) => ({
-        role: 'checkbox',
-        'aria-checked': indeterminate ? 'mixed' : isChecked,
-        'aria-disabled': disabled,
-        tabIndex: disabled ? -1 : 0,
-        onClick: toggle,
-        onKeyDown: handleKeyDown,
-        'data-checked': isChecked || undefined,
-        'data-disabled': disabled || undefined,
-        'data-indeterminate': indeterminate || undefined,
-        ...props,
-    }), [isChecked, disabled, indeterminate, toggle, handleKeyDown]);
-
-    // Get props for the label
-    const getLabelProps = useCallback((props = {}) => ({
-        htmlFor: name,
-        onClick: (e) => {
-            // Prevent double toggle if clicking label wrapping input
-            if (e.target.tagName !== 'INPUT') {
-                toggle();
-            }
-            if (props.onClick) {
-                props.onClick(e);
-            }
-        },
-        ...props,
-    }), [name, toggle]);
+        readOnly: true,
+        tabIndex: -1,
+        className: 'sr-only',
+        'aria-hidden': true,
+        ...userProps,
+    }), [checkboxId, name, value, checked, disabled]);
 
     return {
-        // State
-        isChecked,
-        indeterminate,
-        disabled,
-        name,
-        value,
+        // State (read from props, not internal)
+        isChecked: checked,
+        isDisabled: disabled,
+        isIndeterminate: indeterminate,
 
         // Actions
-        toggle,
-        setChecked,
-        focus,
+        toggle: handleToggle,
 
         // Props getters
+        getContainerProps,
+        getBoxProps,
         getInputProps,
-        getCheckboxProps,
-        getLabelProps,
 
-        // Refs
-        inputRef,
+        // For compatibility
+        getRootProps: getContainerProps,
+        getIndicatorProps: getBoxProps,
     };
 }

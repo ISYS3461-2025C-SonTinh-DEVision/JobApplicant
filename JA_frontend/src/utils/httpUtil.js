@@ -212,7 +212,16 @@ class HttpUtil {
     const url = new URL(endpoint, this.baseURL);
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
-        url.searchParams.append(key, String(value));
+        // Handle arrays - append each value with same key for repeated params
+        if (Array.isArray(value)) {
+          value.forEach(item => {
+            if (item !== undefined && item !== null) {
+              url.searchParams.append(key, String(item));
+            }
+          });
+        } else {
+          url.searchParams.append(key, String(value));
+        }
       }
     });
 

@@ -62,6 +62,9 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 				requestPath.startsWith("/api/admin") ||
 				requestPath.startsWith("/ws/") ||
 				requestPath.startsWith("/api/applications/job/") ||
+				// Public job search endpoints
+				requestPath.startsWith("/api/job-posts") ||
+				requestPath.startsWith("/api/companies") ||
 				// Only specific public applicant endpoints (not /me which requires auth)
 				requestPath.equals("/api/applicants") ||
 				requestPath.matches("/api/applicants/\\d+") ||
