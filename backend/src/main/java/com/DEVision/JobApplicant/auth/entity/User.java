@@ -57,6 +57,11 @@ public class User {
     // SRS Requirement 1.3.2: SSO users cannot use password for direct login
     private String authProvider;
 
+    // Sharding: Logical shard ID based on country
+    // Per Ultimo requirements 1.3.3, 3.3.2, 4.3.1, A.3.4
+    // Values: "vietnam", "singapore", "sea", "global"
+    private String shardId;
+
     public User(String username, String password, String role, boolean enabled) {
         this.email = username;
         this.password = password;
@@ -171,5 +176,13 @@ public class User {
 
     public void setCountry(Country country) {
         this.country = country;
+    }
+
+    public String getShardId() {
+        return shardId;
+    }
+
+    public void setShardId(String shardId) {
+        this.shardId = shardId;
     }
 }

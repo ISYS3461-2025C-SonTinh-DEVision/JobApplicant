@@ -8,6 +8,8 @@ import { useJobSearch } from '../../hooks/useJobSearch';
 import { useJobPagination } from '../../hooks/useJobPagination';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useTheme } from '../../context/ThemeContext';
+import ShardBadge, { getShardForCountryCode } from '../../components/common/ShardBadge';
+import { COUNTRIES } from '../../data/countries';
 
 const JobListPage = () => {
     const navigate = useNavigate();
@@ -193,7 +195,18 @@ const JobListPage = () => {
                 <div className="flex-1 w-full space-y-6">
                     {/* Active Filters Summary - Updated for multi-select */}
                     {(filters.employmentType?.length > 0 || filters.location || filters.fresher) && (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {/* Shard Indicator - Per Ultimo A.3.4 */}
+                            {filters.location && (
+                                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border ${isDark ? 'bg-violet-500/10 border-violet-500/30' : 'bg-violet-50 border-violet-200'}`}>
+                                    <span className={isDark ? 'text-violet-300' : 'text-violet-600'}>Shard:</span>
+                                    <ShardBadge
+                                        countryCode={COUNTRIES.find(c => c.label === filters.location || c.value === filters.location)?.value || 'VN'}
+                                        size="sm"
+                                        showLabel={true}
+                                    />
+                                </div>
+                            )}
                             {filters.location && (
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${isDark ? 'bg-dark-800 border-dark-700 text-white' : 'bg-white border-gray-300 text-gray-800'}`}>
                                     {filters.location}

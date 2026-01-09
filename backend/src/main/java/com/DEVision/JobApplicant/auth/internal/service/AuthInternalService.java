@@ -25,6 +25,7 @@ import com.DEVision.JobApplicant.auth.service.OAuth2Service;
 import com.DEVision.JobApplicant.common.config.RoleConfig;
 import com.DEVision.JobApplicant.common.mail.EmailService;
 import com.DEVision.JobApplicant.common.redis.RedisService;
+import com.DEVision.JobApplicant.common.sharding.ShardingConfig;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -89,6 +90,15 @@ public class AuthInternalService {
         newUser.setActivated(false);
         newUser.setActivationToken(activationToken);
 		newUser.setActivationTokenExpiry(LocalDateTime.now().plusMinutes(15));
+
+        // Set country and shardId for sharding (Ultimo requirements 1.3.3, A.3.4)
+        if (request.getCountry() != null) {
+            newUser.setCountry(request.getCountry());
+            newUser.setShardId(ShardingConfig.getShardId(request.getCountry()));
+        } else {
+            // Default to Southeast Asia shard per requirement 4.3.1
+            newUser.setShardId(ShardingConfig.ShardRegion.SOUTHEAST_ASIA.getShardId());
+        }
 
         User savedUser = authService.createUser(newUser);
 

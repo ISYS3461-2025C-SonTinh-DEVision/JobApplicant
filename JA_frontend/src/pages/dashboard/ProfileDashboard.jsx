@@ -41,6 +41,7 @@ import { Card, FormInput, ConfirmDialog, SkillIcon, SKILL_ICONS, Pagination } fr
 import DatePicker from '../../components/ui/DatePicker';
 import PortfolioSection from '../../components/profile/PortfolioSection';
 import NotificationModal, { useNotificationModal } from '../../components/common/NotificationModal';
+import ShardBadge from '../../components/common/ShardBadge';
 
 // Import Skills Data for smart skill selection
 import { getSkillInfo, getSkillCategory, POPULAR_SKILLS, SKILL_CATEGORIES, searchSkills, getQuickAddSkills } from '../../data/skillsData';
@@ -246,6 +247,12 @@ function ProfileHeader({ id, profile, onEdit, isRealData, onAvatarUpload, upload
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
                       <span className="text-sm">{typeof profile.country === 'object' ? profile.country.name : profile.country}</span>
+                      {/* Shard Badge - Per Ultimo requirement 1.3.3, A.3.4 */}
+                      <ShardBadge
+                        countryCode={typeof profile.country === 'object' ? profile.country?.code : (profile.countryCode || profile.country)}
+                        size="sm"
+                        showLabel={false}
+                      />
                     </div>
                   )}
                 </div>
@@ -1572,6 +1579,46 @@ export default function ProfileDashboard() {
         uploadingAvatar={uploadingAvatar}
         avatarInputRef={avatarInputRef}
       />
+
+      {/* Data Shard Info Section - Per Ultimo requirements 1.3.3, A.3.4 */}
+      {profile?.country && (
+        <div
+          id="shard-info-section"
+          className={`
+            p-4 sm:p-6 rounded-2xl border transition-all duration-300
+            ${isDark
+              ? 'bg-gradient-to-r from-violet-500/10 to-pink-500/10 border-violet-500/30'
+              : 'bg-gradient-to-r from-violet-50 to-pink-50 border-violet-200'
+            }
+          `}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-white'}`}>
+                <Database className={`w-6 h-6 ${isDark ? 'text-violet-400' : 'text-violet-600'}`} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Data Shard Region
+                  </h3>
+                  <ShardBadge
+                    countryCode={typeof profile.country === 'object' ? profile.country?.code : profile.countryCode}
+                    size="md"
+                    showLabel={true}
+                  />
+                </div>
+                <p className={`text-sm mt-1 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
+                  Your data is stored and queried from this geographic region based on your country
+                </p>
+              </div>
+            </div>
+            <div className={`text-xs px-3 py-1.5 rounded-full ${isDark ? 'bg-violet-500/20 text-violet-300' : 'bg-violet-100 text-violet-600'}`}>
+              Ultimo A.3.4
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Objective Summary Section (Requirement 3.1.2) */}
       <div
