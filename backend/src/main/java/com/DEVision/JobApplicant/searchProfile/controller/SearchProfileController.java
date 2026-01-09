@@ -28,6 +28,8 @@ import com.DEVision.JobApplicant.searchProfile.entity.MatchedJobPost;
 import com.DEVision.JobApplicant.searchProfile.service.MatchedJobPostService;
 import com.DEVision.JobApplicant.searchProfile.service.SearchProfileService;
 import com.DEVision.JobApplicant.searchProfile.service.SkillService;
+import com.DEVision.JobApplicant.notification.external.dto.NotificationRequest;
+import com.DEVision.JobApplicant.notification.external.service.NotificationExternalService;
 
 import jakarta.validation.Valid;
 
@@ -41,6 +43,7 @@ public class SearchProfileController {
     private final SearchProfileService searchProfileService;
     private final MatchedJobPostService matchedJobPostService;
     private final AuthRepository authRepository;
+    private final NotificationExternalService notificationService;
 
     // ===== Helper method to get current user ID from JWT =====
     private String getCurrentUserId() {
@@ -240,6 +243,21 @@ public class SearchProfileController {
             // Save the simulated match
             MatchedJobPost saved = matchedJobPostService.saveMatchedJobPost(simulatedMatch);
             System.out.println("DEBUG: Saved simulated match with id: " + saved.getId());
+            
+            // Create a notification for this job match
+            try {
+                NotificationRequest notifRequest = new NotificationRequest();
+                notifRequest.setUserId(userId);
+                notifRequest.setTitle("New Job Match! " + String.format("%.0f%%", saved.getMatchScore()) + " Match");
+                notifRequest.setContent("Job: " + saved.getJobTitle() + " in " + saved.getLocation() + 
+                    ". Matched skills: " + (saved.getMatchedSkills() != null ? String.join(", ", saved.getMatchedSkills()) : "N/A"));
+                notifRequest.setType("JOB_MATCH");
+                notificationService.sendNotification(notifRequest);
+                System.out.println("DEBUG: Notification sent for job match");
+            } catch (Exception notifEx) {
+                System.err.println("DEBUG: Failed to send notification: " + notifEx.getMessage());
+                // Continue - notification failure shouldn't fail the match
+            }
             
             return ResponseEntity.ok(saved);
         } catch (SecurityException e) {

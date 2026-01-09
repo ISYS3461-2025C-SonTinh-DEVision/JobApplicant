@@ -6,5 +6,5 @@
  */
 
 export { default as NotificationBell } from './NotificationBell';
-export { default as NotificationItem, getNotificationIcon, getNotificationColor } from '../notifications/NotificationItem';
+export { default as NotificationItem, getNotificationIcon, getNotificationStyles, formatTimeAgo } from '../notifications/NotificationItem';
 export { default as ToastContainer, Toast, getToastConfig } from './ToastNotification';
