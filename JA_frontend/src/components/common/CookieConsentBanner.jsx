@@ -5,11 +5,13 @@
  * - Only shows once per visitor (stored in localStorage)
  * - Only "Accept" button available (mandatory consent)
  * - Beautiful design with dark/light mode support
+ * - Hidden on /cookie-policy page to not obstruct reading
  * 
  * Architecture: A.3.a (Ultimo Frontend) - Headless UI Pattern
  */
 
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Cookie, Shield, ChevronRight, ExternalLink } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -17,13 +19,17 @@ const COOKIE_CONSENT_KEY = 'devision_cookie_consent';
 
 export default function CookieConsentBanner() {
     const { isDark } = useTheme();
+    const location = useLocation();
     const [isVisible, setIsVisible] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
+
+    // Hide on cookie policy pages
+    const isCookiePolicyPage = location.pathname.includes('cookie-policy') || location.pathname.includes('cookie-policy');
 
     // Check if user has already accepted cookies
     useEffect(() => {
         const hasConsent = localStorage.getItem(COOKIE_CONSENT_KEY);
-        if (!hasConsent) {
+        if (!hasConsent && !isCookiePolicyPage) {
             // Small delay for smooth entrance animation
             const timer = setTimeout(() => {
                 setIsVisible(true);
@@ -31,7 +37,7 @@ export default function CookieConsentBanner() {
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, []);
+    }, [isCookiePolicyPage]);
 
     // Handle accept
     const handleAccept = () => {
@@ -46,103 +52,76 @@ export default function CookieConsentBanner() {
         }, 300);
     };
 
-    if (!isVisible) return null;
+    if (!isVisible || isCookiePolicyPage) return null;
 
     return (
         <div className={`
-            fixed bottom-0 left-0 right-0 z-[9999] p-4 md:p-6
+            fixed bottom-0 left-0 right-0 z-[9999] p-3 sm:p-4
             transition-all duration-300 ease-out
             ${isAnimating ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}
         `}>
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+            {/* Backdrop - subtle */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
 
-            {/* Banner */}
+            {/* Banner - Compact */}
             <div className={`
-                relative max-w-4xl mx-auto rounded-2xl border shadow-2xl overflow-hidden
+                relative max-w-2xl mx-auto rounded-xl border shadow-xl overflow-hidden
                 ${isDark
                     ? 'bg-dark-800/95 backdrop-blur-xl border-dark-700'
                     : 'bg-white/95 backdrop-blur-xl border-gray-200'
                 }
             `}>
                 {/* Gradient accent */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 via-primary-400 to-primary-600" />
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary-500 via-primary-400 to-primary-600" />
 
-                <div className="p-6 md:p-8">
-                    <div className="flex flex-col md:flex-row md:items-start gap-6">
-                        {/* Icon */}
+                <div className="p-4">
+                    <div className="flex items-center gap-4">
+                        {/* Icon - smaller */}
                         <div className={`
-                            flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center
+                            flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
                             ${isDark ? 'bg-orange-500/20' : 'bg-orange-50'}
                         `}>
-                            <Cookie className={`w-7 h-7 ${isDark ? 'text-orange-400' : 'text-orange-500'}`} />
+                            <Cookie className={`w-5 h-5 ${isDark ? 'text-orange-400' : 'text-orange-500'}`} />
                         </div>
 
-                        {/* Content */}
-                        <div className="flex-1">
-                            <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                🍪 We Use Cookies
-                            </h3>
-                            <p className={`mb-4 leading-relaxed ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
-                                DEVision uses cookies to enhance your experience, provide personalized job recommendations,
-                                and ensure secure authentication. By continuing to use our platform, you accept our use of cookies.
-                            </p>
+                        {/* Content - inline */}
+                        <div className="flex-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                <div className="flex-1">
+                                    <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                        🍪 We Use Cookies
+                                    </h3>
+                                    <p className={`text-xs mt-0.5 line-clamp-1 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                                        For secure auth & personalized recommendations
+                                    </p>
+                                </div>
 
-                            {/* Key points */}
-                            <div className="flex flex-wrap gap-3 mb-6">
-                                {[
-                                    { icon: Shield, label: 'Secure Authentication' },
-                                    { icon: Cookie, label: 'Essential Cookies Only' },
-                                ].map((item, i) => {
-                                    const Icon = item.icon;
-                                    return (
-                                        <div
-                                            key={i}
-                                            className={`
-                                                flex items-center gap-2 px-3 py-1.5 rounded-full text-sm
-                                                ${isDark ? 'bg-dark-700 text-dark-300' : 'bg-gray-100 text-gray-600'}
-                                            `}
-                                        >
-                                            <Icon className="w-3.5 h-3.5" />
-                                            {item.label}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                                <button
-                                    onClick={handleAccept}
-                                    className={`
-                                        flex-1 sm:flex-none inline-flex items-center justify-center gap-2 
-                                        px-8 py-3 rounded-xl font-semibold text-white
-                                        bg-gradient-to-r from-primary-500 to-primary-600 
-                                        hover:from-primary-600 hover:to-primary-700
-                                        shadow-lg shadow-primary-500/30
-                                        transition-all duration-200 hover:scale-[1.02]
-                                    `}
-                                >
-                                    Accept & Continue
-                                    <ChevronRight className="w-4 h-4" />
-                                </button>
-
-                                <a
-                                    href="/cookie-policy"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={`
-                                        inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl
-                                        font-medium transition-colors
-                                        ${isDark
-                                            ? 'text-dark-300 hover:text-white hover:bg-dark-700'
-                                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                                        }
-                                    `}
-                                >
-                                    Learn More
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                </a>
+                                {/* Actions - inline */}
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <a
+                                        href="/cookie-policy"
+                                        className={`
+                                            text-xs font-medium transition-colors
+                                            ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}
+                                        `}
+                                    >
+                                        Learn More
+                                    </a>
+                                    <button
+                                        onClick={handleAccept}
+                                        className={`
+                                            inline-flex items-center gap-1.5 
+                                            px-4 py-2 rounded-lg text-sm font-medium text-white
+                                            bg-gradient-to-r from-primary-500 to-primary-600 
+                                            hover:from-primary-600 hover:to-primary-700
+                                            shadow-md shadow-primary-500/20
+                                            transition-all duration-200 hover:scale-[1.02]
+                                        `}
+                                    >
+                                        Accept
+                                        <ChevronRight className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
