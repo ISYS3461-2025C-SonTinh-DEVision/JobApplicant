@@ -247,15 +247,17 @@ export default function DashboardLayout() {
   }, []);
 
   // Navigation items - badges always show (even when 0)
+  // Navigation items - organized by user workflow priority
+  // Order: Home → Jobs → Applications → Notifications → Profile → Search Profile → Premium → Settings
   const navigationItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard', exact: true },
-    { to: '/dashboard/profile', icon: User, label: 'My Profile' },
-    { to: '/dashboard/notifications', icon: Bell, label: 'Notifications', badge: unreadCount },
-    { to: '/dashboard/applications', icon: FileText, label: 'Applications', badge: applicationsCount },
     { to: '/dashboard/jobs', icon: Search, label: 'Find Jobs' },
+    { to: '/dashboard/applications', icon: FileText, label: 'Applications', badge: applicationsCount },
+    { to: '/dashboard/notifications', icon: Bell, label: 'Notifications', badge: unreadCount },
+    { to: '/dashboard/profile', icon: User, label: 'My Profile' },
     { to: '/dashboard/search-profile', icon: Target, label: 'Search Profile' },
     { to: '/dashboard/subscription', icon: Crown, label: 'Premium', highlight: true },
-    { to: '/dashboard/analytics', icon: TrendingUp, label: 'Analytics' },
+    { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
   ];
 
   const handleNavigation = (path) => {
