@@ -151,32 +151,35 @@ class HttpUtil {
    * @throws {Error} HTTP error with details
    */
   handleError(response, data) {
-    const error = new Error(data?.message || `HTTP Error: ${response.status}`);
+    // Backend may return 'error' or 'message' field
+    const errorMsg = data?.error || data?.message || `HTTP Error: ${response.status}`;
+    const error = new Error(errorMsg);
     error.status = response.status;
     error.statusText = response.statusText;
     error.data = data;
     error.isHttpError = true;
+    error.code = data?.code; // DUPLICATE_APPLICATION, etc.
 
     // Handle specific error codes
     switch (response.status) {
       case 401:
-        error.message = data?.message || 'Unauthorized - Please login again';
+        error.message = data?.error || data?.message || 'Unauthorized - Please login again';
         // Clear tokens on 401
         this.clearTokens();
         // Dispatch event for auth context to handle
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         break;
       case 403:
-        error.message = data?.message || 'Forbidden - Access denied';
+        error.message = data?.error || data?.message || 'Forbidden - Access denied';
         break;
       case 404:
-        error.message = data?.message || 'Resource not found';
+        error.message = data?.error || data?.message || 'Resource not found';
         break;
       case 409:
-        error.message = data?.message || 'Conflict - Resource already exists';
+        error.message = data?.error || data?.message || 'Conflict - Resource already exists';
         break;
       case 422:
-        error.message = data?.message || 'Validation error';
+        error.message = data?.error || data?.message || 'Validation error';
         error.validationErrors = data?.errors;
         break;
       case 429:

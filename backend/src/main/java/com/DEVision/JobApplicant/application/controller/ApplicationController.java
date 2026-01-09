@@ -94,6 +94,12 @@ public class ApplicationController {
             ApplicationResponse response = internalService.createApplication(
                 applicantId, request, cvFile, coverLetterFile);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
+        } catch (ApplicationExternalService.DuplicateApplicationException e) {
+            // Handle duplicate application - return 409 Conflict with user-friendly message
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            error.put("code", "DUPLICATE_APPLICATION");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
         } catch (IllegalArgumentException e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());

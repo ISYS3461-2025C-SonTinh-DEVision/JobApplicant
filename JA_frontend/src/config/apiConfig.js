@@ -145,6 +145,12 @@ export const API_ENDPOINTS = {
     WEBSOCKET: '/ws/notifications',
   },
 
+  // Activity endpoints (for Dashboard Recent Activity)
+  ACTIVITIES: {
+    LIST: '/api/activities/me',
+    BY_CATEGORY: (category) => `/api/activities/me/category/${category}`,
+  },
+
   // File upload endpoints
   FILES: {
     UPLOAD: '/api/files/upload',

@@ -32,11 +32,12 @@ class DashboardService {
     async getDashboardData() {
         try {
             // Fetch all data in parallel
-            const [historyResponse, profileResponse, subscriptionResponse, profileViewsResponse] = await Promise.allSettled([
+            const [historyResponse, profileResponse, subscriptionResponse, profileViewsResponse, activitiesResponse] = await Promise.allSettled([
                 this.getApplicationHistory(),
                 this.getProfile(),
                 this.getSubscriptionStatus(),
                 this.getProfileViewStats(),
+                this.getRealActivities(),
             ]);
 
             // Extract data or use defaults
@@ -44,12 +45,28 @@ class DashboardService {
             const profile = profileResponse.status === 'fulfilled' ? profileResponse.value : null;
             const subscription = subscriptionResponse.status === 'fulfilled' ? subscriptionResponse.value : null;
             const profileViews = profileViewsResponse.status === 'fulfilled' ? profileViewsResponse.value : null;
+            const realActivities = activitiesResponse.status === 'fulfilled' ? activitiesResponse.value : null;
 
             // Calculate stats
             const stats = this.calculateStats(history, profileViews);
             const profileCompletion = this.calculateProfileCompletion(profile);
             const recentApplications = this.extractRecentApplications(history, 5);
-            const recentActivity = this.generateActivityFromData(history, profile);
+
+            // Use real activities from API, fallback to generated if empty
+            let recentActivity = [];
+            if (realActivities && realActivities.length > 0) {
+                recentActivity = realActivities.map(activity => ({
+                    type: activity.category || 'profile',
+                    icon: activity.icon || 'Activity',
+                    title: activity.title,
+                    description: activity.description,
+                    time: activity.timeAgo,
+                    timestamp: activity.createdAt ? new Date(activity.createdAt).getTime() : Date.now(),
+                }));
+            } else {
+                // Fallback to generated activities if no real activities exist yet
+                recentActivity = this.generateActivityFromData(history, profile);
+            }
 
             return {
                 success: true,
@@ -122,6 +139,21 @@ class DashboardService {
         } catch (error) {
             console.error('[DashboardService] Error fetching profile view stats:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Get real activities from the backend API
+     * @param {number} limit - Maximum number of activities to fetch
+     * @returns {Promise<Array>} Array of activity objects
+     */
+    async getRealActivities(limit = 20) {
+        try {
+            const response = await httpUtil.get(`${API_ENDPOINTS.ACTIVITIES.LIST}?limit=${limit}`);
+            return response || [];
+        } catch (error) {
+            console.error('[DashboardService] Error fetching activities:', error);
+            return []; // Return empty array on error, will fallback to generated activities
         }
     }
 

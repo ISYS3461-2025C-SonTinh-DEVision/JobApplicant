@@ -12,7 +12,7 @@
  * Architecture: A.2.b Componentized Frontend + A.3.a Headless UI
  */
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Briefcase, Search, FileText, TrendingUp,
@@ -21,7 +21,6 @@ import {
   User, Award, BookOpen, Phone
 } from 'lucide-react';
 import { Card as HeadlessCard, useCard } from '../../components/headless';
-import { useHeadlessTabs, useHeadlessDataList } from '../../components/headless';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotifications } from '../../context/NotificationContext';
@@ -486,38 +485,33 @@ export default function DashboardHome() {
     refresh,
   } = useDashboardData();
 
-  // Use headless data list for applications filtering
-  const {
-    items: filteredApplications,
-    setFilter,
-    currentFilter
-  } = useHeadlessDataList({
-    initialItems: recentApplications,
-    filters: {
-      all: () => true,
-      pending: (item) => item.status === 'PENDING',
-      reviewing: (item) => item.status === 'REVIEWING',
-      completed: (item) => ['ACCEPTED', 'REJECTED'].includes(item.status),
-    },
-    initialFilter: 'all',
-    pageSize: 5
-  });
+  // State for applications filter
+  const [applicationFilter, setApplicationFilter] = useState('all');
 
-  // Use headless tabs for activity types
-  const activityTabs = useHeadlessTabs({
-    tabs: [
-      { id: 'all', label: 'All Activity' },
-      { id: 'applications', label: 'Applications' },
-      { id: 'profile', label: 'Profile' },
-    ],
-    initialTab: 'all'
-  });
+  // Filter applications based on selected filter
+  const filteredApplications = useMemo(() => {
+    if (applicationFilter === 'all') return recentApplications;
+    if (applicationFilter === 'pending') return recentApplications.filter(app => app.status === 'PENDING');
+    if (applicationFilter === 'reviewing') return recentApplications.filter(app => app.status === 'REVIEWING');
+    if (applicationFilter === 'completed') return recentApplications.filter(app => ['ACCEPTED', 'REJECTED'].includes(app.status));
+    return recentApplications;
+  }, [recentApplications, applicationFilter]);
+
+  // State for activity tab
+  const [activityTab, setActivityTab] = useState('all');
+
+  // Activity tabs configuration
+  const activityTabsConfig = [
+    { id: 'all', label: 'All Activity' },
+    { id: 'applications', label: 'Applications' },
+    { id: 'profile', label: 'Profile' },
+  ];
 
   // Filter activities based on active tab
   const filteredActivities = useMemo(() => {
-    if (activityTabs.activeTab === 'all') return recentActivity;
-    return recentActivity.filter(a => a.type === activityTabs.activeTab);
-  }, [activityTabs.activeTab, recentActivity]);
+    if (activityTab === 'all') return recentActivity;
+    return recentActivity.filter(a => a.type === activityTab);
+  }, [activityTab, recentActivity]);
 
   // Handle view application
   const handleViewApplication = useCallback((app) => {
@@ -618,15 +612,15 @@ export default function DashboardHome() {
                 Recent Applications
               </h2>
               <div className="flex items-center gap-2">
-                {/* Filter buttons using headless data list */}
+                {/* Filter buttons */}
                 <div className="flex gap-1">
                   {['all', 'pending', 'reviewing'].map((filter) => (
                     <button
                       key={filter}
-                      onClick={() => setFilter(filter)}
+                      onClick={() => setApplicationFilter(filter)}
                       className={`
                         px-3 py-1 text-xs font-medium rounded-lg transition-colors capitalize
-                        ${currentFilter === filter
+                        ${applicationFilter === filter
                           ? 'bg-primary-600 text-white'
                           : isDark
                             ? 'text-dark-400 hover:text-white hover:bg-dark-700'
@@ -689,15 +683,15 @@ export default function DashboardHome() {
               <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Recent Activity
               </h2>
-              {/* Tab buttons using headless tabs */}
+              {/* Tab buttons */}
               <div className="flex gap-1">
-                {activityTabs.tabs.map((tab) => (
+                {activityTabsConfig.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => activityTabs.setActiveTab(tab.id)}
+                    onClick={() => setActivityTab(tab.id)}
                     className={`
                       px-3 py-1 text-xs font-medium rounded-lg transition-colors
-                      ${activityTabs.activeTab === tab.id
+                      ${activityTab === tab.id
                         ? 'bg-primary-600 text-white'
                         : isDark
                           ? 'text-dark-400 hover:text-white hover:bg-dark-700'

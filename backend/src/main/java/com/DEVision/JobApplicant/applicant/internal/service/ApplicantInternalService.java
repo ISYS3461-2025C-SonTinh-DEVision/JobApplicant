@@ -30,6 +30,8 @@ import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.model.PlanType;
+import com.DEVision.JobApplicant.activity.service.ActivityService;
+import com.DEVision.JobApplicant.activity.entity.Activity.ActivityType;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -46,6 +48,9 @@ public class ApplicantInternalService {
 
     @Autowired
     private AuthRepository authRepository;
+    
+    @Autowired
+    private ActivityService activityService;
 
     /**
      * Get user profile by user ID
@@ -303,6 +308,11 @@ public class ApplicantInternalService {
             applicantService.updateUserCountry(updated.getUserId(), request.getCountry());
         }
         
+        // Record activity
+        if (updated != null) {
+            activityService.recordProfileUpdate("profile information");
+        }
+        
         return updated != null ? toProfileResponse(updated) : null;
     }
 
@@ -325,6 +335,10 @@ public class ApplicantInternalService {
         }
 
         Education added = updated.getEducation().get(updated.getEducation().size() - 1);
+        
+        // Record activity
+        activityService.recordEducationAdd(request.getDegree(), request.getInstitution());
+        
         return toEducationResponse(added);
     }
 
@@ -376,6 +390,10 @@ public class ApplicantInternalService {
         }
 
         WorkExperience added = updated.getWorkExperience().get(updated.getWorkExperience().size() - 1);
+        
+        // Record activity
+        activityService.recordWorkExperienceAdd(request.getPosition(), request.getCompany());
+        
         return toWorkExperienceResponse(added);
     }
 
@@ -417,6 +435,12 @@ public class ApplicantInternalService {
     public ProfileResponse addMySkills(AddSkillsRequest request) {
         Applicant applicant = getMyApplicant();
         Applicant updated = applicantService.addSkills(applicant.getId(), request.getSkills());
+        
+        // Record activity
+        if (updated != null && request.getSkills() != null && !request.getSkills().isEmpty()) {
+            activityService.recordSkillsAdd(request.getSkills());
+        }
+        
         return updated != null ? toProfileResponse(updated) : null;
     }
 
@@ -429,6 +453,12 @@ public class ApplicantInternalService {
     public ProfileResponse uploadMyAvatar(MultipartFile file) {
         Applicant applicant = getMyApplicant();
         Applicant updated = applicantService.uploadAvatar(applicant.getId(), file);
+        
+        // Record activity
+        if (updated != null) {
+            activityService.recordAvatarUpload();
+        }
+        
         return updated != null ? toProfileResponse(updated) : null;
     }
     

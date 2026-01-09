@@ -7,6 +7,7 @@ import com.DEVision.JobApplicant.application.entity.Application;
 import com.DEVision.JobApplicant.application.external.dto.ApplicationRequest;
 import com.DEVision.JobApplicant.application.external.dto.ApplicationResponse;
 import com.DEVision.JobApplicant.application.service.ApplicationService;
+import com.DEVision.JobApplicant.activity.service.ActivityService;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,6 +22,9 @@ public class ApplicationExternalService {
     @Autowired
     private ApplicationService applicationService;
     
+    @Autowired
+    private ActivityService activityService;
+    
     /**
      * Create a new application
      * Call this from other backend services when an application is submitted
@@ -28,7 +32,7 @@ public class ApplicationExternalService {
     public ApplicationResponse createApplication(ApplicationRequest request) {
         // Check if applicant already applied
         if (applicationService.hasApplicantApplied(request.getJobPostId(), request.getApplicantId())) {
-            throw new IllegalArgumentException("Applicant has already applied to this job post");
+            throw new DuplicateApplicationException("You have already applied for this job. Please choose a different position.");
         }
         
         Application application = new Application();
@@ -42,7 +46,27 @@ public class ApplicationExternalService {
         application.setCompanyName(request.getCompanyName());
         
         Application saved = applicationService.createApplication(application);
+        
+        // Record activity for application submission
+        try {
+            String jobTitle = request.getJobTitle() != null ? request.getJobTitle() : "a position";
+            String company = request.getCompanyName() != null ? request.getCompanyName() : "a company";
+            activityService.recordApplicationSubmit(jobTitle, company);
+        } catch (Exception e) {
+            // Don't fail the application if activity recording fails
+            System.err.println("Failed to record application activity: " + e.getMessage());
+        }
+        
         return toResponse(saved);
+    }
+    
+    /**
+     * Custom exception for duplicate applications
+     */
+    public static class DuplicateApplicationException extends RuntimeException {
+        public DuplicateApplicationException(String message) {
+            super(message);
+        }
     }
     
     /**

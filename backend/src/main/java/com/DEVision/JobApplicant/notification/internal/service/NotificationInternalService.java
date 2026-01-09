@@ -10,6 +10,7 @@ import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.notification.entity.Notification;
 import com.DEVision.JobApplicant.notification.external.dto.NotificationResponse;
 import com.DEVision.JobApplicant.notification.internal.dto.NotificationListResponse;
+import com.DEVision.JobApplicant.notification.internal.dto.NotificationRequest;
 import com.DEVision.JobApplicant.notification.service.NotificationService;
 
 import java.util.List;
@@ -26,6 +27,16 @@ public class NotificationInternalService {
     
     @Autowired
     private AuthRepository authRepository;
+    
+    /**
+     * Create notification for a specific user (used by other modules like ActivityService)
+     */
+    public NotificationResponse createNotificationForUser(String userId, NotificationRequest request) {
+        Notification notification = new Notification(userId, request.getTitle(), request.getContent());
+        notification.setType(request.getType());
+        Notification saved = notificationService.createNotification(notification);
+        return toResponse(saved);
+    }
     
     /**
      * Get all notifications for user with metadata
