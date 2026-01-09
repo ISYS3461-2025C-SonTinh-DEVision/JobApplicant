@@ -181,10 +181,16 @@ export function transformJobPostListResponse(response) {
         jobs = response.data;
         meta = response.meta || {};
     }
-    // JA Backend proxy structure: { jobs: [...], meta: {...} }
+    // JA Backend proxy structure: { jobs: [...], totalCount, page, totalPages }
     else if (response.jobs && Array.isArray(response.jobs)) {
         jobs = response.jobs;
-        meta = response.meta || {};
+        // Read pagination info directly from response root (not meta object)
+        meta = {
+            total: response.totalCount || response.total || jobs.length,
+            page: response.page || 1,
+            totalPages: response.totalPages || 1,
+            limit: response.limit || response.size || 10
+        };
     }
     // Simple array response
     else if (Array.isArray(response)) {
