@@ -341,6 +341,7 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
                     result.put("applicantId", applicant.getId());
                     result.put("firstName", applicant.getFirstName());
                     result.put("lastName", applicant.getLastName());
+                    result.put("avatarUrl", applicant.getAvatarUrl()); // Include avatar for sidebar/header
                 }
 
                 // Optionally refresh the access token and update cookie
