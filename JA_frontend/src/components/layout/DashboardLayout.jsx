@@ -86,7 +86,7 @@ function NavItem({ to, icon: Icon, label, badge, isActive, onClick, className = 
       {!isCollapsed && (
         <>
           <span className="font-medium flex-1 text-left">{label}</span>
-          {badge && (
+          {badge !== undefined && badge !== null && (
             <span className="px-2 py-0.5 text-xs font-semibold bg-accent-500 text-white rounded-full">
               {badge}
             </span>
@@ -227,14 +227,31 @@ export default function DashboardLayout() {
   const { unreadCount } = useNotifications();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Import applications count from useDashboardData for real-time badge
+  const [applicationsCount, setApplicationsCount] = useState(0);
 
+  // Fetch applications count on mount
+  React.useEffect(() => {
+    const fetchApplicationsCount = async () => {
+      try {
+        const { default: dashboardService } = await import('../../services/DashboardService');
+        const response = await dashboardService.getApplicationHistory();
+        if (response && response.statistics) {
+          setApplicationsCount(response.statistics.totalApplications || 0);
+        }
+      } catch (error) {
+        console.error('[DashboardLayout] Error fetching applications count:', error);
+      }
+    };
+    fetchApplicationsCount();
+  }, []);
 
-  // Navigation items
+  // Navigation items - badges always show (even when 0)
   const navigationItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard', exact: true },
     { to: '/dashboard/profile', icon: User, label: 'My Profile' },
-    { to: '/dashboard/notifications', icon: Bell, label: 'Notifications', badge: unreadCount > 0 ? unreadCount : undefined },
-    { to: '/dashboard/applications', icon: FileText, label: 'Applications', badge: '2' },
+    { to: '/dashboard/notifications', icon: Bell, label: 'Notifications', badge: unreadCount },
+    { to: '/dashboard/applications', icon: FileText, label: 'Applications', badge: applicationsCount },
     { to: '/dashboard/jobs', icon: Search, label: 'Find Jobs' },
     { to: '/dashboard/search-profile', icon: Target, label: 'Search Profile' },
     { to: '/dashboard/subscription', icon: Crown, label: 'Premium', highlight: true },

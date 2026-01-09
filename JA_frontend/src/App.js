@@ -10,6 +10,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { AdminAuthProvider } from './context/AdminAuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import router from './routes/routeConfig';
+import CookieConsentBanner from './components/common/CookieConsentBanner';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <NotificationProvider>
           <AdminAuthProvider>
             <RouterProvider router={router} />
+            <CookieConsentBanner />
           </AdminAuthProvider>
         </NotificationProvider>
       </AuthProvider>

@@ -42,6 +42,9 @@ import SearchProfilePage from '../pages/subscription/SearchProfilePage';
 import SearchProfileSidebar from '../pages/dashboard/SearchProfileSidebar';
 import NotificationsPage from '../pages/dashboard/NotificationsPage';
 
+// Settings Page
+import SettingsPage from '../pages/dashboard/settings/SettingsPage';
+
 // Admin Pages
 import AdminLoginPage from '../pages/admin/AdminLoginPage';
 import AdminLayout from '../components/layout/AdminLayout';
@@ -52,6 +55,9 @@ import JobPostListPage from '../pages/admin/JobPostListPage';
 
 // Placeholder Pages
 import ComingSoon from '../pages/placeholder/ComingSoon';
+
+// Legal Pages
+import CookiePolicyPage from '../pages/legal/CookiePolicyPage';
 
 // Error Pages
 import NotFound from '../pages/error/NotFound';
@@ -122,6 +128,11 @@ const router = createBrowserRouter([
   {
     path: '/jobs/:id',
     element: <JobDetailPage />,
+  },
+  // Cookie Policy Page (accessible from cookie banner)
+  {
+    path: '/cookie-policy',
+    element: <CookiePolicyPage />,
   },
 
   // =====================================
@@ -241,17 +252,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'settings',
-        element: (
-          <ComingSoon
-            featureName="Settings"
-            description="Customize your DEVision experience. Manage notifications, privacy, and account settings."
-            features={[
-              { icon: Bell, title: 'Notifications', description: 'Control email and push notification preferences' },
-              { icon: Shield, title: 'Privacy', description: 'Manage who can see your profile' },
-              { icon: User, title: 'Account', description: 'Update password and security settings' }
-            ]}
-          />
-        ),
+        element: <SettingsPage />,
       },
     ],
   },

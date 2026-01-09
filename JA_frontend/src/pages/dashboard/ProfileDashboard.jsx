@@ -154,19 +154,22 @@ function DataSourceIndicator({ isRealData, className = '' }) {
 /**
  * Profile Header Section with Avatar and Basic Info
  */
-function ProfileHeader({ profile, onEdit, isRealData, onAvatarUpload, uploadingAvatar, avatarInputRef }) {
+function ProfileHeader({ id, profile, onEdit, isRealData, onAvatarUpload, uploadingAvatar, avatarInputRef }) {
   const { isDark } = useTheme();
   const fullName = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'No name set';
   const initial = (fullName[0] || 'U').toUpperCase();
 
   return (
-    <div className={`
-      relative overflow-hidden rounded-2xl border
-      ${isDark
-        ? 'bg-dark-800 border-dark-700'
-        : 'bg-white border-gray-200 shadow-sm'
-      }
-    `}>
+    <div
+      id={id}
+      className={`
+        relative overflow-hidden rounded-2xl border transition-all duration-300
+        ${isDark
+          ? 'bg-dark-800 border-dark-700'
+          : 'bg-white border-gray-200 shadow-sm'
+        }
+      `}
+    >
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary-600/10 to-accent-500/10" />
 
@@ -178,7 +181,7 @@ function ProfileHeader({ profile, onEdit, isRealData, onAvatarUpload, uploadingA
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           {/* Avatar with Upload Button */}
-          <div className="relative group">
+          <div id="avatar-section" className="relative group transition-all duration-300">
             {profile?.avatarUrl ? (
               <img
                 src={profile.avatarUrl}
@@ -250,6 +253,7 @@ function ProfileHeader({ profile, onEdit, isRealData, onAvatarUpload, uploadingA
 
               {/* Edit Button */}
               <button
+                id="edit-profile-btn"
                 onClick={onEdit}
                 className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-glow"
               >
@@ -319,17 +323,20 @@ function StatsCard({ icon: Icon, label, value, color = 'primary' }) {
 /**
  * Section Card Component - Container for profile sections
  */
-function SectionCard({ icon: Icon, title, children, action, isRealData }) {
+function SectionCard({ id, icon: Icon, title, children, action, isRealData }) {
   const { isDark } = useTheme();
 
   return (
-    <div className={`
-      p-6 rounded-2xl border
-      ${isDark
-        ? 'bg-dark-800 border-dark-700'
-        : 'bg-white border-gray-200 shadow-sm'
-      }
-    `}>
+    <div
+      id={id}
+      className={`
+        p-6 rounded-2xl border transition-all duration-300
+        ${isDark
+          ? 'bg-dark-800 border-dark-700'
+          : 'bg-white border-gray-200 shadow-sm'
+        }
+      `}
+    >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary-500/20 flex items-center justify-center">
@@ -899,8 +906,33 @@ export default function ProfileDashboard() {
     loading: false
   });
 
-  // Application stats (mock data - API not available)
-  const [applications] = useState({ total: 12, pending: 5, accepted: 3, rejected: 4 });
+  // Application stats - Real data from API
+  const [applications, setApplications] = useState({ total: 0, pending: 0, accepted: 0, rejected: 0 });
+  const [statsLoaded, setStatsLoaded] = useState(false);
+
+  // Fetch real application stats on mount
+  useEffect(() => {
+    const fetchApplicationStats = async () => {
+      try {
+        const { default: dashboardService } = await import('../../services/DashboardService');
+        const response = await dashboardService.getApplicationHistory();
+        if (response && response.statistics) {
+          setApplications({
+            total: response.statistics.totalApplications || 0,
+            pending: response.statistics.pendingCount || 0,
+            accepted: response.statistics.acceptedCount || 0,
+            rejected: response.statistics.rejectedCount || 0,
+          });
+          setStatsLoaded(true);
+        }
+      } catch (error) {
+        console.error('[ProfileDashboard] Error fetching application stats:', error);
+        // Keep zeros as fallback
+        setStatsLoaded(true);
+      }
+    };
+    fetchApplicationStats();
+  }, []);
 
   // Education Form using useHeadlessForm
   const educationForm = useHeadlessForm({
@@ -1532,6 +1564,7 @@ export default function ProfileDashboard() {
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Profile Header */}
       <ProfileHeader
+        id="profile-header"
         profile={profile}
         onEdit={() => navigate('/dashboard/profile/edit')}
         isRealData={isProfileFromApi}
@@ -1541,13 +1574,16 @@ export default function ProfileDashboard() {
       />
 
       {/* Objective Summary Section (Requirement 3.1.2) */}
-      <div className={`
-        p-6 rounded-2xl border transition-all duration-300
-        ${isDark
-          ? 'bg-dark-800 border-dark-700'
-          : 'bg-white border-gray-200 shadow-sm'
-        }
-      `}>
+      <div
+        id="objective-section"
+        className={`
+          p-6 rounded-2xl border transition-all duration-300
+          ${isDark
+            ? 'bg-dark-800 border-dark-700'
+            : 'bg-white border-gray-200 shadow-sm'
+          }
+        `}
+      >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-accent-500/20 flex items-center justify-center">
@@ -1662,7 +1698,7 @@ export default function ProfileDashboard() {
 
       {/* Stats Grid */}
       <div className="mb-4">
-        <DataSourceIndicator isRealData={false} className="mb-2" />
+        <DataSourceIndicator isRealData={statsLoaded} className="mb-2" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
@@ -1697,6 +1733,7 @@ export default function ProfileDashboard() {
         <div className="lg:col-span-2 space-y-6">
           {/* Education Section */}
           <SectionCard
+            id="education-section"
             icon={GraduationCap}
             title="Education"
             isRealData={isProfileFromApi}
@@ -1773,6 +1810,7 @@ export default function ProfileDashboard() {
 
           {/* Experience Section */}
           <SectionCard
+            id="experience-section"
             icon={Briefcase}
             title="Work Experience"
             isRealData={isProfileFromApi}
@@ -1852,6 +1890,7 @@ export default function ProfileDashboard() {
         <div className="space-y-6">
           {/* Skills Section */}
           <SectionCard
+            id="skills-section"
             icon={Code}
             title="Skills"
             isRealData={isProfileFromApi}
