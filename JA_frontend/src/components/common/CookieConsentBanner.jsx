@@ -11,23 +11,21 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Cookie, Shield, ChevronRight, ExternalLink } from 'lucide-react';
+import { Cookie, ChevronRight } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
 const COOKIE_CONSENT_KEY = 'devision_cookie_consent';
 
 export default function CookieConsentBanner() {
     const { isDark } = useTheme();
-    const location = useLocation();
     const [isVisible, setIsVisible] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
 
-    // Hide on cookie policy pages
-    const isCookiePolicyPage = location.pathname.includes('cookie-policy') || location.pathname.includes('cookie-policy');
-
     // Check if user has already accepted cookies
     useEffect(() => {
+        // Use window.location instead of useLocation (component may be outside Router)
+        const isCookiePolicyPage = window.location.pathname.includes('cookie-policy');
+
         const hasConsent = localStorage.getItem(COOKIE_CONSENT_KEY);
         if (!hasConsent && !isCookiePolicyPage) {
             // Small delay for smooth entrance animation
@@ -37,7 +35,7 @@ export default function CookieConsentBanner() {
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, [isCookiePolicyPage]);
+    }, []);
 
     // Handle accept
     const handleAccept = () => {
@@ -52,7 +50,7 @@ export default function CookieConsentBanner() {
         }, 300);
     };
 
-    if (!isVisible || isCookiePolicyPage) return null;
+    if (!isVisible || window.location.pathname.includes('cookie-policy')) return null;
 
     return (
         <div className={`
