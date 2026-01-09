@@ -74,6 +74,10 @@ public class ApplicationController {
             @RequestParam(value = "jobTitle", required = false) String jobTitle,
             @Parameter(description = "Company name (optional, cached from job post)")
             @RequestParam(value = "companyName", required = false) String companyName,
+            @Parameter(description = "Job location (optional, cached from job post)")
+            @RequestParam(value = "location", required = false) String location,
+            @Parameter(description = "Employment type (optional, cached from job post)")
+            @RequestParam(value = "employmentType", required = false) String employmentType,
             @Parameter(description = "CV file (required). Allowed types: PDF, DOC, DOCX. Max size: 10MB")
             @RequestParam("cv") MultipartFile cvFile,
             @Parameter(description = "Cover Letter file (optional). Allowed types: PDF, DOC, DOCX. Max size: 10MB")
@@ -90,6 +94,8 @@ public class ApplicationController {
             request.setJobPostId(jobPostId);
             request.setJobTitle(jobTitle);
             request.setCompanyName(companyName);
+            request.setLocation(location);
+            request.setEmploymentType(employmentType);
             
             ApplicationResponse response = internalService.createApplication(
                 applicantId, request, cvFile, coverLetterFile);

@@ -19,13 +19,16 @@ public class ApplicationResponse {
     private LocalDateTime updatedAt;
     private String jobTitle;
     private String companyName;
+    private String location;
+    private String employmentType;
     
     public ApplicationResponse() {}
     
     public ApplicationResponse(String id, String jobPostId, String applicantId, String cvUrl, 
                               String cvPublicId, String coverLetterUrl, String coverLetterPublicId,
                               Application.ApplicationStatus status, LocalDateTime appliedAt, 
-                              LocalDateTime updatedAt, String jobTitle, String companyName) {
+                              LocalDateTime updatedAt, String jobTitle, String companyName,
+                              String location, String employmentType) {
         this.id = id;
         this.jobPostId = jobPostId;
         this.applicantId = applicantId;
@@ -38,6 +41,8 @@ public class ApplicationResponse {
         this.updatedAt = updatedAt;
         this.jobTitle = jobTitle;
         this.companyName = companyName;
+        this.location = location;
+        this.employmentType = employmentType;
     }
     
     // Getters and Setters
@@ -135,6 +140,22 @@ public class ApplicationResponse {
     
     public void setCompanyName(String companyName) {
         this.companyName = companyName;
+    }
+    
+    public String getLocation() {
+        return location;
+    }
+    
+    public void setLocation(String location) {
+        this.location = location;
+    }
+    
+    public String getEmploymentType() {
+        return employmentType;
+    }
+    
+    public void setEmploymentType(String employmentType) {
+        this.employmentType = employmentType;
     }
 }
 

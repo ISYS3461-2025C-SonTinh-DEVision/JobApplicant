@@ -95,6 +95,8 @@ const ApplicationModal = ({
                     jobPostId: job.id,
                     jobTitle: job.title,
                     companyName: job.company,
+                    location: job.location,
+                    employmentType: job.employmentType || job.type,
                     coverLetterText: values.coverLetterText || null,
                     cvFile: cvFile,
                     coverLetterFile: coverLetterFile,
@@ -357,10 +359,10 @@ const ApplicationModal = ({
                                                 onDragLeave={(e) => handleDragLeave(e, 'cv')}
                                                 onDrop={(e) => handleDrop(e, 'cv')}
                                                 className={`w-full p-6 rounded-xl border-2 border-dashed transition-all flex flex-col items-center gap-3 group ${dragOver.cv
-                                                        ? 'border-primary-500 bg-primary-500/10'
-                                                        : isDark
-                                                            ? 'border-dark-600 hover:border-primary-500 hover:bg-dark-700/50'
-                                                            : 'border-gray-300 hover:border-primary-500 hover:bg-gray-50'
+                                                    ? 'border-primary-500 bg-primary-500/10'
+                                                    : isDark
+                                                        ? 'border-dark-600 hover:border-primary-500 hover:bg-dark-700/50'
+                                                        : 'border-gray-300 hover:border-primary-500 hover:bg-gray-50'
                                                     }`}
                                             >
                                                 <div className={`p-3 rounded-full transition-colors ${isDark ? 'bg-dark-700 group-hover:bg-primary-500/20' : 'bg-gray-100 group-hover:bg-primary-50'}`}>
@@ -453,10 +455,10 @@ const ApplicationModal = ({
                                                 onDragLeave={(e) => handleDragLeave(e, 'coverLetter')}
                                                 onDrop={(e) => handleDrop(e, 'coverLetter')}
                                                 className={`w-full p-4 rounded-xl border-2 border-dashed transition-all flex items-center justify-center gap-3 group ${dragOver.coverLetter
-                                                        ? 'border-primary-500 bg-primary-500/10'
-                                                        : isDark
-                                                            ? 'border-dark-600 hover:border-primary-500 hover:bg-dark-700/50'
-                                                            : 'border-gray-300 hover:border-primary-500 hover:bg-gray-50'
+                                                    ? 'border-primary-500 bg-primary-500/10'
+                                                    : isDark
+                                                        ? 'border-dark-600 hover:border-primary-500 hover:bg-dark-700/50'
+                                                        : 'border-gray-300 hover:border-primary-500 hover:bg-gray-50'
                                                     }`}
                                             >
                                                 <Upload className={`w-5 h-5 transition-colors ${isDark ? 'text-dark-400 group-hover:text-primary-400' : 'text-gray-500 group-hover:text-primary-500'}`} />
@@ -476,10 +478,10 @@ const ApplicationModal = ({
                                     onClick={handleClose}
                                     disabled={submitting}
                                     className={`flex-1 py-3 rounded-xl font-medium transition-all ${submitting
-                                            ? 'opacity-50 cursor-not-allowed'
-                                            : isDark
-                                                ? 'bg-dark-700 text-dark-300 hover:bg-dark-600'
-                                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                        ? 'opacity-50 cursor-not-allowed'
+                                        : isDark
+                                            ? 'bg-dark-700 text-dark-300 hover:bg-dark-600'
+                                            : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                                         }`}
                                 >
                                     Cancel

@@ -44,6 +44,8 @@ public class ApplicationExternalService {
         application.setCoverLetterPublicId(request.getCoverLetterPublicId());
         application.setJobTitle(request.getJobTitle());
         application.setCompanyName(request.getCompanyName());
+        application.setLocation(request.getLocation());
+        application.setEmploymentType(request.getEmploymentType());
         
         Application saved = applicationService.createApplication(application);
         
@@ -123,7 +125,9 @@ public class ApplicationExternalService {
             application.getAppliedAt(),
             application.getUpdatedAt(),
             application.getJobTitle(),
-            application.getCompanyName()
+            application.getCompanyName(),
+            application.getLocation(),
+            application.getEmploymentType()
         );
     }
 }

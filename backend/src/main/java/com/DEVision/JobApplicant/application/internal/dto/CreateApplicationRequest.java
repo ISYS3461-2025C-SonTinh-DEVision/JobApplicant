@@ -10,6 +10,8 @@ public class CreateApplicationRequest {
     
     private String jobTitle; // Optional: cached job post data
     private String companyName; // Optional: cached job post data
+    private String location; // Optional: cached job post data
+    private String employmentType; // Optional: cached job post data
     
     public CreateApplicationRequest() {}
     
@@ -40,6 +42,22 @@ public class CreateApplicationRequest {
     
     public void setCompanyName(String companyName) {
         this.companyName = companyName;
+    }
+    
+    public String getLocation() {
+        return location;
+    }
+    
+    public void setLocation(String location) {
+        this.location = location;
+    }
+    
+    public String getEmploymentType() {
+        return employmentType;
+    }
+    
+    public void setEmploymentType(String employmentType) {
+        this.employmentType = employmentType;
     }
 }
 

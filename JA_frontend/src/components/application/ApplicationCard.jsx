@@ -59,7 +59,7 @@ export function ApplicationCard({ application, onViewDetails }) {
                 </div>
                 <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
                     <Calendar className="w-4 h-4" />
-                    <span>Applied: {formatDate(application.appliedDate)}</span>
+                    <span>Applied: {formatDate(application.appliedAt || application.appliedDate)}</span>
                 </div>
             </div>
 

@@ -58,7 +58,7 @@ class ApplicationService {
      * @returns {Promise<Object>} Created application
      */
     async createApplication(applicationData) {
-        const { jobPostId, jobTitle, companyName, cvFile, coverLetterFile, coverLetterText } = applicationData;
+        const { jobPostId, jobTitle, companyName, location, employmentType, cvFile, coverLetterFile, coverLetterText } = applicationData;
 
         const formData = new FormData();
         formData.append('jobPostId', jobPostId);
@@ -68,6 +68,12 @@ class ApplicationService {
         }
         if (companyName) {
             formData.append('companyName', companyName);
+        }
+        if (location) {
+            formData.append('location', location);
+        }
+        if (employmentType) {
+            formData.append('employmentType', employmentType);
         }
 
         if (cvFile) {

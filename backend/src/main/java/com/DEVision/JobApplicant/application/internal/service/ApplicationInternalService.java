@@ -118,6 +118,8 @@ public class ApplicationInternalService {
         appRequest.setCvPublicId(cvUploadResult.publicId());
         appRequest.setJobTitle(request.getJobTitle());
         appRequest.setCompanyName(request.getCompanyName());
+        appRequest.setLocation(request.getLocation());
+        appRequest.setEmploymentType(request.getEmploymentType());
         
         if (coverLetterUploadResult != null) {
             appRequest.setCoverLetterUrl(coverLetterUploadResult.fileUrl());
@@ -282,7 +284,9 @@ public class ApplicationInternalService {
             application.getAppliedAt(),
             application.getUpdatedAt(),
             application.getJobTitle(),
-            application.getCompanyName()
+            application.getCompanyName(),
+            application.getLocation(),
+            application.getEmploymentType()
         );
     }
 }

@@ -17,6 +17,8 @@ import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostDto;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostListResponse;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostSearchRequest;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostSingleResponse;
+import com.DEVision.JobApplicant.jobManager.company.service.CallCompanyService;
+import com.DEVision.JobApplicant.jobManager.company.external.dto.CompanyDto;
 
 import java.util.List;
 import java.util.Map;
@@ -47,6 +49,9 @@ public class CallJobPostService implements JobPostServiceInf {
     @Autowired
     private LocationMappingService locationMappingService;
     
+    @Autowired
+    private CallCompanyService callCompanyService;
+    
     /**
      * Create HTTP headers with Cognito Bearer token for system-to-system auth
      */
@@ -67,7 +72,30 @@ public class CallJobPostService implements JobPostServiceInf {
             JobPostSingleResponse.class,
             jobPostId
         );
-        return response.getBody() != null ? response.getBody().getJobPost() : null;
+        
+        JobPostDto jobPost = response.getBody() != null ? response.getBody().getJobPost() : null;
+        
+        // Enrich with company name from Company API if missing
+        if (jobPost != null && (jobPost.getCompanyName() == null || jobPost.getCompanyName().isEmpty())) {
+            String companyId = jobPost.getCompanyId();
+            if (companyId != null && !companyId.isEmpty()) {
+                try {
+                    CompanyDto company = callCompanyService.getCompanyById(companyId);
+                    if (company != null) {
+                        jobPost.setCompanyName(company.getName());
+                        // Also set logo URL if available
+                        if (jobPost.getCompanyLogo() == null && company.getLogoUrl() != null) {
+                            jobPost.setCompanyLogo(company.getLogoUrl());
+                        }
+                        logger.debug("Enriched job {} with company name: {}", jobPostId, company.getName());
+                    }
+                } catch (Exception e) {
+                    logger.warn("Could not fetch company info for job {}: {}", jobPostId, e.getMessage());
+                }
+            }
+        }
+        
+        return jobPost;
     }
     
     @Override

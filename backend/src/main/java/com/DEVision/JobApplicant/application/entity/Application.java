@@ -40,6 +40,8 @@ public class Application {
     // Additional job post data cached from external system
     private String jobTitle;
     private String companyName;
+    private String location;
+    private String employmentType;
     
     public Application() {
         this.appliedAt = LocalDateTime.now();
@@ -150,6 +152,22 @@ public class Application {
 
     public void setCompanyName(String companyName) {
         this.companyName = companyName;
+    }
+    
+    public String getLocation() {
+        return location;
+    }
+    
+    public void setLocation(String location) {
+        this.location = location;
+    }
+    
+    public String getEmploymentType() {
+        return employmentType;
+    }
+    
+    public void setEmploymentType(String employmentType) {
+        this.employmentType = employmentType;
     }
     
     public enum ApplicationStatus {
