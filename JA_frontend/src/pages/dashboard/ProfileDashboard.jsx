@@ -296,7 +296,7 @@ function ProfileHeader({ id, profile, onEdit, isRealData, onAvatarUpload, upload
 /**
  * Stats Card Component - Reusable statistic display
  */
-function StatsCard({ icon: Icon, label, value, color = 'primary' }) {
+function StatsCard({ icon: Icon, label, value, color = 'primary', trend, trendUp }) {
   const { isDark } = useTheme();
 
   const colors = {
@@ -318,8 +318,18 @@ function StatsCard({ icon: Icon, label, value, color = 'primary' }) {
         <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colors[color]} flex items-center justify-center`}>
           <Icon className="w-6 h-6" />
         </div>
-        <div>
-          <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+            {trend && (
+              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${trendUp
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-red-500/20 text-red-400'
+                }`}>
+                {trend}
+              </span>
+            )}
+          </div>
           <p className={`text-sm ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>{label}</p>
         </div>
       </div>
@@ -915,30 +925,57 @@ export default function ProfileDashboard() {
 
   // Application stats - Real data from API
   const [applications, setApplications] = useState({ total: 0, pending: 0, accepted: 0, rejected: 0 });
+  const [profileViews, setProfileViews] = useState({
+    totalViews: 0,
+    viewsThisWeek: 0,
+    viewsThisMonth: 0,
+    trendPercentage: 0,
+    trendDirection: 'stable'
+  });
   const [statsLoaded, setStatsLoaded] = useState(false);
 
-  // Fetch real application stats on mount
+  // Fetch real application stats and profile views on mount
   useEffect(() => {
-    const fetchApplicationStats = async () => {
+    const fetchStats = async () => {
       try {
         const { default: dashboardService } = await import('../../services/DashboardService');
-        const response = await dashboardService.getApplicationHistory();
-        if (response && response.statistics) {
+
+        // Fetch application history
+        const historyResponse = await dashboardService.getApplicationHistory();
+        if (historyResponse && historyResponse.statistics) {
           setApplications({
-            total: response.statistics.totalApplications || 0,
-            pending: response.statistics.pendingCount || 0,
-            accepted: response.statistics.acceptedCount || 0,
-            rejected: response.statistics.rejectedCount || 0,
+            total: historyResponse.statistics.totalApplications || 0,
+            pending: historyResponse.statistics.pendingCount || 0,
+            accepted: historyResponse.statistics.acceptedCount || 0,
+            rejected: historyResponse.statistics.rejectedCount || 0,
           });
-          setStatsLoaded(true);
         }
+
+        // Fetch profile view statistics
+        try {
+          const viewsResponse = await dashboardService.getProfileViewStats();
+          if (viewsResponse) {
+            setProfileViews({
+              totalViews: viewsResponse.totalViews || 0,
+              viewsThisWeek: viewsResponse.viewsThisWeek || 0,
+              viewsThisMonth: viewsResponse.viewsThisMonth || 0,
+              trendPercentage: viewsResponse.trendPercentage || 0,
+              trendDirection: viewsResponse.trendDirection || 'stable',
+            });
+          }
+        } catch (viewError) {
+          console.error('[ProfileDashboard] Error fetching profile views:', viewError);
+          // Keep zeros as fallback
+        }
+
+        setStatsLoaded(true);
       } catch (error) {
-        console.error('[ProfileDashboard] Error fetching application stats:', error);
+        console.error('[ProfileDashboard] Error fetching stats:', error);
         // Keep zeros as fallback
         setStatsLoaded(true);
       }
     };
-    fetchApplicationStats();
+    fetchStats();
   }, []);
 
   // Education Form using useHeadlessForm
@@ -1769,8 +1806,12 @@ export default function ProfileDashboard() {
         <StatsCard
           icon={TrendingUp}
           label="Profile Views"
-          value="84"
+          value={profileViews.totalViews}
           color="accent"
+          trend={profileViews.trendDirection !== 'stable' ? (
+            profileViews.trendDirection === 'up' ? `+${profileViews.trendPercentage}%` : `${profileViews.trendPercentage}%`
+          ) : null}
+          trendUp={profileViews.trendDirection === 'up'}
         />
       </div>
 

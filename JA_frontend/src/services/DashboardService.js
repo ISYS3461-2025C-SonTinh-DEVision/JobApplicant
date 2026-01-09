@@ -32,19 +32,21 @@ class DashboardService {
     async getDashboardData() {
         try {
             // Fetch all data in parallel
-            const [historyResponse, profileResponse, subscriptionResponse] = await Promise.allSettled([
+            const [historyResponse, profileResponse, subscriptionResponse, profileViewsResponse] = await Promise.allSettled([
                 this.getApplicationHistory(),
                 this.getProfile(),
                 this.getSubscriptionStatus(),
+                this.getProfileViewStats(),
             ]);
 
             // Extract data or use defaults
             const history = historyResponse.status === 'fulfilled' ? historyResponse.value : null;
             const profile = profileResponse.status === 'fulfilled' ? profileResponse.value : null;
             const subscription = subscriptionResponse.status === 'fulfilled' ? subscriptionResponse.value : null;
+            const profileViews = profileViewsResponse.status === 'fulfilled' ? profileViewsResponse.value : null;
 
             // Calculate stats
-            const stats = this.calculateStats(history);
+            const stats = this.calculateStats(history, profileViews);
             const profileCompletion = this.calculateProfileCompletion(profile);
             const recentApplications = this.extractRecentApplications(history, 5);
             const recentActivity = this.generateActivityFromData(history, profile);
@@ -58,6 +60,7 @@ class DashboardService {
                     recentActivity,
                     subscription: subscription || { plan: 'FREEMIUM', status: 'inactive' },
                     profile,
+                    profileViews, // Include full profile views data
                 },
             };
         } catch (error) {
@@ -109,11 +112,26 @@ class DashboardService {
     }
 
     /**
+     * Get profile view statistics
+     * Tracks when employers/JM view the applicant's profile
+     * @returns {Promise<Object>} Profile view stats
+     */
+    async getProfileViewStats() {
+        try {
+            return await httpUtil.get(API_ENDPOINTS.ME.PROFILE_VIEWS);
+        } catch (error) {
+            console.error('[DashboardService] Error fetching profile view stats:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Calculate dashboard statistics from application history
      * @param {Object} history - Application history response
+     * @param {Object} profileViews - Profile view statistics (optional)
      * @returns {Object} Calculated stats
      */
-    calculateStats(history) {
+    calculateStats(history, profileViews = null) {
         if (!history || !history.statistics) {
             return {
                 totalApplications: 0,
@@ -121,10 +139,13 @@ class DashboardService {
                 accepted: 0,
                 rejected: 0,
                 withdrawn: 0,
-                profileViews: 0,
+                profileViews: profileViews?.totalViews || 0,
+                profileViewsThisWeek: profileViews?.viewsThisWeek || 0,
+                profileViewsThisMonth: profileViews?.viewsThisMonth || 0,
                 applicationsTrend: 0,
                 acceptedTrend: 0,
-                profileViewsTrend: 0,
+                profileViewsTrend: profileViews?.trendPercentage || 0,
+                profileViewsTrendDirection: profileViews?.trendDirection || 'stable',
             };
         }
 
@@ -136,12 +157,15 @@ class DashboardService {
             accepted: statistics.acceptedCount || 0,
             rejected: statistics.rejectedCount || 0,
             withdrawn: statistics.withdrawnCount || 0,
-            // Profile views would need a separate API - using 0 for now
-            profileViews: 0,
-            // Trends would need historical data - using 0 for now
+            // Real profile views from API
+            profileViews: profileViews?.totalViews || 0,
+            profileViewsThisWeek: profileViews?.viewsThisWeek || 0,
+            profileViewsThisMonth: profileViews?.viewsThisMonth || 0,
+            // Trends
             applicationsTrend: 0,
             acceptedTrend: 0,
-            profileViewsTrend: 0,
+            profileViewsTrend: profileViews?.trendPercentage || 0,
+            profileViewsTrendDirection: profileViews?.trendDirection || 'stable',
         };
     }
 

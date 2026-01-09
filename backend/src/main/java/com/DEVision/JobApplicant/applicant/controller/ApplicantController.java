@@ -24,12 +24,16 @@ import com.DEVision.JobApplicant.applicant.internal.dto.EducationResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioItemResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.ProfileResponse;
+import com.DEVision.JobApplicant.applicant.internal.dto.ProfileViewStatsResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.UpdateEducationRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.UpdateProfileRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.UpdateWorkExperienceRequest;
 import com.DEVision.JobApplicant.applicant.internal.dto.WorkExperienceResponse;
 import com.DEVision.JobApplicant.applicant.internal.service.ApplicantInternalService;
+import com.DEVision.JobApplicant.applicant.service.ProfileViewService;
+import com.DEVision.JobApplicant.applicant.entity.ProfileView.ViewerType;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +49,9 @@ public class ApplicantController {
 
     @Autowired
     private ApplicantInternalService internalService;
+    
+    @Autowired
+    private ProfileViewService profileViewService;
 
     // ===== Public Search Endpoint =====
 
@@ -125,6 +132,32 @@ public class ApplicantController {
         } catch (Exception e) {
             System.err.println("Error fetching my profile: " + e.getMessage());
             return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    @Operation(
+        summary = "Get my profile view statistics",
+        description = "Retrieve profile view statistics for the current authenticated user. Shows total views, weekly/monthly views, and trends."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Statistics retrieved successfully"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "500", description = "Server error")
+    })
+    @GetMapping("/me/profile-views")
+    public ResponseEntity<?> getMyProfileViewStats() {
+        try {
+            ProfileViewStatsResponse stats = profileViewService.getMyProfileViewStats();
+            return new ResponseEntity<>(stats, HttpStatus.OK);
+        } catch (SecurityException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            System.err.println("Error fetching profile view stats: " + e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Failed to retrieve profile view statistics");
+            return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -706,7 +739,7 @@ public class ApplicantController {
 
     @Operation(
         summary = "Get profile by ID",
-        description = "Retrieve applicant profile information by applicant ID"
+        description = "Retrieve applicant profile information by applicant ID. This endpoint is used by Job Manager to fetch applicant data. Each call is tracked as a profile view."
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Profile retrieved successfully"),
@@ -716,10 +749,25 @@ public class ApplicantController {
     @GetMapping("/{id}")
     public ResponseEntity<ProfileResponse> getProfileById(
             @Parameter(description = "Applicant ID to fetch profile for")
-            @PathVariable String id) {
+            @PathVariable String id,
+            HttpServletRequest request) {
         try {
             ProfileResponse profile = internalService.getProfileById(id);
             if (profile != null) {
+                // Record profile view (API Provision - track when JM views applicant)
+                try {
+                    String userAgent = request.getHeader("User-Agent");
+                    String ipAddress = getClientIpAddress(request);
+                    // Determine viewer type based on user agent or headers
+                    ViewerType viewerType = ViewerType.JOB_MANAGER; // Default to JM for external calls
+                    String viewerId = request.getHeader("X-Company-Id"); // JM can send company ID
+                    
+                    profileViewService.recordProfileView(id, viewerId, viewerType, userAgent, ipAddress);
+                } catch (Exception viewEx) {
+                    // Don't fail the request if view tracking fails
+                    System.err.println("Failed to record profile view: " + viewEx.getMessage());
+                }
+                
                 return new ResponseEntity<>(profile, HttpStatus.OK);
             }
             return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
@@ -727,6 +775,21 @@ public class ApplicantController {
             System.err.println("Error fetching profile: " + e.getMessage());
             return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+    
+    /**
+     * Get client IP address from request, handling proxies
+     */
+    private String getClientIpAddress(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty()) {
+            return xRealIp;
+        }
+        return request.getRemoteAddr();
     }
 
     @Operation(

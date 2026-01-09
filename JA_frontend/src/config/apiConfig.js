@@ -54,6 +54,8 @@ export const API_ENDPOINTS = {
     UPDATE: '/api/applicants/me',
     // POST /api/applicants/me/avatar - Upload avatar
     AVATAR: '/api/applicants/me/avatar',
+    // GET /api/applicants/me/profile-views - Get profile view statistics
+    PROFILE_VIEWS: '/api/applicants/me/profile-views',
     // Work Experience CRUD
     WORK_EXPERIENCE: '/api/applicants/me/work-experience',
     WORK_EXPERIENCE_BY_ID: (id) => `/api/applicants/me/work-experience/${id}`,
