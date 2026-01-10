@@ -33,17 +33,46 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
+    @Value("${spring.kafka.properties.security.protocol:SASL_SSL}")
+    private String securityProtocol;
+
+    @Value("${spring.kafka.properties.sasl.mechanism:PLAIN}")
+    private String saslMechanism;
+
+    @Value("${spring.kafka.properties.sasl.jaas.config:}")
+    private String saslJaasConfig;
+
+    @Value("${spring.kafka.consumer.group-id:job-applicant-search-profile-group}")
+    private String consumerGroupId;
+
+    // ================== COMMON SECURITY CONFIG ==================
+
+    private Map<String, Object> getCommonSecurityConfig() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put("bootstrap.servers", bootstrapServers);
+
+        // SASL/SSL configuration for Confluent Cloud
+        if (saslJaasConfig != null && !saslJaasConfig.isEmpty()) {
+            configProps.put("security.protocol", securityProtocol);
+            configProps.put("sasl.mechanism", saslMechanism);
+            configProps.put("sasl.jaas.config", saslJaasConfig);
+        }
+
+        return configProps;
+    }
+
     // ================== PRODUCER CONFIG ==================
     
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        Map<String, Object> configProps = getCommonSecurityConfig();
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         configProps.put(ProducerConfig.ACKS_CONFIG, "all");
         configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
         configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        // Disable type headers as per application.yml
+        configProps.put("spring.json.add.type.headers", false);
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
@@ -56,9 +85,8 @@ public class KafkaConfig {
 
     @Bean
     public ConsumerFactory<String, JobPostEvent> jobPostConsumerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(ConsumerConfig.GROUP_ID_CONFIG, "job-applicant-search-profile-group");
+        Map<String, Object> configProps = getCommonSecurityConfig();
+        configProps.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupId);
         configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");

@@ -62,7 +62,15 @@ public class SystemAuthFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String bearerToken = authHeader.substring(7);
+            System.out.println("SystemAuthFilter: Attempting Cognito token validation for path: " + requestPath);
             isValid = cognitoJwtVerifier.validateAccessToken(bearerToken);
+            if (isValid) {
+                System.out.println("SystemAuthFilter: Cognito token validation succeeded");
+            } else {
+                System.err.println("SystemAuthFilter: Cognito token validation failed, will try fallback methods");
+            }
+        } else {
+            System.out.println("SystemAuthFilter: No Authorization header with Bearer token found");
         }
 
         // 2) Fallback to existing X-System-Authorization header + JM verification
@@ -104,6 +112,10 @@ public class SystemAuthFilter extends OncePerRequestFilter {
             System.out.println("System-to-system authentication successful for: " + requestPath);
         } else {
             System.err.println("System-to-system authentication failed for: " + requestPath);
+            System.err.println("  - Authorization header present: " + (authHeader != null));
+            System.err.println("  - Authorization header value: " + (authHeader != null ? authHeader.substring(0, Math.min(50, authHeader.length())) + "..." : "N/A"));
+            String systemAuthHeader = request.getHeader(SystemAuthConfig.SYSTEM_AUTH_HEADER);
+            System.err.println("  - X-System-Authorization header present: " + (systemAuthHeader != null));
         }
 
         filterChain.doFilter(request, response);

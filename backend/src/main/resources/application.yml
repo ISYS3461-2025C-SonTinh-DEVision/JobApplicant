@@ -51,9 +51,12 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     properties:
-      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
-      sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
-      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+      security:
+        protocol: ${KAFKA_SECURITY_PROTOCOL:SASL_SSL}
+      sasl:
+        mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+        jaas:
+          config: ${KAFKA_SASL_JAAS_CONFIG:}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -109,3 +112,7 @@ cognito:
   token-url: ${COGNITO_TOKEN_URL:https://ap-southeast-2r9u2ssjaz.auth.ap-southeast-2.amazoncognito.com/oauth2/token}
   # Scope required on the access token for system-to-system calls
   required-scope: ${COGNITO_REQUIRED_SCOPE:default-m2m-resource-server-wti-ej/read}
+
+client:
+  id: ccloud-springboot-client-7905b7e9-536d-4b3c-90b7-1cde4850022b
+

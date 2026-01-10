@@ -146,9 +146,9 @@ public class CallJobPostService implements JobPostServiceInf {
         }
         
         // Remove fresher filter - JM API doesn't support it, we'll filter on backend
-        // Also remove isFresher which might be added by serialization
+        // Also remove isFresherFriendly which might be added by serialization
         queryParams.remove("fresherFriendly");
-        queryParams.remove("isFresher");
+        queryParams.remove("isFresherFriendly");
         if (isFresherFilter) {
             logger.info("Fresher filter enabled, will filter server-side");
         }

@@ -1,9 +1,11 @@
 package com.DEVision.JobApplicant.filter;
 
 import java.io.IOException;
+import java.util.Collections;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -18,6 +20,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import com.DEVision.JobApplicant.auth.config.AuthConfig;
 import com.DEVision.JobApplicant.jwt.JweUtil;
+import com.DEVision.JobApplicant.jwt.CognitoJwtVerifier;
+import com.DEVision.JobApplicant.common.config.SystemAuthConfig;
 
 @Component
 public class AuthRequestFilter extends OncePerRequestFilter {
@@ -30,6 +34,9 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 
 	@Autowired
 	private com.DEVision.JobApplicant.common.redis.RedisService redisService;
+
+	@Autowired(required = false)
+	private CognitoJwtVerifier cognitoJwtVerifier;
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -84,7 +91,32 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		String authHeader = request.getHeader("Authorization");
 		if (authHeader != null && authHeader.startsWith("Bearer ")) {
 			token = authHeader.substring(7);
+			
+			// First try to validate as JWE token (for regular users)
 			isValidToken = jweUtil.verifyJweToken(token);
+			
+			// If JWE validation fails, try Cognito JWT validation (for system access)
+			if (!isValidToken && cognitoJwtVerifier != null) {
+				System.out.println("AuthRequestFilter: JWE validation failed, trying Cognito JWT validation");
+				boolean isCognitoToken = cognitoJwtVerifier.validateAccessToken(token);
+				if (isCognitoToken) {
+					System.out.println("AuthRequestFilter: Cognito token validated successfully");
+					// For Cognito tokens, create system authentication
+					// Note: Cognito tokens don't have user info, so we use system role
+					UsernamePasswordAuthenticationToken systemAuth = 
+						new UsernamePasswordAuthenticationToken(
+							SystemAuthConfig.JOB_MANAGER_SYSTEM,
+							null,
+							Collections.singletonList(new SimpleGrantedAuthority("ROLE_SYSTEM"))
+						);
+					SecurityContextHolder.getContext().setAuthentication(systemAuth);
+					System.out.println("AuthRequestFilter: System authentication set for Cognito token");
+					filterChain.doFilter(request, response);
+					return;
+				} else {
+					System.err.println("AuthRequestFilter: Cognito token validation also failed");
+				}
+			}
 		}
 
 		// If no Bearer token, try to get token from cookie
