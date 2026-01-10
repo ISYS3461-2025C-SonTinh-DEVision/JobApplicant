@@ -1,5 +1,6 @@
 package com.DEVision.JobApplicant.jobManager.jobpost.external.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,6 +26,7 @@ public class JobPostSearchRequest implements Serializable {
     private Double minSalary;
     private Double maxSalary;
     private String currency;
+    @JsonProperty("isFresherFriendly") // Map API parameter isFresherFriendly to this field
     private Boolean fresherFriendly; // Fresher-friendly filter
     
     // Search parameters
@@ -106,8 +108,10 @@ public class JobPostSearchRequest implements Serializable {
         if (currency != null && !currency.trim().isEmpty()) {
             params.put("currency", currency);
         }
-        if (fresherFriendly != null && fresherFriendly) {
-            params.put("isFresher", fresherFriendly);
+        // Map fresherFriendly to isFresherFriendly for JM API
+        // Handle both true and false values
+        if (fresherFriendly != null) {
+            params.put("isFresherFriendly", fresherFriendly);
         }
         
         // Search
