@@ -49,7 +49,11 @@ spring:
           max-wait: -1
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: pkc-921jm.us-east-2.aws.confluent.cloud:9092
+    properties:
+      security.protocol: SASL_SSL
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="HHZYQY3655Y2PQ4R" password="cfltpG8QBcF829JvGM3Rzcxy7udgJyR9/2nBq4C6Be/wSMwSXUsHt5r7F0/uTJuw";
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -105,3 +109,7 @@ cognito:
   token-url: ${COGNITO_TOKEN_URL:https://ap-southeast-2r9u2ssjaz.auth.ap-southeast-2.amazoncognito.com/oauth2/token}
   # Scope required on the access token for system-to-system calls
   required-scope: ${COGNITO_REQUIRED_SCOPE:default-m2m-resource-server-wti-ej/read}
+
+client:
+  id: ccloud-springboot-client-7905b7e9-536d-4b3c-90b7-1cde4850022b
+
