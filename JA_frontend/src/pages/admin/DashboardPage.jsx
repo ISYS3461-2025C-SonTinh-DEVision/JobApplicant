@@ -2,10 +2,11 @@
  * Admin Dashboard Page
  * Overview with statistics and recent activity
  * 
- * Uses: useHeadlessDataList for statistics display
+ * Architecture: A.3.a (Ultimo Frontend) - Headless UI Pattern
+ * Uses: Card, useHeadlessDataList, useHeadlessSearch, Tabs
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Users,
@@ -23,46 +24,85 @@ import {
     Search,
     X,
     Loader2,
+    TrendingUp,
+    Eye,
+    AlertTriangle,
 } from 'lucide-react';
 import AdminService from '../../services/AdminService';
 
-// Stat Card Component
-function StatCard({ icon: Icon, title, value, subtitle, color = 'violet', loading = false }) {
+// Headless UI Imports (Ultimo A.3.a)
+import { Card, useCard } from '../../components/headless/card';
+import useHeadlessDataList from '../../components/headless/HeadlessDataList';
+import useHeadlessSearch from '../../components/headless/HeadlessSearch';
+
+
+// Stat Card Component - Using Headless Card Pattern (Ultimo A.3.a)
+function StatCard({ icon: Icon, title, value, subtitle, trend, color = 'violet', loading = false, onClick }) {
     const colorClasses = {
         violet: 'from-violet-500 to-violet-600',
         pink: 'from-pink-500 to-pink-600',
         blue: 'from-blue-500 to-blue-600',
         emerald: 'from-emerald-500 to-emerald-600',
+        amber: 'from-amber-500 to-amber-600',
     };
 
+    const trendColors = {
+        up: 'text-emerald-400',
+        down: 'text-red-400',
+        neutral: 'text-dark-400',
+    };
+
+    // Using headless card hook for interaction logic
+    const { getCardProps, isHovered } = useCard({
+        item: { title, value },
+        onView: onClick,
+    });
+
     return (
-        <div className="glass-card p-4 sm:p-6 hover:border-white/20 transition-all duration-300 group">
-            <div className="flex items-start justify-between mb-4">
-                <div className={`w-10 sm:w-12 h-10 sm:h-12 rounded-xl bg-gradient-to-br ${colorClasses[color]} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
-                    <Icon className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
-                </div>
-            </div>
-            <h3 className="text-dark-400 text-xs sm:text-sm font-medium mb-1">{title}</h3>
-            {loading ? (
-                <div className="h-8 w-20 bg-white/10 rounded animate-pulse" />
-            ) : (
+        <Card
+            item={{ title, value }}
+            onView={onClick}
+            className={`glass-card p-4 sm:p-6 hover:border-white/20 transition-all duration-300 group cursor-pointer ${isHovered ? 'scale-[1.02] shadow-xl' : ''}`}
+        >
+            {({ isHovered }) => (
                 <>
-                    <p className="text-2xl sm:text-3xl font-bold text-white">{value?.toLocaleString() || 0}</p>
-                    {subtitle && <p className="text-xs text-dark-500 mt-1">{subtitle}</p>}
+                    <div className="flex items-start justify-between mb-4">
+                        <div className={`w-10 sm:w-12 h-10 sm:h-12 rounded-xl bg-gradient-to-br ${colorClasses[color]} flex items-center justify-center shadow-lg transition-transform ${isHovered ? 'scale-110' : 'group-hover:scale-110'}`}>
+                            <Icon className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
+                        </div>
+                        {trend && (
+                            <div className={`flex items-center gap-1 text-xs ${trendColors[trend.direction || 'neutral']}`}>
+                                {trend.direction === 'up' && <TrendingUp className="w-3 h-3" />}
+                                {trend.value && <span>{trend.value}</span>}
+                            </div>
+                        )}
+                    </div>
+                    <h3 className="text-dark-400 text-xs sm:text-sm font-medium mb-1">{title}</h3>
+                    {loading ? (
+                        <div className="h-8 w-20 bg-white/10 rounded animate-pulse" />
+                    ) : (
+                        <>
+                            <p className="text-2xl sm:text-3xl font-bold text-white">{value?.toLocaleString() || 0}</p>
+                            {subtitle && <p className="text-xs text-dark-500 mt-1">{subtitle}</p>}
+                        </>
+                    )}
                 </>
             )}
-        </div>
+        </Card>
     );
 }
 
-// Activity Item Component
-function ActivityItem({ type, action, name, time, status }) {
+
+// Activity Item Component - Using Headless Card Pattern (Ultimo A.3.a)
+function ActivityItem({ type, action, name, time, status, onView }) {
     const icons = {
         applicant_registered: UserPlus,
         applicant_deactivated: UserMinus,
         job_posted: FileText,
         company_registered: Building2,
         status_changed: CheckCircle,
+        profile_viewed: Eye,
+        warning: AlertTriangle,
     };
 
     const colors = {
@@ -71,26 +111,37 @@ function ActivityItem({ type, action, name, time, status }) {
         job_posted: 'text-emerald-400 bg-emerald-500/20',
         company_registered: 'text-violet-400 bg-violet-500/20',
         status_changed: 'text-yellow-400 bg-yellow-500/20',
+        profile_viewed: 'text-cyan-400 bg-cyan-500/20',
+        warning: 'text-orange-400 bg-orange-500/20',
     };
 
     const Icon = icons[type] || Activity;
 
     return (
-        <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-            <div className={`w-8 sm:w-10 h-8 sm:h-10 rounded-lg flex-shrink-0 flex items-center justify-center ${colors[type] || 'text-gray-400 bg-gray-500/20'}`}>
-                <Icon className="w-4 sm:w-5 h-4 sm:h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-                <p className="text-white font-medium text-sm sm:text-base truncate">{name}</p>
-                <p className="text-dark-400 text-xs sm:text-sm">{action}</p>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-2 text-dark-500 text-xs sm:text-sm flex-shrink-0">
-                <Clock className="w-3 sm:w-4 h-3 sm:h-4" />
-                <span>{time}</span>
-            </div>
-        </div>
+        <Card
+            item={{ name, type, action, time }}
+            onView={onView}
+            className="activity-item-card"
+        >
+            {({ isHovered }) => (
+                <div className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-white/5 transition-all duration-200 ${isHovered ? 'bg-white/10 scale-[1.01]' : 'hover:bg-white/10'}`}>
+                    <div className={`w-8 sm:w-10 h-8 sm:h-10 rounded-lg flex-shrink-0 flex items-center justify-center transition-transform ${colors[type] || 'text-gray-400 bg-gray-500/20'} ${isHovered ? 'scale-110' : ''}`}>
+                        <Icon className="w-4 sm:w-5 h-4 sm:h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium text-sm sm:text-base truncate">{name}</p>
+                        <p className="text-dark-400 text-xs sm:text-sm">{action}</p>
+                    </div>
+                    <div className="flex items-center gap-1 sm:gap-2 text-dark-500 text-xs sm:text-sm flex-shrink-0">
+                        <Clock className="w-3 sm:w-4 h-3 sm:h-4" />
+                        <span>{time}</span>
+                    </div>
+                </div>
+            )}
+        </Card>
     );
 }
+
 
 // Quick Action Button
 function QuickAction({ icon: Icon, label, onClick, color = 'violet' }) {
@@ -432,13 +483,19 @@ export default function DashboardPage() {
                         <QuickAction
                             icon={Users}
                             label="View All Applicants"
-                            onClick={() => window.location.href = '/admin/applicants'}
+                            onClick={() => navigate('/admin/applicants')}
                         />
                         <QuickAction
                             icon={Building2}
                             label="View All Companies"
-                            onClick={() => window.location.href = '/admin/companies'}
+                            onClick={() => navigate('/admin/companies')}
                             color="pink"
+                        />
+                        <QuickAction
+                            icon={Briefcase}
+                            label="View All Job Posts"
+                            onClick={() => navigate('/admin/job-posts')}
+                            color="blue"
                         />
                     </div>
                 </div>

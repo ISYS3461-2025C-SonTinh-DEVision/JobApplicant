@@ -16,15 +16,16 @@ import { useState, useCallback, useMemo } from "react";
 export default function useHeadlessPagination({
   initialPage = 1,
   initialPageSize = 10,
-  totalItems = 0,
+  totalItems: initialTotalItems = 0,
   data = null,
   pageSizeOptions = [10, 25, 50, 100],
 } = {}) {
   const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
+  const [totalItemsState, setTotalItems] = useState(initialTotalItems);
 
-  // Calculate total items from data if provided
-  const actualTotalItems = data ? data.length : totalItems;
+  // Calculate total items from data if provided, otherwise use state
+  const actualTotalItems = data ? data.length : totalItemsState;
 
   // Calculate total pages
   const totalPages = useMemo(() => {
@@ -89,19 +90,19 @@ export default function useHeadlessPagination({
   const getPageNumbers = useCallback((maxVisible = 5) => {
     const pages = [];
     const halfVisible = Math.floor(maxVisible / 2);
-    
+
     let start = Math.max(1, currentPage - halfVisible);
     let end = Math.min(totalPages, start + maxVisible - 1);
-    
+
     // Adjust start if end is at max
     if (end === totalPages) {
       start = Math.max(1, end - maxVisible + 1);
     }
-    
+
     for (let i = start; i <= end; i++) {
       pages.push(i);
     }
-    
+
     return {
       pages,
       showFirstEllipsis: start > 2,
@@ -158,7 +159,7 @@ export default function useHeadlessPagination({
     pageSize,
     totalPages,
     totalItems: actualTotalItems,
-    
+
     // Navigation
     goToPage,
     nextPage,
@@ -166,24 +167,25 @@ export default function useHeadlessPagination({
     firstPage,
     lastPage,
     setPage,
-    
+    setTotalItems,
+
     // Page size
     changePageSize,
     pageSizeOptions,
-    
+
     // Flags
     canGoNext,
     canGoPrev,
     isFirstPage,
     isLastPage,
-    
+
     // Item info
     startItem,
     endItem,
-    
+
     // Data
     paginatedData,
-    
+
     // Helpers
     getPageNumbers,
     getPaginationProps,

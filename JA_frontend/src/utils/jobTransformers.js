@@ -209,6 +209,37 @@ export function transformJobPostListResponse(response) {
 }
 
 /**
+ * Check if a URL is valid and not a placeholder
+ * @param {string} url - URL to validate
+ * @returns {boolean} True if URL is valid
+ */
+function isValidUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+
+    // Filter out placeholder/example URLs
+    const invalidPatterns = [
+        'example.com',
+        'placeholder.com',
+        'test.com',
+        'fake.com',
+        'localhost',
+        '127.0.0.1',
+    ];
+
+    if (invalidPatterns.some(pattern => url.toLowerCase().includes(pattern))) {
+        return false;
+    }
+
+    // Basic URL structure check
+    try {
+        new URL(url);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Transform company from JM API format
  * Maps JM Company API response fields to frontend format
  * 
@@ -222,6 +253,10 @@ export function transformJobPostListResponse(response) {
  */
 export function transformCompany(company) {
     if (!company) return null;
+
+    // Validate logo URL
+    const rawLogoUrl = company.logoUrl || company.logo || null;
+    const validLogoUrl = isValidUrl(rawLogoUrl) ? rawLogoUrl : null;
 
     return {
         // ID fields - JM uses _id and uniqueID
@@ -243,12 +278,13 @@ export function transformCompany(company) {
         street: company.street || '',
 
         // Branding
-        logo: company.logoUrl || company.logo || null,
-        logoUrl: company.logoUrl || company.logo || null,
+        logo: validLogoUrl,
+        logoUrl: validLogoUrl,
 
         // Business info (fallback to reasonable defaults)
         industry: company.industry || 'Technology',
         jobPostCount: company.jobPostCount || company.jobCount || 0,
+        planType: company.planType || null,
 
         // Status
         status: company.isDeleted === true ? 'inactive' : 'active',

@@ -76,27 +76,36 @@ export function AdminAuthProvider({ children }) {
     }, []);
 
     /**
-     * Admin login
+     * Admin login - uses real backend authentication
+     * Calls /api/auth/login to get JWT token
+     * Role verification happens on backend when admin APIs are called
      */
     const adminLogin = useCallback(async (credentials) => {
         setStatus(ADMIN_AUTH_STATUS.LOADING);
         setError(null);
 
         try {
-            // First, try hardcoded credentials for development
-            if (
-                credentials.email === ADMIN_CREDENTIALS.email &&
-                credentials.password === ADMIN_CREDENTIALS.password
-            ) {
+            // Import AuthService dynamically to avoid circular dependency
+            const authServiceModule = await import('../services/AuthService');
+            const authService = authServiceModule.default;
+
+            // Call real backend login API
+            const response = await authService.login(credentials);
+
+            if (response?.success !== false && (response?.accessToken || response?.message === 'Login successful')) {
+                // Login successful - JWT token is now in HttpOnly cookie
+                // Note: Role verification happens on backend when admin APIs are called
+                // If user doesn't have ADMIN role, backend will return 403 and we'll redirect to login
+
                 const adminData = {
-                    id: 'admin-001',
+                    id: 'admin',
                     email: credentials.email,
-                    name: 'System Administrator',
+                    name: 'Administrator',
                     role: 'ADMIN',
                     expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
                 };
 
-                // Store in localStorage
+                // Store admin session info in localStorage
                 localStorage.setItem('admin_session', JSON.stringify(adminData));
                 setAdmin(adminData);
                 setStatus(ADMIN_AUTH_STATUS.AUTHENTICATED);
@@ -104,35 +113,13 @@ export function AdminAuthProvider({ children }) {
                 return { success: true, message: 'Admin login successful' };
             }
 
-            // If not hardcoded, try API login
-            try {
-                const response = await AdminService.login(credentials);
-
-                if (response?.success) {
-                    const adminData = {
-                        id: response.adminId || 'admin-api',
-                        email: credentials.email,
-                        name: response.name || 'Administrator',
-                        role: 'ADMIN',
-                        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
-                    };
-
-                    localStorage.setItem('admin_session', JSON.stringify(adminData));
-                    setAdmin(adminData);
-                    setStatus(ADMIN_AUTH_STATUS.AUTHENTICATED);
-
-                    return { success: true, message: 'Admin login successful' };
-                }
-            } catch (apiError) {
-                console.warn('API admin login failed, using local validation:', apiError);
-            }
-
-            // Invalid credentials
+            // Login failed
             setStatus(ADMIN_AUTH_STATUS.UNAUTHENTICATED);
-            setError('Invalid admin credentials');
-            return { success: false, message: 'Invalid admin credentials' };
+            setError(response?.message || 'Invalid admin credentials');
+            return { success: false, message: response?.message || 'Invalid admin credentials' };
 
         } catch (err) {
+            console.error('Admin login error:', err);
             setStatus(ADMIN_AUTH_STATUS.UNAUTHENTICATED);
             setError(err.message || 'Admin login failed');
             return { success: false, message: err.message || 'Admin login failed' };

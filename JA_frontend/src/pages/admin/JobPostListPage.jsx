@@ -3,12 +3,13 @@
  * Admin page for viewing and managing job posts
  * 
  * Note: Job posts come from Job Manager subsystem
- * Uses: useHeadlessTable, useHeadlessSearch, useHeadlessPagination
+ * Architecture: A.3.a - Headless UI Pattern
+ * Uses: Modal, useModal, useHeadlessTable, useHeadlessSearch, useHeadlessPagination
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Briefcase, MapPin, Clock, MoreVertical, Trash2, Eye, Loader2, RefreshCw, Building2, DollarSign, AlertCircle, X } from 'lucide-react';
-import { useHeadlessTable, useHeadlessSearch, useHeadlessPagination } from '../../components/headless';
+import { Search, Briefcase, MapPin, Clock, MoreVertical, Trash2, Eye, Loader2, RefreshCw, Building2, DollarSign, AlertCircle, X, Calendar, Tag, CheckCircle } from 'lucide-react';
+import { Modal, useModal, useHeadlessTable, useHeadlessSearch, useHeadlessPagination } from '../../components/headless';
 import AdminService from '../../services/AdminService';
 
 // Status Badge Component
@@ -187,12 +188,163 @@ function JobCard({ job, onDelete, onView }) {
     );
 }
 
+// Job Detail Modal Component - uses headless Modal compound pattern
+function JobDetailModal({ jobPost, controller }) {
+    if (!jobPost) return null;
+
+    // Format posted date
+    const formatDate = (dateStr) => {
+        if (!dateStr) return 'Unknown';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    };
+
+    // Parse skills if available
+    const skills = jobPost.requiredSkills || jobPost.skills || [];
+    const skillList = typeof skills === 'string' ? skills.split(',').map(s => s.trim()) : skills;
+
+    return (
+        <Modal controller={controller}>
+            <Modal.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                <Modal.Content className="relative bg-gradient-to-br from-dark-800 to-dark-900 border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-scale-in">
+                    {/* Header with gradient */}
+                    <Modal.Header className="relative px-6 py-5 bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-b border-white/10">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                                <h2 className="text-xl font-bold text-white truncate">
+                                    {jobPost.title}
+                                </h2>
+                                <div className="flex items-center gap-2 mt-2 text-dark-300">
+                                    <Building2 className="w-4 h-4 text-blue-400" />
+                                    <span className="truncate">{jobPost.company}</span>
+                                </div>
+                            </div>
+                            <Modal.CloseButton className="p-2 rounded-lg hover:bg-white/10 transition-colors text-dark-400 hover:text-white flex-shrink-0">
+                                <X className="w-5 h-5" />
+                            </Modal.CloseButton>
+                        </div>
+                    </Modal.Header>
+
+                    {/* Body - scrollable */}
+                    <Modal.Body className="p-6 overflow-y-auto max-h-[calc(90vh-200px)] space-y-6">
+                        {/* Status and Type badges */}
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <JobStatusBadge status={jobPost.status} />
+                            <TypeBadge type={jobPost.type} />
+                            {jobPost.fresherFriendly && (
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400 flex items-center gap-1">
+                                    <CheckCircle className="w-3 h-3" />
+                                    Fresher Friendly
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Key information cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Salary */}
+                            <div className="glass-card p-4 flex items-start gap-3">
+                                <div className="p-2 rounded-lg bg-emerald-500/20">
+                                    <DollarSign className="w-5 h-5 text-emerald-400" />
+                                </div>
+                                <div>
+                                    <p className="text-dark-400 text-xs uppercase tracking-wide">Salary</p>
+                                    <p className="text-white font-semibold mt-1">{jobPost.salary || 'Negotiable'}</p>
+                                </div>
+                            </div>
+
+                            {/* Location */}
+                            <div className="glass-card p-4 flex items-start gap-3">
+                                <div className="p-2 rounded-lg bg-pink-500/20">
+                                    <MapPin className="w-5 h-5 text-pink-400" />
+                                </div>
+                                <div>
+                                    <p className="text-dark-400 text-xs uppercase tracking-wide">Location</p>
+                                    <p className="text-white font-semibold mt-1">{jobPost.location || 'Remote'}</p>
+                                </div>
+                            </div>
+
+                            {/* Posted Date */}
+                            <div className="glass-card p-4 flex items-start gap-3">
+                                <div className="p-2 rounded-lg bg-blue-500/20">
+                                    <Calendar className="w-5 h-5 text-blue-400" />
+                                </div>
+                                <div>
+                                    <p className="text-dark-400 text-xs uppercase tracking-wide">Posted</p>
+                                    <p className="text-white font-semibold mt-1">{formatDate(jobPost.postedAt)}</p>
+                                </div>
+                            </div>
+
+                            {/* Employment Type */}
+                            <div className="glass-card p-4 flex items-start gap-3">
+                                <div className="p-2 rounded-lg bg-purple-500/20">
+                                    <Briefcase className="w-5 h-5 text-purple-400" />
+                                </div>
+                                <div>
+                                    <p className="text-dark-400 text-xs uppercase tracking-wide">Type</p>
+                                    <p className="text-white font-semibold mt-1">{jobPost.type || 'Full-time'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Description */}
+                        {jobPost.description && (
+                            <div>
+                                <h3 className="text-sm font-medium text-dark-300 uppercase tracking-wide mb-3">Description</h3>
+                                <div className="glass-card p-4">
+                                    <p className="text-dark-200 leading-relaxed whitespace-pre-wrap">
+                                        {jobPost.description}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Required Skills */}
+                        {skillList.length > 0 && (
+                            <div>
+                                <h3 className="text-sm font-medium text-dark-300 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                    <Tag className="w-4 h-4" />
+                                    Required Skills
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {skillList.map((skill, index) => (
+                                        <span
+                                            key={index}
+                                            className="px-3 py-1.5 rounded-full text-sm bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-white/10"
+                                        >
+                                            {skill}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </Modal.Body>
+
+                    {/* Footer */}
+                    <Modal.Footer className="px-6 py-4 border-t border-white/10 flex items-center justify-end gap-3">
+                        <Modal.CloseButton className="px-6 py-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors font-medium">
+                            Close
+                        </Modal.CloseButton>
+                    </Modal.Footer>
+                </Modal.Content>
+            </Modal.Overlay>
+        </Modal>
+    );
+}
+
 export default function JobPostListPage() {
     const [jobPosts, setJobPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalItems, setTotalItems] = useState(0);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [selectedJob, setSelectedJob] = useState(null);
+
+    // Headless Modal hook for job details
+    const jobDetailModal = useModal();
 
     const {
         query: searchQuery,
@@ -266,7 +418,8 @@ export default function JobPostListPage() {
     };
 
     const handleView = (jobPost) => {
-        alert(`Title: ${jobPost.title}\nCompany: ${jobPost.company}\nLocation: ${jobPost.location}\nSalary: ${jobPost.salary}\nType: ${jobPost.type}\n\nDescription: ${jobPost.description}`);
+        setSelectedJob(jobPost);
+        jobDetailModal.open();
     };
 
     const columns = [
@@ -534,6 +687,12 @@ export default function JobPostListPage() {
                     isLoading={deleteLoading}
                 />
             )}
+
+            {/* Job Detail Modal - uses headless Modal */}
+            <JobDetailModal
+                jobPost={selectedJob}
+                controller={jobDetailModal}
+            />
         </div>
     );
 }

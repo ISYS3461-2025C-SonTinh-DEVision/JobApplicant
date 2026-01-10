@@ -1,5 +1,7 @@
 package com.DEVision.JobApplicant.admin.service.impl;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -11,9 +13,14 @@ import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.common.config.RoleConfig;
 import com.DEVision.JobApplicant.jobManager.company.external.dto.AccountActionResponse;
+import com.DEVision.JobApplicant.jobManager.company.external.dto.CompanyListResponse;
 import com.DEVision.JobApplicant.jobManager.company.service.CallCompanyService;
+import com.DEVision.JobApplicant.jobManager.jobpost.service.CallJobPostService;
+import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostListResponse;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -23,6 +30,8 @@ import java.util.stream.Collectors;
 @Service
 public class AdminServiceImpl implements AdminService {
 
+    private static final Logger logger = LoggerFactory.getLogger(AdminServiceImpl.class);
+
     @Autowired
     private AuthRepository authRepository;
 
@@ -31,6 +40,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private CallCompanyService callCompanyService;
+
+    @Autowired
+    private CallJobPostService callJobPostService;
 
     @Override
     public AdminStatsDto getDashboardStats() {
@@ -52,13 +64,51 @@ public class AdminServiceImpl implements AdminService {
             .filter(User::isEnabled)
             .count();
 
+        // Fetch real counts from Job Manager API
+        long totalCompanies = 0L;
+        long totalJobPosts = 0L;
+        long premiumCompanies = 0L;
+
+        try {
+            // Get company count from JM API
+            Map<String, Object> companyParams = new HashMap<>();
+            companyParams.put("page", 1);
+            companyParams.put("limit", 1); // Just need total count
+            CompanyListResponse companyResponse = callCompanyService.searchCompanies(companyParams);
+            if (companyResponse != null) {
+                totalCompanies = companyResponse.getTotalCount() != null ? companyResponse.getTotalCount() : 0L;
+                // Note: Premium company count not available in current JM API response
+            }
+            logger.debug("Fetched company count from JM: {}", totalCompanies);
+        } catch (Exception e) {
+            logger.warn("Failed to fetch company count from JM: {}", e.getMessage());
+        }
+
+        try {
+            // Get ACTIVE job posts count from JM API
+            // Fetch jobs list and count only those with isActive=true
+            Map<String, Object> jobParams = new HashMap<>();
+            jobParams.put("page", 1);
+            jobParams.put("size", 100); // Fetch enough to count active jobs
+            JobPostListResponse jobResponse = callJobPostService.searchJobPosts(jobParams);
+            if (jobResponse != null && jobResponse.getJobs() != null) {
+                // Count only active job posts
+                totalJobPosts = jobResponse.getJobs().stream()
+                    .filter(job -> Boolean.TRUE.equals(job.getIsActive()))
+                    .count();
+            }
+            logger.debug("Fetched active job post count from JM: {}", totalJobPosts);
+        } catch (Exception e) {
+            logger.warn("Failed to fetch job post count from JM: {}", e.getMessage());
+        }
+
         return new AdminStatsDto(
             totalApplicants,
-            0L,  // Companies are managed by Job Manager
-            0L,  // Job posts are managed by Job Manager
+            totalCompanies,
+            totalJobPosts,
             activeApplicants,
             premiumCount,
-            0L   // Premium companies managed by Job Manager
+            premiumCompanies
         );
     }
 
