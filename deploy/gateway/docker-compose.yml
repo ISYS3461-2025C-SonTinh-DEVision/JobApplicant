@@ -1,0 +1,56 @@
+# Gateway Droplet - Kong + Consul
+# IP: 152.42.229.163
+# Per requirement D.3.3: API Gateway and Service Discovery hosted separately
+
+services:
+  kong:
+    image: kong:3.4
+    container_name: JA_kong
+    restart: unless-stopped
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_PROXY_LISTEN: 0.0.0.0:8000, 0.0.0.0:8443 ssl
+    volumes:
+      - ./kong.yml:/kong/kong.yml:ro
+    ports:
+      - "80:8000"      # HTTP -> Kong proxy
+      - "443:8443"     # HTTPS -> Kong proxy
+      - "8001:8001"    # Admin API
+    networks:
+      - gateway-network
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  consul:
+    image: hashicorp/consul:1.17
+    container_name: JA_consul
+    restart: unless-stopped
+    command: agent -server -bootstrap-expect=1 -ui -client=0.0.0.0
+    volumes:
+      - consul_data:/consul/data
+    ports:
+      - "8500:8500"    # HTTP API and UI
+      - "8600:8600/udp"
+    networks:
+      - gateway-network
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  gateway-network:
+    driver: bridge
+
+volumes:
+  consul_data:

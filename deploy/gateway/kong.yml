@@ -1,0 +1,64 @@
+_format_version: "3.0"
+_transform: true
+
+# Kong Gateway Production Configuration
+# Domain: ja.devision.sbs
+
+services:
+  # Main API routing to Application droplet
+  - name: ja-backend
+    url: http://143.198.94.118:8080
+    routes:
+      - name: api-route
+        paths:
+          - /api
+        strip_path: false
+        preserve_host: true
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "https://ja.devision.sbs"
+            - "http://ja.devision.sbs"
+            - "http://localhost:3000"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Content-Type
+            - Authorization
+            - X-Requested-With
+          credentials: true
+          max_age: 3600
+
+  # Frontend static files
+  - name: ja-frontend
+    url: http://143.198.94.118:3000
+    routes:
+      - name: frontend-route
+        paths:
+          - /
+        strip_path: false
+
+  # Actuator health endpoints
+  - name: actuator-service
+    url: http://143.198.94.118:8080
+    routes:
+      - name: actuator-route
+        paths:
+          - /actuator
+        strip_path: false
+        methods:
+          - GET
+
+plugins:
+  - name: rate-limiting
+    config:
+      minute: 200
+      policy: local
+      fault_tolerant: true
