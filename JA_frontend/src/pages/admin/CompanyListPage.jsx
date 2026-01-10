@@ -3,12 +3,13 @@
  * Admin page for viewing and managing companies
  * 
  * Note: Company data comes from Job Manager subsystem
- * Uses: useHeadlessTable, useHeadlessSearch, useHeadlessPagination
+ * Architecture: A.3.a - Headless UI Pattern (Ultimo Level)
+ * Uses: Modal, useModal, useHeadlessTable, useHeadlessSearch, useHeadlessPagination
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Building2, Crown, MapPin, MoreVertical, Ban, Eye, Loader2, RefreshCw, Briefcase, AlertCircle, X } from 'lucide-react';
-import { useHeadlessTable, useHeadlessSearch, useHeadlessPagination } from '../../components/headless';
+import { Search, Building2, Crown, MapPin, MoreVertical, Ban, Eye, Loader2, RefreshCw, Briefcase, AlertCircle, X, Phone, Calendar, Info, Globe, Mail } from 'lucide-react';
+import { Modal, useModal, useHeadlessTable, useHeadlessSearch, useHeadlessPagination } from '../../components/headless';
 import AdminService from '../../services/AdminService';
 
 // Status Badge Component
@@ -158,6 +159,9 @@ export default function CompanyListPage() {
     const [apiError, setApiError] = useState(null);
     const [selectedCompany, setSelectedCompany] = useState(null);
 
+    // Headless Modal hook for company details
+    const companyDetailModal = useModal();
+
     const {
         query: searchQuery,
         setQuery: setSearchQuery,
@@ -264,9 +268,11 @@ export default function CompanyListPage() {
 
     const handleView = (company) => {
         setSelectedCompany(company);
+        companyDetailModal.open();
     };
 
     const closeDetailModal = () => {
+        companyDetailModal.close();
         setSelectedCompany(null);
     };
 
@@ -536,94 +542,166 @@ export default function CompanyListPage() {
                 </div>
             )}
 
-            {/* Company Detail Modal */}
-            {selectedCompany && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closeDetailModal}>
-                    <div
-                        className="glass-card max-w-lg w-full max-h-[90vh] overflow-y-auto animate-fade-in"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Header */}
-                        <div className="p-6 border-b border-white/10">
-                            <div className="flex items-start justify-between">
+            {/* Company Detail Modal - uses headless Modal per Ultimo A.3.a */}
+            <Modal controller={companyDetailModal}>
+                <Modal.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <Modal.Content className="relative bg-gradient-to-br from-dark-800 to-dark-900 border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-scale-in">
+                        {/* Header with gradient */}
+                        <Modal.Header className="relative px-6 py-5 bg-gradient-to-r from-pink-600/20 to-violet-600/20 border-b border-white/10">
+                            <div className="flex items-start justify-between gap-4">
                                 <div className="flex items-center gap-4">
-                                    {selectedCompany.logoUrl ? (
+                                    {selectedCompany?.logoUrl ? (
                                         <img
                                             src={selectedCompany.logoUrl}
                                             alt={selectedCompany.name}
                                             className="w-16 h-16 rounded-xl object-cover"
+                                            onError={(e) => { e.target.style.display = 'none'; }}
                                         />
                                     ) : (
                                         <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-pink-500 to-violet-500 flex items-center justify-center text-white text-2xl font-bold">
-                                            {selectedCompany.name.charAt(0)}
+                                            {selectedCompany?.name?.charAt(0) || 'C'}
                                         </div>
                                     )}
-                                    <div>
-                                        <h2 className="text-xl font-bold text-white">{selectedCompany.name}</h2>
-                                        <p className="text-dark-400">{selectedCompany.industry}</p>
+                                    <div className="flex-1 min-w-0">
+                                        <h2 className="text-xl font-bold text-white truncate">
+                                            {selectedCompany?.name}
+                                        </h2>
+                                        {selectedCompany?.industry && (
+                                            <p className="text-dark-400 text-sm mt-1">{selectedCompany.industry}</p>
+                                        )}
                                     </div>
                                 </div>
-                                <button
-                                    onClick={closeDetailModal}
-                                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                                >
-                                    <X className="w-5 h-5 text-dark-400" />
-                                </button>
+                                <Modal.CloseButton className="p-2 rounded-lg hover:bg-white/10 transition-colors text-dark-400 hover:text-white flex-shrink-0">
+                                    <X className="w-5 h-5" />
+                                </Modal.CloseButton>
                             </div>
-                        </div>
+                        </Modal.Header>
 
-                        {/* Content */}
-                        <div className="p-6 space-y-4">
-                            {/* Status */}
-                            <div>
-                                <StatusBadge status={selectedCompany.status} isPremium={selectedCompany.isPremium} />
+                        {/* Body - scrollable */}
+                        <Modal.Body className="p-6 overflow-y-auto max-h-[calc(90vh-200px)] space-y-6">
+                            {/* Status badges */}
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <StatusBadge status={selectedCompany?.status} isPremium={selectedCompany?.isPremium} />
+                                {selectedCompany?.uniqueID && (
+                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">
+                                        ID: {selectedCompany.uniqueID.slice(0, 20)}...
+                                    </span>
+                                )}
                             </div>
 
-                            {/* Location */}
-                            <div className="flex items-center gap-3 text-dark-300">
-                                <MapPin className="w-5 h-5 text-pink-400" />
-                                <div>
-                                    <p className="text-white font-medium">Location</p>
-                                    <p>{selectedCompany.street && `${selectedCompany.street}, `}{selectedCompany.city}{selectedCompany.city && selectedCompany.country ? ', ' : ''}{selectedCompany.country}</p>
+                            {/* Key information cards */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {/* Location */}
+                                <div className="glass-card p-4 flex items-start gap-3">
+                                    <div className="p-2 rounded-lg bg-pink-500/20">
+                                        <MapPin className="w-5 h-5 text-pink-400" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-dark-400 text-xs uppercase tracking-wide">Location</p>
+                                        <p className="text-white font-semibold mt-1 truncate">
+                                            {selectedCompany?.city || 'N/A'}
+                                            {selectedCompany?.city && selectedCompany?.country && ', '}
+                                            {selectedCompany?.country}
+                                        </p>
+                                        {selectedCompany?.street && (
+                                            <p className="text-dark-300 text-sm mt-0.5 truncate">{selectedCompany.street}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Phone */}
+                                <div className="glass-card p-4 flex items-start gap-3">
+                                    <div className="p-2 rounded-lg bg-blue-500/20">
+                                        <Phone className="w-5 h-5 text-blue-400" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-dark-400 text-xs uppercase tracking-wide">Phone</p>
+                                        <p className="text-white font-semibold mt-1">
+                                            {selectedCompany?.phoneNumber || 'Not provided'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Created Date */}
+                                <div className="glass-card p-4 flex items-start gap-3">
+                                    <div className="p-2 rounded-lg bg-emerald-500/20">
+                                        <Calendar className="w-5 h-5 text-emerald-400" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-dark-400 text-xs uppercase tracking-wide">Registered</p>
+                                        <p className="text-white font-semibold mt-1">
+                                            {selectedCompany?.createdAt
+                                                ? new Date(selectedCompany.createdAt).toLocaleDateString('en-US', {
+                                                    year: 'numeric',
+                                                    month: 'long',
+                                                    day: 'numeric'
+                                                })
+                                                : 'Unknown'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Job Posts */}
+                                <div className="glass-card p-4 flex items-start gap-3">
+                                    <div className="p-2 rounded-lg bg-purple-500/20">
+                                        <Briefcase className="w-5 h-5 text-purple-400" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-dark-400 text-xs uppercase tracking-wide">Job Posts</p>
+                                        <p className="text-white font-semibold mt-1">
+                                            {selectedCompany?.jobPostCount || 0} positions
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Contact */}
-                            {(selectedCompany.email || selectedCompany.phoneNumber) && (
-                                <div className="flex items-center gap-3 text-dark-300">
-                                    <Building2 className="w-5 h-5 text-pink-400" />
-                                    <div>
-                                        <p className="text-white font-medium">Contact</p>
-                                        {selectedCompany.email && <p>{selectedCompany.email}</p>}
-                                        {selectedCompany.phoneNumber && <p>{selectedCompany.phoneNumber}</p>}
+                            {/* About Us */}
+                            {selectedCompany?.aboutUs && (
+                                <div>
+                                    <h3 className="text-sm font-medium text-dark-300 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                        <Info className="w-4 h-4" />
+                                        About Company
+                                    </h3>
+                                    <div className="glass-card p-4">
+                                        <p className="text-dark-200 leading-relaxed whitespace-pre-wrap">
+                                            {selectedCompany.aboutUs}
+                                        </p>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Job Posts */}
-                            <div className="flex items-center gap-3 text-dark-300">
-                                <Briefcase className="w-5 h-5 text-pink-400" />
-                                <div>
-                                    <p className="text-white font-medium">Active Job Posts</p>
-                                    <p>{selectedCompany.jobPostCount || 0} positions</p>
+                            {/* Metadata section */}
+                            <div className="pt-4 border-t border-white/10">
+                                <h3 className="text-sm font-medium text-dark-300 uppercase tracking-wide mb-3">Details</h3>
+                                <div className="space-y-2 text-sm">
+                                    {selectedCompany?.uniqueID && (
+                                        <div className="flex justify-between">
+                                            <span className="text-dark-400">Unique ID</span>
+                                            <span className="text-dark-200 font-mono text-xs">{selectedCompany.uniqueID}</span>
+                                        </div>
+                                    )}
+                                    {selectedCompany?.createdAt && (
+                                        <div className="flex justify-between">
+                                            <span className="text-dark-400">Created At</span>
+                                            <span className="text-dark-200">{new Date(selectedCompany.createdAt).toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                    {selectedCompany?.updatedAt && (
+                                        <div className="flex justify-between">
+                                            <span className="text-dark-400">Last Updated</span>
+                                            <span className="text-dark-200">{new Date(selectedCompany.updatedAt).toLocaleString()}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-
-                            {/* About */}
-                            {selectedCompany.aboutUs && (
-                                <div className="pt-4 border-t border-white/10">
-                                    <p className="text-white font-medium mb-2">About</p>
-                                    <p className="text-dark-300 text-sm leading-relaxed">{selectedCompany.aboutUs}</p>
-                                </div>
-                            )}
-                        </div>
+                        </Modal.Body>
 
                         {/* Footer */}
-                        <div className="p-6 border-t border-white/10 flex gap-3">
-                            {selectedCompany.status === 'active' ? (
+                        <Modal.Footer className="px-6 py-4 border-t border-white/10 flex items-center justify-end gap-3">
+                            {selectedCompany?.status === 'active' ? (
                                 <button
                                     onClick={() => { handleDeactivate(selectedCompany); closeDetailModal(); }}
-                                    className="flex-1 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors flex items-center justify-center gap-2"
+                                    className="px-4 py-2.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors font-medium flex items-center gap-2"
                                 >
                                     <Ban className="w-4 h-4" />
                                     Deactivate
@@ -631,22 +709,19 @@ export default function CompanyListPage() {
                             ) : (
                                 <button
                                     onClick={() => { handleActivate(selectedCompany); closeDetailModal(); }}
-                                    className="flex-1 px-4 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors flex items-center justify-center gap-2"
+                                    className="px-4 py-2.5 rounded-xl bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors font-medium flex items-center gap-2"
                                 >
                                     <Eye className="w-4 h-4" />
                                     Activate
                                 </button>
                             )}
-                            <button
-                                onClick={closeDetailModal}
-                                className="flex-1 px-4 py-2 bg-white/5 text-white rounded-lg hover:bg-white/10 transition-colors"
-                            >
+                            <Modal.CloseButton className="px-6 py-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors font-medium">
                                 Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                            </Modal.CloseButton>
+                        </Modal.Footer>
+                    </Modal.Content>
+                </Modal.Overlay>
+            </Modal>
         </div>
     );
 }

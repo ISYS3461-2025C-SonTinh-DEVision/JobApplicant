@@ -1,0 +1,78 @@
+_format_version: "3.0"
+_transform: true
+
+# Kong Gateway Declarative Configuration
+# DEVision Job Applicant - Ultimo Level (D.3.1)
+
+services:
+  # Job Applicant Backend Service - Main API
+  - name: ja-backend
+    url: http://backend:8080
+    routes:
+      - name: ja-api-route
+        paths:
+          - /api
+        strip_path: false
+        preserve_host: true
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-Type
+            - Authorization
+            - X-Requested-With
+          exposed_headers:
+            - X-Auth-Token
+          credentials: true
+          max_age: 3600
+
+  # Health check endpoint (routed via Kong)
+  - name: health-service
+    url: http://backend:8080
+    routes:
+      - name: health-route
+        paths:
+          - /health
+        strip_path: false
+        methods:
+          - GET
+
+  # Actuator endpoints for monitoring
+  - name: actuator-service
+    url: http://backend:8080
+    routes:
+      - name: actuator-route
+        paths:
+          - /actuator
+        strip_path: false
+        methods:
+          - GET
+
+# Global plugins
+plugins:
+  # Rate limiting to prevent abuse
+  - name: rate-limiting
+    config:
+      minute: 200
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+
+# Upstream definitions for load balancing (future use)
+upstreams:
+  - name: ja-backend-upstream
+    targets:
+      - target: backend:8080
+        weight: 100
