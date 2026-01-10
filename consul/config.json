@@ -1,0 +1,96 @@
+{
+    "datacenter": "devision-dc1",
+    "node_name": "consul-server",
+    "server": true,
+    "bootstrap_expect": 1,
+    "ui_config": {
+        "enabled": true
+    },
+    "bind_addr": "0.0.0.0",
+    "client_addr": "0.0.0.0",
+    "data_dir": "/consul/data",
+    "log_level": "INFO",
+    "enable_script_checks": true,
+    "enable_local_script_checks": true,
+    "services": [
+        {
+            "id": "ja-backend",
+            "name": "ja-backend",
+            "address": "backend",
+            "port": 8080,
+            "tags": [
+                "spring-boot",
+                "job-applicant",
+                "api"
+            ],
+            "check": {
+                "http": "http://backend:8080/actuator/health",
+                "interval": "10s",
+                "timeout": "3s"
+            }
+        },
+        {
+            "id": "ja-frontend",
+            "name": "ja-frontend",
+            "address": "frontend",
+            "port": 3000,
+            "tags": [
+                "react",
+                "job-applicant",
+                "ui"
+            ],
+            "check": {
+                "http": "http://frontend:3000",
+                "interval": "10s",
+                "timeout": "3s"
+            }
+        },
+        {
+            "id": "kong-gateway",
+            "name": "kong-gateway",
+            "address": "kong",
+            "port": 8000,
+            "tags": [
+                "api-gateway",
+                "kong"
+            ],
+            "check": {
+                "http": "http://kong:8001/status",
+                "interval": "10s",
+                "timeout": "3s"
+            }
+        },
+        {
+            "id": "redis-cache",
+            "name": "redis-cache",
+            "address": "redis",
+            "port": 6379,
+            "tags": [
+                "redis",
+                "cache",
+                "token-blacklist"
+            ],
+            "check": {
+                "tcp": "redis:6379",
+                "interval": "10s",
+                "timeout": "3s"
+            }
+        },
+        {
+            "id": "kafka-broker",
+            "name": "kafka-broker",
+            "address": "kafka",
+            "port": 9092,
+            "tags": [
+                "kafka",
+                "messaging",
+                "real-time"
+            ],
+            "check": {
+                "tcp": "kafka:9092",
+                "interval": "10s",
+                "timeout": "3s"
+            }
+        }
+    ]
+}

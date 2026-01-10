@@ -73,6 +73,8 @@ public class SecurityConfig {
 								// "/api/companies/**"
 								)
 						.permitAll()
+						// Actuator endpoints for health checks (Service Discovery - D.3.1)
+						.requestMatchers("/actuator/**").permitAll()
 						// Swagger/OpenAPI documentation endpoints
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
 						// WebSocket endpoint
