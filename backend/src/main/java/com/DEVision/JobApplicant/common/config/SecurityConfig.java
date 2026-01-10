@@ -60,17 +60,18 @@ public class SecurityConfig {
 								"/api/auth/oauth2/google",
 								"/api/auth/oauth2/callback/google",
 								"/api/countries",
-								"/api/system/verify-token",
-								"/api/applications/job/**",
-								"/api/applications/{id}/status",
-								"/api/applicants",
-								"/api/applicants/{id}",
-								"/api/applicants/user/{id}",
-								// Public job search endpoints (no auth required for searching)
-								"/api/job-posts",
-								"/api/job-posts/**",
-								"/api/companies",
-								"/api/companies/**")
+								"/api/system/verify-token"
+								// "/api/applications/job/**",
+								// "/api/applications/{id}/status",
+								// "/api/applicants",
+								// "/api/applicants/{id}",
+								// "/api/applicants/user/{id}",
+								// // Public job search endpoints (no auth required for searching)
+								// "/api/job-posts",
+								// "/api/job-posts/**",
+								// "/api/companies",
+								// "/api/companies/**"
+								)
 						.permitAll()
 						// Swagger/OpenAPI documentation endpoints
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
