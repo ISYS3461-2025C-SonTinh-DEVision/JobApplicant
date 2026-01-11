@@ -325,11 +325,10 @@ public class CallJobPostService implements JobPostServiceInf {
         
         return uriBuilder.toUriString();
     }
-    
     /**
      * Full-Text Search (FTS) matcher
      * Searches across Title, Description, and Required Skills fields
-     * Returns true if ANY search token is found in ANY of these fields
+     * Returns true if ALL search tokens are found in ANY of these fields
      * 
      * @param job The job post to check
      * @param searchTokens Array of lowercase search terms
@@ -361,13 +360,16 @@ public class CallJobPostService implements JobPostServiceInf {
         
         String fullText = searchableText.toString();
         
-        // Check if ANY search token is found in the searchable text
+        // Check if ALL search tokens are found in the searchable text
+        // This ensures more precise search - user searching "build responsive web"
+        // will only see jobs containing ALL three words
         for (String token : searchTokens) {
-            if (fullText.contains(token)) {
-                return true;
+            if (!fullText.contains(token)) {
+                return false; // Missing this token, no match
             }
         }
         
-        return false;
+        // All tokens found
+        return true;
     }
 }
