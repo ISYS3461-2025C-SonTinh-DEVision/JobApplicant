@@ -7,7 +7,8 @@ _transform: true
 services:
   # Job Applicant Backend Service - Main API
   - name: ja-backend
-    url: http://backend:8080
+    url: https://backend:8080
+    tls_verify: false  # Skip SSL verification for internal Cloudflare Origin cert
     routes:
       - name: ja-api-route
         paths:
@@ -40,7 +41,8 @@ services:
 
   # Health check endpoint (routed via Kong)
   - name: health-service
-    url: http://backend:8080
+    url: https://backend:8080
+    tls_verify: false
     routes:
       - name: health-route
         paths:
@@ -51,7 +53,8 @@ services:
 
   # Actuator endpoints for monitoring
   - name: actuator-service
-    url: http://backend:8080
+    url: https://backend:8080
+    tls_verify: false
     routes:
       - name: actuator-route
         paths:
@@ -75,4 +78,5 @@ upstreams:
   - name: ja-backend-upstream
     targets:
       - target: backend:8080
+        weight: 100
         weight: 100
