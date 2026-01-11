@@ -118,8 +118,18 @@ public class ApplicantService {
         Optional<User> userOpt = authRepository.findById(userId);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            Country oldCountry = user.getCountry();
             user.setCountry(country);
             authRepository.save(user);
+            
+            // Send Kafka event for country update (Req 3.3.1)
+            // Only send if country actually changed
+            if (oldCountry == null || !country.equals(oldCountry)) {
+                Applicant applicant = applicantRepository.findByUserId(userId);
+                if (applicant != null) {
+                    sendProfileEvent(applicant, "COUNTRY_UPDATED");
+                }
+            }
             return true;
         }
         return false;
