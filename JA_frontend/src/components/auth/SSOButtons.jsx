@@ -56,9 +56,11 @@ export function GoogleSSOButton({
   variant = 'default', // 'default' | 'outline' | 'dark'
 }) {
   const hiddenButtonRef = useRef(null);
+  const visibleButtonRef = useRef(null);
   const [localLoading, setLocalLoading] = useState(false);
   const [localError, setLocalError] = useState(null);
   const [isButtonReady, setIsButtonReady] = useState(false);
+  const [useVisibleButton, setUseVisibleButton] = useState(false);
   const { loginWithGoogleIdToken } = useAuth();
 
   // Handle successful Google credential response
@@ -141,16 +143,25 @@ export function GoogleSSOButton({
       console.log('Triggering Google Sign-In via proxy button...');
       googleButton.click();
     } else {
-      // Fallback: try clicking any clickable element in the container
-      const anyButton = hiddenButtonRef.current?.querySelector('iframe');
-      if (anyButton) {
-        // For iframe-based buttons, we need to focus and simulate click
-        setLocalError('Please use the Google button directly');
-      } else {
-        setLocalError('Google Sign-In not ready. Please refresh the page.');
-      }
+      // Fallback: iframe-based button detected (production domains)
+      // Switch to visible Google button mode
+      console.log('Iframe-based Google button detected, switching to visible mode...');
+      setUseVisibleButton(true);
     }
   }, [disabled, localLoading, gisLoading]);
+
+  // Render visible button when useVisibleButton is true
+  useEffect(() => {
+    if (useVisibleButton && visibleButtonRef.current && isLoaded) {
+      console.log('Rendering visible Google button...');
+      renderButton(visibleButtonRef.current, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        width: 400,
+      });
+    }
+  }, [useVisibleButton, isLoaded, renderButton]);
 
   const isDisabled = disabled || localLoading || gisLoading;
   const showError = localError || gisError;
@@ -192,7 +203,7 @@ export function GoogleSSOButton({
 
   return (
     <div className={className}>
-      {/* Hidden container for the real Google button */}
+      {/* Hidden container for the real Google button (proxy pattern) */}
       <div
         ref={hiddenButtonRef}
         className="absolute opacity-0 pointer-events-none overflow-hidden"
@@ -200,39 +211,52 @@ export function GoogleSSOButton({
         aria-hidden="true"
       />
 
-      {/* Beautiful custom button */}
-      <button
-        type="button"
-        onClick={handleCustomButtonClick}
-        disabled={isDisabled || !isLoaded}
-        className={`
-          w-full flex items-center justify-center gap-3 
-          px-6 py-3.5 rounded-xl 
-          font-medium text-base
-          transition-all duration-200 ease-out
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900
-          disabled:opacity-50 disabled:cursor-not-allowed
-          active:scale-[0.98]
-          ${variantStyles[variant]}
-        `}
-      >
-        {localLoading || gisLoading ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Signing in...</span>
-          </>
-        ) : !isLoaded ? (
-          <>
-            <div className="w-5 h-5 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
-            <span>Loading...</span>
-          </>
-        ) : (
-          <>
-            <GoogleLogo />
-            <span>Continue with Google</span>
-          </>
-        )}
-      </button>
+      {/* Visible Google button for iframe fallback (production domains) */}
+      {useVisibleButton ? (
+        <div className="space-y-2">
+          <div
+            ref={visibleButtonRef}
+            className="flex justify-center"
+          />
+          {localLoading && (
+            <p className="text-xs text-center text-dark-400">Signing in...</p>
+          )}
+        </div>
+      ) : (
+        /* Beautiful custom button */
+        <button
+          type="button"
+          onClick={handleCustomButtonClick}
+          disabled={isDisabled || !isLoaded}
+          className={`
+            w-full flex items-center justify-center gap-3 
+            px-6 py-3.5 rounded-xl 
+            font-medium text-base
+            transition-all duration-200 ease-out
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900
+            disabled:opacity-50 disabled:cursor-not-allowed
+            active:scale-[0.98]
+            ${variantStyles[variant]}
+          `}
+        >
+          {localLoading || gisLoading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Signing in...</span>
+            </>
+          ) : !isLoaded ? (
+            <>
+              <div className="w-5 h-5 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
+              <span>Loading...</span>
+            </>
+          ) : (
+            <>
+              <GoogleLogo />
+              <span>Continue with Google</span>
+            </>
+          )}
+        </button>
+      )}
 
       {/* Error message */}
       {showError && !localLoading && (
