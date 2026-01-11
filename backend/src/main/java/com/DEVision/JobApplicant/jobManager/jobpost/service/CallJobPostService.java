@@ -75,22 +75,38 @@ public class CallJobPostService implements JobPostServiceInf {
         
         JobPostDto jobPost = response.getBody() != null ? response.getBody().getJobPost() : null;
         
-        // Enrich with company name from Company API if missing
-        if (jobPost != null && (jobPost.getCompanyName() == null || jobPost.getCompanyName().isEmpty())) {
-            String companyId = jobPost.getCompanyId();
-            if (companyId != null && !companyId.isEmpty()) {
-                try {
-                    CompanyDto company = callCompanyService.getCompanyById(companyId);
-                    if (company != null) {
-                        jobPost.setCompanyName(company.getName());
-                        // Also set logo URL if available
-                        if (jobPost.getCompanyLogo() == null && company.getLogoUrl() != null) {
-                            jobPost.setCompanyLogo(company.getLogoUrl());
+        if (jobPost != null) {
+            logger.info("Fetched job '{}' ({}), companyId={}, companyName={}", 
+                jobPost.getTitle(), jobPostId, jobPost.getCompanyId(), jobPost.getCompanyName());
+            
+            // Enrich with company name from Company API if missing or blank
+            String existingCompanyName = jobPost.getCompanyName();
+            boolean needsEnrichment = existingCompanyName == null || existingCompanyName.trim().isEmpty();
+            
+            if (needsEnrichment) {
+                String companyId = jobPost.getCompanyId();
+                if (companyId != null && !companyId.isEmpty()) {
+                    try {
+                        logger.info("Enriching job {} with company data from companyId: {}", jobPostId, companyId);
+                        CompanyDto company = callCompanyService.getCompanyById(companyId);
+                        if (company != null) {
+                            jobPost.setCompanyName(company.getName());
+                            // Also set logo URL if available
+                            if ((jobPost.getCompanyLogo() == null || jobPost.getCompanyLogo().trim().isEmpty()) 
+                                && company.getLogoUrl() != null) {
+                                jobPost.setCompanyLogo(company.getLogoUrl());
+                            }
+                            logger.info("Enriched job {} with company: name={}, logo={}", 
+                                jobPostId, company.getName(), company.getLogoUrl());
+                        } else {
+                            logger.warn("Company API returned null for companyId: {}", companyId);
                         }
-                        logger.debug("Enriched job {} with company name: {}", jobPostId, company.getName());
+                    } catch (Exception e) {
+                        logger.warn("Could not fetch company info for job {} (companyId={}): {}", 
+                            jobPostId, companyId, e.getMessage());
                     }
-                } catch (Exception e) {
-                    logger.warn("Could not fetch company info for job {}: {}", jobPostId, e.getMessage());
+                } else {
+                    logger.warn("Job {} has no companyId, cannot enrich company data", jobPostId);
                 }
             }
         }
