@@ -5,7 +5,7 @@ import org.springframework.stereotype.Service;
 
 import com.DEVision.JobApplicant.notification.entity.Notification;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,7 +18,7 @@ public class NotificationService {
     // Create a new notification
     public Notification createNotification(Notification notification) {
         if (notification.getTimestamp() == null) {
-            notification.setTimestamp(LocalDateTime.now());
+            notification.setTimestamp(Instant.now());
         }
         return notificationRepository.save(notification);
     }
