@@ -123,7 +123,7 @@ public class CallJobPostService implements JobPostServiceInf {
         List<String> employmentTypes = searchRequest.getEmploymentType();
         boolean isMultiEmploymentTypeFilter = employmentTypes != null && employmentTypes.size() > 1;
         
-        // Check if fresher filter is enabled (JM API doesn't support this param)
+        // Check if fresher filter is enabled
         Boolean fresherFriendly = searchRequest.getFresherFriendly();
         boolean isFresherFilter = fresherFriendly != null && fresherFriendly;
         
@@ -145,12 +145,12 @@ public class CallJobPostService implements JobPostServiceInf {
                 employmentTypes.size());
         }
         
-        // Remove fresher filter - JM API doesn't support it, we'll filter on backend
-        // Also remove isFresherFriendly which might be added by serialization
-        queryParams.remove("fresherFriendly");
-        queryParams.remove("isFresherFriendly");
+        // Map fresherFriendly to isFresherFriendly for JM API
+        // JM API supports isFresherFriendly query param (verified from Swagger docs)
+        queryParams.remove("fresherFriendly"); // Remove our param name
         if (isFresherFilter) {
-            logger.info("Fresher filter enabled, will filter server-side");
+            queryParams.put("isFresherFriendly", true); // Use JM API param name
+            logger.info("Fresher filter enabled, sending isFresherFriendly=true to JM API");
         }
         
         // Full-Text Search (FTS) - JM API may only search title, we need to search
