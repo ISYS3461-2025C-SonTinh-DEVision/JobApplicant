@@ -31,6 +31,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../context/NotificationContext';
 import { StyledSelect } from '../../components/styled';
 import searchProfileService from '../../services/SearchProfileService';
+import CatLoadingSpinner from '../../components/common/CatLoadingSpinner';
 
 // Common tech skills for autocomplete
 const SUGGESTED_SKILLS = [
@@ -668,10 +669,7 @@ const SearchProfileSidebar = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-10 h-10 animate-spin text-primary-500" />
-                    <p className={textSecondary}>Loading search profile...</p>
-                </div>
+                <CatLoadingSpinner size="xl" message="Loading search profile..." />
             </div>
         );
     }

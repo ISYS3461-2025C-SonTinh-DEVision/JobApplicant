@@ -26,6 +26,7 @@ import {
   BookOpen, Image
 } from 'lucide-react';
 import ProfileService from '../../services/ProfileService';
+import CatLoadingSpinner from '../../components/common/CatLoadingSpinner';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -323,8 +324,8 @@ function StatsCard({ icon: Icon, label, value, color = 'primary', trend, trendUp
             <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{value}</p>
             {trend && (
               <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${trendUp
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'bg-red-500/20 text-red-400'
+                ? 'bg-green-500/20 text-green-400'
+                : 'bg-red-500/20 text-red-400'
                 }`}>
                 {trend}
               </span>
@@ -1550,10 +1551,7 @@ export default function ProfileDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-primary-500 animate-spin mx-auto mb-4" />
-          <p className={isDark ? 'text-dark-400' : 'text-gray-500'}>Loading profile...</p>
-        </div>
+        <CatLoadingSpinner size="xl" message="Loading profile..." />
       </div>
     );
   }
