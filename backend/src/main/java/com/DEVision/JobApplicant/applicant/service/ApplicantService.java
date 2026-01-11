@@ -110,6 +110,7 @@ public class ApplicantService {
     
     /**
      * Update country in User account
+     * Per Ultimo requirement 3.3.2: migrate shardId when country changes to different region
      * @param userId User ID
      * @param country Country to set
      * @return true if updated, false if user not found
@@ -119,8 +120,22 @@ public class ApplicantService {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             Country oldCountry = user.getCountry();
+            
+            // Calculate shard migration per Ultimo requirement 3.3.2
+            String oldShardId = user.getShardId();
+            String newShardId = com.DEVision.JobApplicant.common.sharding.ShardingConfig.getShardId(country);
+            boolean needsShardMigration = oldShardId == null || !newShardId.equals(oldShardId);
+            
+            // Update country and shardId
             user.setCountry(country);
+            user.setShardId(newShardId);
             authRepository.save(user);
+            
+            // Log shard migration if occurred (Ultimo A.3.4 monitoring)
+            if (needsShardMigration) {
+                System.out.println("SHARD_MIGRATION: User " + userId + 
+                    " migrated from shard [" + oldShardId + "] to [" + newShardId + "]");
+            }
             
             // Send Kafka event for country update (Req 3.3.1)
             // Only send if country actually changed
