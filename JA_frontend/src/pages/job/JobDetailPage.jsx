@@ -10,7 +10,7 @@
  * Architecture: Uses Headless Card for data display (Ultimo A.3.a)
  */
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
     ArrowLeft, MapPin, Briefcase, DollarSign, Clock, Building2,
     Share2, Bookmark, Calendar, AlertTriangle, Users, GraduationCap,
@@ -67,8 +67,8 @@ const JobInfoCard = ({ job, isDark, onApply, isExpired }) => {
 
                             {/* Company Logo */}
                             <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl font-bold shadow-lg ${isDark
-                                    ? 'bg-gradient-to-br from-primary-500 to-violet-500 text-white'
-                                    : 'bg-gradient-to-br from-primary-400 to-primary-600 text-white'
+                                ? 'bg-gradient-to-br from-primary-500 to-violet-500 text-white'
+                                : 'bg-gradient-to-br from-primary-400 to-primary-600 text-white'
                                 }`}>
                                 {job.companyLogo ? (
                                     <img src={job.companyLogo} alt={job.company} className="w-full h-full rounded-xl object-cover" />
@@ -120,8 +120,8 @@ const JobInfoCard = ({ job, isDark, onApply, isExpired }) => {
                         {/* Expiry Date - Requirement 4.1.4 */}
                         {job.expiresAt && (
                             <div className={`flex items-center gap-2 p-3 rounded-xl ${isExpired
-                                    ? (isDark ? 'bg-red-900/20 border border-red-500/30' : 'bg-red-50 border border-red-200')
-                                    : (isDark ? 'bg-dark-700/50' : 'bg-gray-50')
+                                ? (isDark ? 'bg-red-900/20 border border-red-500/30' : 'bg-red-50 border border-red-200')
+                                : (isDark ? 'bg-dark-700/50' : 'bg-gray-50')
                                 }`}>
                                 <Calendar className={`w-5 h-5 ${isExpired ? 'text-red-500' : (isDark ? 'text-cyan-400' : 'text-cyan-500')}`} />
                                 <div>
@@ -156,36 +156,70 @@ const JobInfoCard = ({ job, isDark, onApply, isExpired }) => {
 const JobDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { isDark } = useTheme();
 
-    const [job, setJob] = useState(null);
-    const [loading, setLoading] = useState(true);
+    // Get job data passed from list (preserves company info)
+    const jobFromState = location.state?.job;
+
+    const [job, setJob] = useState(jobFromState || null);
+    const [loading, setLoading] = useState(!jobFromState); // Skip loading if we have state data
     const [error, setError] = useState(null);
     const [isBookmarked, setIsBookmarked] = useState(false);
 
     // Application Modal state
     const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
 
-    // Fetch job data
+    // Fetch job data and merge with state data to preserve company info
     const fetchJob = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             const data = await JobSearchService.getJobById(id);
-            setJob(data);
+
+            // Merge API response with state data to preserve company info
+            // API may not return company fields, but we have them from the list
+            if (data && jobFromState) {
+                setJob({
+                    ...data,
+                    // Preserve company info from list if API doesn't return it
+                    company: data.company && data.company !== 'Unknown Company'
+                        ? data.company
+                        : jobFromState.company,
+                    companyName: data.companyName || jobFromState.companyName,
+                    companyId: data.companyId || jobFromState.companyId,
+                    companyLogo: data.companyLogo || jobFromState.companyLogo,
+                });
+            } else {
+                setJob(data);
+            }
         } catch (err) {
-            setError('Failed to load job details. Please try again.');
-            console.error(err);
+            // If API fails but we have state data, use that
+            if (jobFromState) {
+                setJob(jobFromState);
+            } else {
+                setError('Failed to load job details. Please try again.');
+                console.error(err);
+            }
         } finally {
             setLoading(false);
         }
-    }, [id]);
+    }, [id, jobFromState]);
 
     useEffect(() => {
         if (id) {
-            fetchJob();
+            // If we already have job data from state, show it immediately
+            // but still fetch fresh data in background
+            if (jobFromState) {
+                setJob(jobFromState);
+                setLoading(false);
+                // Fetch fresh data in background to update any changes
+                fetchJob();
+            } else {
+                fetchJob();
+            }
         }
-    }, [id, fetchJob]);
+    }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Handle apply
     const handleApply = useCallback(() => {
@@ -295,8 +329,8 @@ const JobDetailPage = () => {
                         <button
                             onClick={handleBookmark}
                             className={`p-2 rounded-xl transition-colors ${isBookmarked
-                                    ? 'bg-primary-500/20 text-primary-500'
-                                    : (isDark ? 'hover:bg-dark-700 text-dark-300' : 'hover:bg-gray-100 text-gray-600')
+                                ? 'bg-primary-500/20 text-primary-500'
+                                : (isDark ? 'hover:bg-dark-700 text-dark-300' : 'hover:bg-gray-100 text-gray-600')
                                 }`}
                             title={isBookmarked ? 'Remove bookmark' : 'Bookmark job'}
                         >
@@ -377,8 +411,8 @@ const JobDetailPage = () => {
                                     onClick={handleApply}
                                     disabled={isExpired}
                                     className={`w-full py-4 px-6 font-semibold rounded-xl text-lg transition-all flex items-center justify-center gap-2 ${isExpired
-                                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                            : 'bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white shadow-lg shadow-primary-500/30 hover:shadow-primary-500/40 hover:scale-[1.02] active:scale-[0.98]'
+                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                        : 'bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white shadow-lg shadow-primary-500/30 hover:shadow-primary-500/40 hover:scale-[1.02] active:scale-[0.98]'
                                         }`}
                                 >
                                     {isExpired ? (

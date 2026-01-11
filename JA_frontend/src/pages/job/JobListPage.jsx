@@ -120,7 +120,8 @@ const JobListPage = () => {
     }, [page, size, filters.employmentType, filters.location, filters.minSalary, filters.maxSalary, filters.fresher, debouncedSearch]);
 
     const handleViewJob = (job) => {
-        navigate(`/jobs/${job.id}`);
+        // Pass job data via state to preserve company info which may not be in single-job API response
+        navigate(`/jobs/${job.id}`, { state: { job } });
     };
 
     // Handle Apply action
