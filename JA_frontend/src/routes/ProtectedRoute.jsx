@@ -47,11 +47,17 @@ export function ProtectedRoute({ children }) {
  * Used for login/register pages
  */
 export function PublicOnlyRoute({ children, redirectTo = '/' }) {
-  const { status, isInitialized } = useAuth();
+  const { status, isInitialized, showLoginAnimation } = useAuth();
 
   // Show loading while checking authentication
   if (!isInitialized) {
     return <LoadingScreen />;
+  }
+
+  // Don't redirect while login animation is playing
+  // Allow the animation component to handle navigation
+  if (showLoginAnimation) {
+    return children;
   }
 
   // Redirect to home if already authenticated
