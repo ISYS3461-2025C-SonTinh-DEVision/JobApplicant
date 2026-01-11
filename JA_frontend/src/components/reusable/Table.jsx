@@ -11,6 +11,7 @@
 import React from "react";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { useTable } from "../headless/table";
+import CatLoadingSpinner from "../common/CatLoadingSpinner";
 
 
 /**
@@ -97,11 +98,8 @@ export function Table({
   if (loading) {
     return (
       <div className={`${theme.container} ${className}`}>
-        <div className={theme.loading}>
-          <div className="inline-flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            Loading...
-          </div>
+        <div className="flex items-center justify-center py-8">
+          <CatLoadingSpinner size="md" message="Loading..." />
         </div>
       </div>
     );

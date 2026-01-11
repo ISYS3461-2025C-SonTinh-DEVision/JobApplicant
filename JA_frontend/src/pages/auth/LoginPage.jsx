@@ -7,6 +7,8 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Briefcase, Shield, Zap, Globe } from 'lucide-react';
 import LoginForm from '../../components/auth/LoginForm';
+import LoginLoadingAnimation from '../../components/auth/LoginLoadingAnimation';
+import { useAuth } from '../../context/AuthContext';
 
 // Animated background shapes
 function BackgroundShapes() {
@@ -63,12 +65,19 @@ function StatsItem({ icon: Icon, value, label }) {
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showLoginAnimation, setShowLoginAnimation } = useAuth();
 
   // Get redirect URL from state (if coming from protected route)
   const from = location.state?.from?.pathname || '/';
 
   const handleSuccess = () => {
-    // Navigate to the page user was trying to access, or home
+    // Animation is triggered automatically by AuthContext login/loginWithGoogleIdToken
+    // No need to do anything here - PublicOnlyRoute will allow rendering while animation plays
+  };
+
+  const handleAnimationComplete = () => {
+    // Reset animation flag and navigate
+    setShowLoginAnimation(false);
     navigate(from, { replace: true });
   };
 
@@ -81,103 +90,113 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      <BackgroundShapes />
+    <>
+      {/* Login Success Animation Overlay */}
+      <LoginLoadingAnimation
+        isVisible={showLoginAnimation}
+        onComplete={handleAnimationComplete}
+        duration={2200}
+      />
 
-      {/* Left Side - Login Form */}
-      <div className="w-full lg:w-1/2 xl:w-[55%] relative z-10 flex items-center justify-center p-6 lg:p-12">
-        <div className="w-full max-w-md">
-          {/* Mobile Logo */}
-          <div className="lg:hidden mb-8 flex justify-center">
+      <div className="min-h-screen flex">
+        <BackgroundShapes />
+
+        {/* Left Side - Login Form */}
+        <div className="w-full lg:w-1/2 xl:w-[55%] relative z-10 flex items-center justify-center p-6 lg:p-12">
+          <div className="w-full max-w-md">
+            {/* Mobile Logo */}
+            <div className="lg:hidden mb-8 flex justify-center">
+              <Logo />
+            </div>
+
+            {/* Form Card */}
+            <div className="glass-card p-8 animate-fade-in">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-white mb-2">Welcome back</h2>
+                <p className="text-dark-400">
+                  Sign in to continue to your dashboard
+                </p>
+              </div>
+
+              <LoginForm
+                onSuccess={handleSuccess}
+                onRegisterClick={handleRegisterClick}
+                onForgotPasswordClick={handleForgotPasswordClick}
+              />
+            </div>
+
+            {/* Trust badges */}
+            <div className="mt-8 flex items-center justify-center gap-6 text-dark-500">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                <span className="text-xs">Secure Login</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4" />
+                <span className="text-xs">Fast & Reliable</span>
+              </div>
+            </div>
+
+            {/* Admin Login Link */}
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => navigate('/admin/login')}
+                className="inline-flex items-center gap-2 text-sm text-dark-500 hover:text-violet-400 transition-colors group"
+              >
+                <Shield className="w-4 h-4 group-hover:text-violet-400" />
+                <span>Login as Admin</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side - Branding & Stats */}
+        <div className="hidden lg:flex lg:w-1/2 xl:w-[45%] relative z-10 flex-col justify-between p-12">
+          {/* Logo */}
+          <div className="flex justify-end">
             <Logo />
           </div>
 
-          {/* Form Card */}
-          <div className="glass-card p-8 animate-fade-in">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">Welcome back</h2>
-              <p className="text-dark-400">
-                Sign in to continue to your dashboard
-              </p>
-            </div>
+          {/* Main Content */}
+          <div className="max-w-md ml-auto text-right">
+            <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
+              Your next career move starts with{' '}
+              <span className="gradient-text">DEVision</span>
+            </h1>
+            <p className="text-lg text-dark-300 mb-12">
+              Connect with top tech companies and find opportunities that match your expertise.
+            </p>
 
-            <LoginForm
-              onSuccess={handleSuccess}
-              onRegisterClick={handleRegisterClick}
-              onForgotPasswordClick={handleForgotPasswordClick}
-            />
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-6">
+              <StatsItem
+                icon={Briefcase}
+                value="10K+"
+                label="Job Posts"
+              />
+              <StatsItem
+                icon={Globe}
+                value="500+"
+                label="Companies"
+              />
+              <StatsItem
+                icon={Zap}
+                value="50K+"
+                label="Applicants"
+              />
+            </div>
           </div>
 
-          {/* Trust badges */}
-          <div className="mt-8 flex items-center justify-center gap-6 text-dark-500">
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              <span className="text-xs">Secure Login</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4" />
-              <span className="text-xs">Fast & Reliable</span>
-            </div>
-          </div>
-
-          {/* Admin Login Link */}
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => navigate('/admin/login')}
-              className="inline-flex items-center gap-2 text-sm text-dark-500 hover:text-violet-400 transition-colors group"
-            >
-              <Shield className="w-4 h-4 group-hover:text-violet-400" />
-              <span>Login as Admin</span>
-            </button>
+          {/* Footer */}
+          <div className="flex justify-end">
+            <p className="text-sm text-dark-500">
+              © {new Date().getFullYear()} DEVision. All rights reserved.
+            </p>
           </div>
         </div>
       </div>
-
-      {/* Right Side - Branding & Stats */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-[45%] relative z-10 flex-col justify-between p-12">
-        {/* Logo */}
-        <div className="flex justify-end">
-          <Logo />
-        </div>
-
-        {/* Main Content */}
-        <div className="max-w-md ml-auto text-right">
-          <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
-            Your next career move starts with{' '}
-            <span className="gradient-text">DEVision</span>
-          </h1>
-          <p className="text-lg text-dark-300 mb-12">
-            Connect with top tech companies and find opportunities that match your expertise.
-          </p>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-6">
-            <StatsItem
-              icon={Briefcase}
-              value="10K+"
-              label="Job Posts"
-            />
-            <StatsItem
-              icon={Globe}
-              value="500+"
-              label="Companies"
-            />
-            <StatsItem
-              icon={Zap}
-              value="50K+"
-              label="Applicants"
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end">
-          <p className="text-sm text-dark-500">
-            © {new Date().getFullYear()} DEVision. All rights reserved.
-          </p>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
+
 

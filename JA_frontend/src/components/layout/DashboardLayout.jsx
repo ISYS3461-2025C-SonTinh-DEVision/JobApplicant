@@ -29,6 +29,7 @@ import { useHeadlessModal, useHeadlessToggle } from '../../components/headless';
 
 import { NotificationBell, ToastContainer } from '../notification';
 import ConnectionStatusToast from './ConnectionStatusToast';
+import GlobalAuthAnimation from '../common/GlobalAuthAnimation';
 
 /**
  * Theme Toggle Button
@@ -269,8 +270,8 @@ export default function DashboardLayout() {
   };
 
   const handleLogout = async () => {
+    // Animation and navigation are handled by GlobalAuthAnimation component
     await logout();
-    navigate('/login');
   };
 
   const isActive = (path, exact = false) => {
@@ -291,6 +292,9 @@ export default function DashboardLayout() {
     <>
       {/* Connection Status Toast */}
       <ConnectionStatusToast />
+
+      {/* Global Auth Animation (for logout) */}
+      <GlobalAuthAnimation />
 
       <div className={`min-h-screen flex overflow-x-hidden ${isDark ? 'bg-dark-900' : 'bg-gray-50'}`}>
         {/* Sidebar - Desktop (Collapsible) */}

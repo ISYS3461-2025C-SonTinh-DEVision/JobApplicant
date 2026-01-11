@@ -21,6 +21,7 @@ import { useAuth } from '../../hooks/useAuth';
 import applicationService from '../../services/ApplicationService';
 import { useHeadlessSearch, useHeadlessPagination } from '../../components/headless';
 import { ApplicationHistoryTable, ApplicationHistoryCard } from '../../components/profile/ApplicationHistoryTable';
+import CatLoadingSpinner from '../../components/common/CatLoadingSpinner';
 
 // Status filter options
 const STATUS_OPTIONS = [
@@ -269,10 +270,7 @@ export default function ApplicationHistoryPage() {
                 {/* Content */}
                 {loading ? (
                     <div className="flex items-center justify-center py-20">
-                        <div className="text-center">
-                            <Loader2 className="w-10 h-10 text-primary-500 animate-spin mx-auto mb-4" />
-                            <p className={subTextClass}>Loading applications...</p>
-                        </div>
+                        <CatLoadingSpinner size="xl" message="Loading applications..." />
                     </div>
                 ) : error ? (
                     <div className={`p-6 rounded-xl border ${cardClass}`}>

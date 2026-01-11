@@ -23,6 +23,7 @@ import {
   User, Mail, Building2
 } from 'lucide-react';
 import ProfileService from '../../services/ProfileService';
+import CatLoadingSpinner from '../../components/common/CatLoadingSpinner';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
 import { useHeadlessForm } from '../../components/headless';
@@ -211,10 +212,7 @@ export default function EditProfile() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-primary-500 animate-spin mx-auto mb-4" />
-          <p className={isDark ? 'text-dark-400' : 'text-gray-500'}>Loading profile...</p>
-        </div>
+        <CatLoadingSpinner size="xl" message="Loading profile..." />
       </div>
     );
   }

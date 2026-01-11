@@ -25,6 +25,9 @@ export function AuthProvider({ children }) {
   const [status, setStatus] = useState(AUTH_STATUS.IDLE);
   const [error, setError] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  // Animation flags - block route redirects while animations play
+  const [showLoginAnimation, setShowLoginAnimation] = useState(false);
+  const [showLogoutAnimation, setShowLogoutAnimation] = useState(false);
 
   /**
    * Clear auth error
@@ -91,6 +94,9 @@ export function AuthProvider({ children }) {
       // After successful login, check session to get user details
       await checkAuth();
 
+      // Trigger login animation
+      setShowLoginAnimation(true);
+
       return { success: true, message: response.message };
     } catch (err) {
       setStatus(AUTH_STATUS.UNAUTHENTICATED);
@@ -125,22 +131,33 @@ export function AuthProvider({ children }) {
   }, []);
 
   /**
-   * Logout user
+   * Logout user with animation
+   * Note: Auth state is cleared by GlobalAuthAnimation after animation completes
    */
   const logout = useCallback(async () => {
+    // Only trigger animation - state will be cleared after animation completes
+    // by GlobalAuthAnimation calling performLogout
+    setShowLogoutAnimation(true);
+  }, []);
+
+  /**
+   * Actually perform logout (called after animation completes)
+   */
+  const performLogout = useCallback(async () => {
     setStatus(AUTH_STATUS.LOADING);
 
     try {
       await authService.logout();
     } catch (err) {
-      // Ignore logout errors, always clear local state
       console.warn('Logout API error:', err);
     } finally {
       setUser(null);
       setStatus(AUTH_STATUS.UNAUTHENTICATED);
       setError(null);
+      setShowLogoutAnimation(false);
     }
   }, []);
+
 
   /**
    * Activate account
@@ -199,6 +216,10 @@ export function AuthProvider({ children }) {
     try {
       await authService.loginWithGoogleIdToken(idToken);
       await checkAuth();
+
+      // Trigger login animation
+      setShowLoginAnimation(true);
+
       return { success: true };
     } catch (err) {
       setStatus(AUTH_STATUS.UNAUTHENTICATED);
@@ -288,9 +309,18 @@ export function AuthProvider({ children }) {
     isAuthenticated: status === AUTH_STATUS.AUTHENTICATED,
     isLoading: status === AUTH_STATUS.LOADING,
 
+    // Login animation control
+    showLoginAnimation,
+    setShowLoginAnimation,
+
+    // Logout animation control
+    showLogoutAnimation,
+    setShowLogoutAnimation,
+
     // Actions
     login,
     logout,
+    performLogout, // Called by GlobalAuthAnimation after animation completes
     register,
     checkAuth,
     clearError,

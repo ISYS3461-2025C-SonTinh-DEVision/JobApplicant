@@ -25,6 +25,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useHeadlessTabs, useHeadlessModal } from '../../components/headless';
 import { useAuth } from '../../context/AuthContext';
 import subscriptionService from '../../services/SubscriptionService';
+import CatLoadingSpinner from '../../components/common/CatLoadingSpinner';
 
 const SubscriptionPage = () => {
     const navigate = useNavigate();
@@ -138,7 +139,7 @@ const SubscriptionPage = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                <CatLoadingSpinner size="xl" message="Loading subscription..." />
             </div>
         );
     }
@@ -480,7 +481,7 @@ const BillingHistory = ({ isDark }) => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                <CatLoadingSpinner size="lg" message="Loading billing history..." />
             </div>
         );
     }
