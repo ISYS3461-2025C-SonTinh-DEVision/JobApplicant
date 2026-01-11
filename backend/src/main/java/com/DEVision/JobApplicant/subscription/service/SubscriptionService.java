@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
+
 
 import com.DEVision.JobApplicant.notification.entity.Notification;
 import com.DEVision.JobApplicant.notification.service.NotificationService;
@@ -84,9 +86,8 @@ public class SubscriptionService {
         return new SubscriptionResponse(savedSubscription, paymentResponse.paymentUrl());
     }
 
-    public Subscription getSubscriptionByUserId(String userId) {
-        return subscriptionRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Subscription not found for user: " + userId));
+    public Optional<Subscription> getSubscriptionByUserId(String userId) {
+        return subscriptionRepository.findByUserId(userId);
     }
 
     @Transactional

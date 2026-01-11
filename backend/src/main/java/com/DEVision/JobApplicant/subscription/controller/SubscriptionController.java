@@ -1,6 +1,9 @@
 package com.DEVision.JobApplicant.subscription.controller;
 
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,13 +22,17 @@ import com.DEVision.JobApplicant.subscription.dto.PaymentCallbackRequest;
 import com.DEVision.JobApplicant.subscription.dto.PaymentTransactionDto;
 import com.DEVision.JobApplicant.subscription.dto.SubscriptionRequest;
 import com.DEVision.JobApplicant.subscription.dto.SubscriptionResponse;
+import com.DEVision.JobApplicant.subscription.dto.SubscriptionStatusDto;
 import com.DEVision.JobApplicant.subscription.entity.PaymentTransaction;
 import com.DEVision.JobApplicant.subscription.entity.Subscription;
+import com.DEVision.JobApplicant.subscription.enums.PlanType;
+import com.DEVision.JobApplicant.subscription.enums.SubscriptionStatus;
 import com.DEVision.JobApplicant.subscription.enums.TransactionStatus;
 import com.DEVision.JobApplicant.subscription.service.PaymentTransactionService;
 import com.DEVision.JobApplicant.subscription.service.SubscriptionService;
 
 import jakarta.validation.Valid;
+
 
 @Validated
 @RestController
@@ -93,8 +100,12 @@ public class SubscriptionController {
                     .body("User not authenticated");
         }
 
-        Subscription subscription = subscriptionService.getSubscriptionByUserId(userId);
-        return ResponseEntity.ok(subscription);
+        Optional<Subscription> subscriptionOpt = subscriptionService.getSubscriptionByUserId(userId);
+        if (subscriptionOpt.isEmpty()) {
+            // Return default FREEMIUM status for users without subscription
+            return ResponseEntity.ok(SubscriptionStatusDto.freemiumDefault());
+        }
+        return ResponseEntity.ok(buildStatusDto(subscriptionOpt.get()));
     }
 
     @PostMapping("/payment/callback")
@@ -134,8 +145,49 @@ public class SubscriptionController {
                     .body("User not authenticated");
         }
 
-        Subscription subscription = subscriptionService.getSubscriptionByUserId(userId);
-        String status = subscription.getStatus().name();
-        return ResponseEntity.ok(status);
+        Optional<Subscription> subscriptionOpt = subscriptionService.getSubscriptionByUserId(userId);
+        if (subscriptionOpt.isEmpty()) {
+            // Return default FREEMIUM status for users without subscription
+            return ResponseEntity.ok(SubscriptionStatusDto.freemiumDefault());
+        }
+        
+        return ResponseEntity.ok(buildStatusDto(subscriptionOpt.get()));
+    }
+
+    /**
+     * Build SubscriptionStatusDto from Subscription entity
+     */
+    private SubscriptionStatusDto buildStatusDto(Subscription subscription) {
+        boolean isPremium = subscription.getPlanType() == PlanType.PREMIUM 
+                && subscription.getStatus() == SubscriptionStatus.ACTIVE;
+        
+        String startDateStr = subscription.getStartDate() != null 
+                ? subscription.getStartDate().atZone(ZoneId.systemDefault())
+                    .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) 
+                : null;
+        
+        String renewalDateStr = subscription.getExpiresAt() != null 
+                ? subscription.getExpiresAt().atZone(ZoneId.systemDefault())
+                    .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) 
+                : null;
+        
+        String status = subscription.getStatus() != null 
+                ? subscription.getStatus().name().toLowerCase() 
+                : "inactive";
+        
+        if (isPremium) {
+            return SubscriptionStatusDto.fromPremium(status, startDateStr, renewalDateStr);
+        } else {
+            return new SubscriptionStatusDto(
+                false,
+                subscription.getPlanType() != null ? subscription.getPlanType().name() : "FREEMIUM",
+                0.0,
+                "USD",
+                status,
+                startDateStr,
+                renewalDateStr,
+                java.util.List.of()
+            );
+        }
     }
 }

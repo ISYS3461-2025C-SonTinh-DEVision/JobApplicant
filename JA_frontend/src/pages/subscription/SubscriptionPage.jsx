@@ -16,10 +16,10 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Crown, Check, Sparkles, Bell, Search, FileText,
-    TrendingUp, Shield, Zap, ChevronRight, AlertCircle, X
+    TrendingUp, Shield, Zap, ChevronRight, AlertCircle, X, CheckCircle
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useHeadlessTabs, useHeadlessModal } from '../../components/headless';
@@ -29,6 +29,7 @@ import CatLoadingSpinner from '../../components/common/CatLoadingSpinner';
 
 const SubscriptionPage = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { isDark } = useTheme();
     const { user } = useAuth();
 
@@ -39,6 +40,7 @@ const SubscriptionPage = () => {
     const [error, setError] = useState(null);
     const [cancelling, setCancelling] = useState(false);
     const [upgrading, setUpgrading] = useState(false);
+    const [paymentMessage, setPaymentMessage] = useState(null);
 
     // Headless hooks - tabs expects array of string IDs
     const TAB_CONFIG = [
@@ -53,6 +55,28 @@ const SubscriptionPage = () => {
     });
 
     const cancelModal = useHeadlessModal();
+
+    // Handle Stripe payment redirect query params
+    useEffect(() => {
+        const paymentStatus = searchParams.get('payment');
+        if (paymentStatus === 'success') {
+            setPaymentMessage({
+                type: 'success',
+                text: 'Payment successful! Your subscription has been activated. Thank you for upgrading to Premium!'
+            });
+            // Clear the query param from URL
+            searchParams.delete('payment');
+            setSearchParams(searchParams, { replace: true });
+        } else if (paymentStatus === 'cancelled') {
+            setPaymentMessage({
+                type: 'info',
+                text: 'Payment was cancelled. You can try again anytime.'
+            });
+            // Clear the query param from URL
+            searchParams.delete('payment');
+            setSearchParams(searchParams, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
 
     // Fetch subscription data
     const fetchData = useCallback(async () => {
@@ -77,6 +101,7 @@ const SubscriptionPage = () => {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
 
     // Handle cancel subscription
     const handleCancelSubscription = async () => {
@@ -146,6 +171,27 @@ const SubscriptionPage = () => {
 
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
+            {/* Payment Result Banner */}
+            {paymentMessage && (
+                <div className={`flex items-center gap-3 p-4 rounded-lg border ${paymentMessage.type === 'success'
+                        ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                        : 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                    }`}>
+                    {paymentMessage.type === 'success' ? (
+                        <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                    ) : (
+                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    )}
+                    <span className="flex-1">{paymentMessage.text}</span>
+                    <button
+                        onClick={() => setPaymentMessage(null)}
+                        className="p-1 hover:bg-white/10 rounded transition-colors"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
