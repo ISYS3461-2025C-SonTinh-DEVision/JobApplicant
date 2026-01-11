@@ -60,6 +60,9 @@ export function AuthProvider({ children }) {
           lastName: response.lastName,
           email: response.email,
           avatarUrl: response.avatarUrl || null, // Avatar URL for sidebar/navbar
+          // SSO detection fields for Security Settings page (SRS 1.3.2)
+          authProvider: response.authProvider || 'local',
+          hasLocalPassword: response.hasLocalPassword !== false, // Default true for existing users
         });
         setStatus(AUTH_STATUS.AUTHENTICATED);
       } else {

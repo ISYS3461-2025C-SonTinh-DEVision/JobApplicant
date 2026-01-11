@@ -69,7 +69,17 @@ public class AuthInternalService {
     @Transactional
     public RegistrationResponse registerUser(RegisterRequest request) {
         // Check if email already exists
-        if (userRepository.existsByEmail(request.getEmail())) {
+        User existingUser = userRepository.findByEmail(request.getEmail());
+        if (existingUser != null) {
+            // Provide specific message if email is registered via SSO
+            if ("google".equals(existingUser.getAuthProvider())) {
+                return new RegistrationResponse(
+                    null, null,
+                    request.getEmail(),
+                    "This email is already registered via Google SSO. Please sign in with Google, or use a different email to register.",
+                    false
+                );
+            }
             return new RegistrationResponse(
                 null, null,
                 request.getEmail(),
@@ -301,6 +311,15 @@ public class AuthInternalService {
                 // This could be implemented later to fetch and upload the profile picture
 
                 existingUser = savedUser;
+            } else {
+                // Existing user - check if they've converted to local auth
+                // SRS 1.3.2: Users who set password can no longer use Google SSO
+                if ("local".equals(existingUser.getAuthProvider())) {
+                    throw new RuntimeException(
+                        "This account has been converted to email/password login. " +
+                        "Google Sign-In is no longer available. Please use your email and password to log in."
+                    );
+                }
             }
 
             // Verify user is active
@@ -518,12 +537,13 @@ public class AuthInternalService {
             return Map.of("message", "User not found", "success", false);
         }
 
-        // SRS Requirement 1.3.2: SSO users have special handling
+        // SRS Requirement 1.3.2: SSO users need to set password before changing email
         if ("google".equals(user.getAuthProvider())) {
             return Map.of(
-                "message", "This account uses Google SSO. Email change is not allowed. Please manage your email through Google.",
+                "message", "To change your email, you need to set a password first. Please use the 'Set Password' option in Security Settings to enable email/password login.",
                 "success", false,
-                "isSsoUser", true
+                "isSsoUser", true,
+                "needsPasswordSetup", true
             );
         }
 
@@ -625,5 +645,278 @@ public class AuthInternalService {
             "verified", true
         );
     }
+
+    // ==================== SSO TO LOCAL AUTH CONVERSION ====================
+
+    /**
+     * Set password for SSO user and convert to local authentication.
+     * 
+     * This method allows users who registered via Google SSO to set a password
+     * and switch to email/password login. After this:
+     * - authProvider changes from "google" to "local"
+     * - Google SSO login is disabled for this account
+     * - User must login with email/password going forward
+     * 
+     * SRS Requirement 1.3.2: SSO users can convert to local auth by setting password
+     * 
+     * @param userId User ID from JWT token
+     * @param newPassword New password to set
+     * @param confirmPassword Password confirmation
+     * @return Response with success status and message
+     */
+    public Map<String, Object> setPasswordForSsoUser(String userId, String newPassword, String confirmPassword) {
+        User user = userRepository.findById(userId).orElse(null);
+
+        if (user == null) {
+            return Map.of("message", "User not found", "success", false);
+        }
+
+        // Only allow for SSO users
+        if (!"google".equals(user.getAuthProvider())) {
+            return Map.of(
+                "message", "This feature is only for Google SSO users. Please use 'Change Password' instead.",
+                "success", false,
+                "notSsoUser", true
+            );
+        }
+
+        // Validate passwords match
+        if (!newPassword.equals(confirmPassword)) {
+            return Map.of("message", "Passwords do not match", "success", false);
+        }
+
+        // Set the new password and convert to local auth
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setAuthProvider("local"); // Convert from "google" to "local"
+        userRepository.save(user);
+
+        return Map.of(
+            "message", "Password set successfully. You can now login with your email and password. Google login has been disabled for your account.",
+            "success", true,
+            "authProviderChanged", true
+        );
+    }
+
+    // ==================== SSO EMAIL CHANGE VIA GOOGLE VERIFICATION ====================
+
+    /**
+     * Verify SSO ownership by validating Google ID token matches current user's email.
+     * This allows SSO users to change email without setting a password first.
+     * 
+     * @param userId User ID from JWT token
+     * @param idToken Google ID token from frontend
+     * @return Response with verification token if successful
+     */
+    public Map<String, Object> verifySsoOwnership(String userId, String idToken) {
+        User user = userRepository.findById(userId).orElse(null);
+
+        if (user == null) {
+            return Map.of("message", "User not found", "success", false);
+        }
+
+        // Only for SSO users
+        if (!"google".equals(user.getAuthProvider())) {
+            return Map.of(
+                "message", "This feature is only for Google SSO users.",
+                "success", false
+            );
+        }
+
+        try {
+            // Verify Google ID token
+            OAuth2UserInfo oauth2UserInfo = oauth2Service.verifyGoogleIdToken(idToken);
+            
+            if (oauth2UserInfo == null || oauth2UserInfo.getEmail() == null) {
+                return Map.of(
+                    "message", "Failed to verify Google account",
+                    "success", false
+                );
+            }
+
+            // Check if token email matches user's current email
+            if (!user.getEmail().equalsIgnoreCase(oauth2UserInfo.getEmail())) {
+                return Map.of(
+                    "message", "Google account does not match your current email. Please use the correct Google account.",
+                    "success", false,
+                    "emailMismatch", true
+                );
+            }
+
+            // Generate verification token and store in Redis (10 minute expiry)
+            String verificationToken = UUID.randomUUID().toString();
+            redisService.storeSsoVerificationToken(userId, verificationToken, 10);
+
+            return Map.of(
+                "message", "Google account verified successfully",
+                "success", true,
+                "verificationToken", verificationToken,
+                "verifiedEmail", user.getEmail()
+            );
+
+        } catch (Exception e) {
+            return Map.of(
+                "message", "Failed to verify Google account: " + e.getMessage(),
+                "success", false
+            );
+        }
+    }
+
+    /**
+     * Change email for SSO user who verified via Google (not password).
+     * This allows email change without converting to local auth.
+     * Requires verification of BOTH old email AND new email via Google SSO.
+     * 
+     * @param userId User ID from JWT token
+     * @param newEmail New email address
+     * @param oldEmailToken Token from verifySsoOwnership (verifies old email)
+     * @param newEmailToken Token from verifyNewEmailOwnership (verifies new email)
+     * @return Response with success status
+     */
+    public Map<String, Object> changeEmailForSsoUser(String userId, String newEmail, String oldEmailToken, String newEmailToken) {
+        User user = userRepository.findById(userId).orElse(null);
+
+        if (user == null) {
+            return Map.of("message", "User not found", "success", false);
+        }
+
+        // Verify the OLD email SSO verification token from Redis
+        if (!redisService.verifySsoVerificationToken(userId, oldEmailToken)) {
+            return Map.of(
+                "message", "Old email verification expired or invalid. Please verify with Google again.",
+                "success", false,
+                "oldVerificationInvalid", true
+            );
+        }
+
+        // Verify the NEW email verification token from Redis
+        String storedNewEmailKey = "sso_new_email:" + userId;
+        String storedNewEmail = redisService.getValue(storedNewEmailKey);
+        String storedNewEmailToken = redisService.getValue("sso_new_email_token:" + userId);
+        
+        if (storedNewEmailToken == null || !storedNewEmailToken.equals(newEmailToken)) {
+            return Map.of(
+                "message", "New email verification expired or invalid. Please verify the new email with Google again.",
+                "success", false,
+                "newVerificationInvalid", true
+            );
+        }
+
+        // Verify the new email matches what was verified
+        if (storedNewEmail == null || !storedNewEmail.equalsIgnoreCase(newEmail)) {
+            return Map.of(
+                "message", "New email does not match verified email. Please verify the correct email.",
+                "success", false
+            );
+        }
+
+        // Check if new email is same as current
+        if (user.getEmail().equalsIgnoreCase(newEmail)) {
+            return Map.of("message", "New email must be different from current email", "success", false);
+        }
+
+        // Check if new email is already in use by another account
+        User existingUser = userRepository.findByEmail(newEmail);
+        if (existingUser != null && !existingUser.getId().equals(userId)) {
+            return Map.of("message", "This email is already registered. Please use a different email.", "success", false);
+        }
+
+        // Update email
+        String oldEmail = user.getEmail();
+        user.setEmail(newEmail);
+        // Keep authProvider as "google" - user can still use Google SSO if new email is a Google account
+        userRepository.save(user);
+
+        // Delete all verification tokens after use
+        redisService.deleteSsoVerificationToken(userId);
+        redisService.deleteKey(storedNewEmailKey);
+        redisService.deleteKey("sso_new_email_token:" + userId);
+
+        return Map.of(
+            "message", "Email changed successfully from " + oldEmail + " to " + newEmail + ". Please log in with your new email.",
+            "success", true,
+            "oldEmail", oldEmail,
+            "newEmail", newEmail
+        );
+    }
+
+    /**
+     * Verify new email ownership via Google SSO for email change flow.
+     * User must log into the NEW Gmail account to prove they own it.
+     * 
+     * @param userId Current user's ID
+     * @param newEmail The new email address user wants to change to
+     * @param idToken Google ID token (from logging into NEW Gmail)
+     * @return Response with verification token if successful
+     */
+    public Map<String, Object> verifyNewEmailOwnership(String userId, String newEmail, String idToken) {
+        User user = userRepository.findById(userId).orElse(null);
+
+        if (user == null) {
+            return Map.of("message", "User not found", "success", false);
+        }
+
+        // This is only for Google SSO users
+        if (!"google".equals(user.getAuthProvider())) {
+            return Map.of(
+                "message", "This feature is only for Google SSO users.",
+                "success", false
+            );
+        }
+
+        // Check new email is different from current
+        if (user.getEmail().equalsIgnoreCase(newEmail)) {
+            return Map.of("message", "New email must be different from current email", "success", false);
+        }
+
+        // Check if new email is already in use
+        User existingUser = userRepository.findByEmail(newEmail);
+        if (existingUser != null && !existingUser.getId().equals(userId)) {
+            return Map.of("message", "This email is already registered. Please use a different email.", "success", false);
+        }
+
+        try {
+            // Verify Google ID token
+            OAuth2UserInfo oauth2UserInfo = oauth2Service.verifyGoogleIdToken(idToken);
+            
+            if (oauth2UserInfo == null || oauth2UserInfo.getEmail() == null) {
+                return Map.of(
+                    "message", "Failed to verify Google account",
+                    "success", false
+                );
+            }
+
+            // IMPORTANT: Check if token email matches the NEW email user wants to change to
+            if (!newEmail.equalsIgnoreCase(oauth2UserInfo.getEmail())) {
+                return Map.of(
+                    "message", "You logged into a different Google account (" + oauth2UserInfo.getEmail() + "). Please log into " + newEmail + " to verify ownership.",
+                    "success", false,
+                    "mismatch", true,
+                    "loggedInAs", oauth2UserInfo.getEmail(),
+                    "expectedEmail", newEmail
+                );
+            }
+
+            // Generate and store verification token for new email
+            String verificationToken = UUID.randomUUID().toString();
+            
+            // Store new email and token in Redis with 10 minute expiry
+            redisService.setValue("sso_new_email:" + userId, newEmail, 10 * 60);
+            redisService.setValue("sso_new_email_token:" + userId, verificationToken, 10 * 60);
+
+            return Map.of(
+                "message", "New email verified successfully! You can now complete the email change.",
+                "success", true,
+                "newEmailToken", verificationToken,
+                "verifiedEmail", newEmail
+            );
+
+        } catch (Exception e) {
+            return Map.of(
+                "message", "Failed to verify Google account: " + e.getMessage(),
+                "success", false
+            );
+        }
+    }
 }
+
 

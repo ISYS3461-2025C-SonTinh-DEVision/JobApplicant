@@ -264,6 +264,28 @@ class AuthService {
   }
 
   /**
+   * Set password for SSO user and convert to local authentication
+   * 
+   * This is for users who registered via Google SSO and want to:
+   * - Enable email/password login
+   * - Disable Google SSO login for their account
+   * 
+   * After setting password, authProvider changes from "google" to "local"
+   * 
+   * SRS Requirement 1.3.2: SSO users can convert to local auth
+   * @param {string} newPassword - New password to set
+   * @param {string} confirmPassword - Confirm new password
+   * @returns {Promise<Object>} Result with success status and message
+   */
+  async setPassword(newPassword, confirmPassword) {
+    const response = await httpUtil.post('/api/auth/set-password', {
+      newPassword,
+      confirmPassword,
+    });
+    return response;
+  }
+
+  /**
    * Send OTP to email for verification
    * Used in email change flow
    * @param {string} email - Email address to send OTP to
@@ -295,6 +317,40 @@ class AuthService {
    */
   async verifyOtp(email, otp) {
     const response = await httpUtil.post(API_ENDPOINTS.AUTH.VERIFY_OTP, { email, otp });
+    return response;
+  }
+
+  // ==================== SSO EMAIL CHANGE VIA GOOGLE VERIFICATION ====================
+
+  /**
+   * Verify SSO ownership by Google login
+   * 
+   * Step 1 of SSO email change flow: User proves they own the current email
+   * by successfully logging into their Google account.
+   * 
+   * @param {string} idToken - Google ID token from frontend
+   * @returns {Promise<Object>} Result with verificationToken if successful
+   */
+  async verifySsoOwnership(idToken) {
+    const response = await httpUtil.post('/api/auth/verify-sso-ownership', { idToken });
+    return response;
+  }
+
+  /**
+   * Change email for SSO user using Google verification
+   * 
+   * Step 2 of SSO email change flow: After verifying ownership via Google,
+   * user can change to a new email without providing a password.
+   * 
+   * @param {string} newEmail - New email address
+   * @param {string} verificationToken - Token from verifySsoOwnership
+   * @returns {Promise<Object>} Result with success status
+   */
+  async changeEmailSso(newEmail, verificationToken) {
+    const response = await httpUtil.post('/api/auth/change-email-sso', {
+      newEmail,
+      verificationToken,
+    });
     return response;
   }
 }

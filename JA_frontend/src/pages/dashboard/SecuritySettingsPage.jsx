@@ -21,13 +21,14 @@ import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Lock, Mail, Shield, Eye, EyeOff, Loader2,
     CheckCircle, AlertCircle, AlertTriangle, Info, Unlock,
-    Send, KeyRound, ArrowRight, PartyPopper, Clipboard
+    Send, KeyRound, ArrowRight, PartyPopper, Clipboard, ExternalLink
 } from 'lucide-react';
 import AuthService from '../../services/AuthService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
 import { useHeadlessForm, useHeadlessModal } from '../../components/headless';
 import { FormInput } from '../../components/reusable';
+import useGoogleIdentity from '../../hooks/useGoogleIdentity';
 
 // ==================== VALIDATION FUNCTIONS ====================
 
@@ -68,6 +69,23 @@ const validateEmailForm = (values) => {
         errors.newEmail = 'Email too long';
     }
     if (!values.password) errors.password = 'Password required for verification';
+    return errors;
+};
+
+// Validation for SSO users setting their first password (no current password required)
+const validateSetPasswordForm = (values) => {
+    const errors = {};
+    if (!values.newPassword) {
+        errors.newPassword = 'Password is required';
+    } else {
+        const pwdErrors = validatePassword(values.newPassword);
+        if (pwdErrors.length > 0) errors.newPassword = pwdErrors[0];
+    }
+    if (!values.confirmPassword) {
+        errors.confirmPassword = 'Please confirm your password';
+    } else if (values.newPassword !== values.confirmPassword) {
+        errors.confirmPassword = 'Passwords do not match';
+    }
     return errors;
 };
 
@@ -246,6 +264,83 @@ const SuccessModal = ({ isOpen, onClose, title, message, isDark, countdown }) =>
     );
 };
 
+// SSO Verify Button for email change flow
+const SsoVerifyButton = ({ onVerify, isLoading, isDark }) => {
+    const googleBtnRef = useRef(null);
+    const [buttonRendered, setButtonRendered] = useState(false);
+
+    const { isLoaded, isLoading: googleLoading, error, renderButton } = useGoogleIdentity({
+        onSuccess: async (idToken) => {
+            if (idToken) {
+                await onVerify(idToken);
+            }
+        },
+        onError: (err) => {
+            console.error('Google SSO verification error:', err);
+        },
+    });
+
+    // Render Google button when loaded
+    useEffect(() => {
+        if (isLoaded && googleBtnRef.current && !buttonRendered) {
+            renderButton(googleBtnRef.current, {
+                type: 'standard',
+                theme: isDark ? 'filled_black' : 'outline',
+                size: 'large',
+                text: 'continue_with',
+                width: 300,
+            });
+            setButtonRendered(true);
+        }
+    }, [isLoaded, renderButton, buttonRendered, isDark]);
+
+    const handleClick = () => {
+        // Trigger the hidden Google button
+        const googleBtn = googleBtnRef.current?.querySelector('div[role="button"]');
+        if (googleBtn) {
+            googleBtn.click();
+        }
+    };
+
+    return (
+        <div className="relative">
+            {/* Hidden Google button */}
+            <div ref={googleBtnRef} className="opacity-0 absolute pointer-events-none" style={{ width: 0, height: 0, overflow: 'hidden' }} />
+
+            {/* Custom styled button */}
+            <button
+                onClick={handleClick}
+                disabled={!isLoaded || isLoading || googleLoading}
+                className={`w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl font-medium transition-all border ${isDark
+                    ? 'bg-dark-700 border-dark-600 text-white hover:bg-dark-600 hover:border-primary-500/50'
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-primary-400'
+                    } ${(!isLoaded || isLoading || googleLoading) ? 'opacity-60 cursor-not-allowed' : ''}`}
+            >
+                {isLoading ? (
+                    <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Verifying...</span>
+                    </>
+                ) : (
+                    <>
+                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                        </svg>
+                        <span>Verify with Google</span>
+                    </>
+                )}
+            </button>
+
+            {error && (
+                <p className={`mt-2 text-xs ${isDark ? 'text-red-400' : 'text-red-600'}`}>{error}</p>
+            )}
+        </div>
+    );
+};
+
 // ==================== MAIN COMPONENT ====================
 
 export default function SecuritySettingsPage() {
@@ -256,11 +351,16 @@ export default function SecuritySettingsPage() {
     // Section lock states
     const [passwordLocked, setPasswordLocked] = useState(true);
     const [emailLocked, setEmailLocked] = useState(true);
+    const [ssoPasswordLocked, setSsoPasswordLocked] = useState(true); // For SSO users to set password
 
-    // Password form states
+    // Password form states (for regular users)
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    // Set Password form states (for SSO users)
+    const [showSetNewPassword, setShowSetNewPassword] = useState(false);
+    const [showSetConfirmPassword, setShowSetConfirmPassword] = useState(false);
 
     // Email change OTP flow states
     const [emailStep, setEmailStep] = useState(1);
@@ -281,6 +381,15 @@ export default function SecuritySettingsPage() {
 
     const [isSsoUser, setIsSsoUser] = useState(false);
     const [isGoogleUser, setIsGoogleUser] = useState(false);
+
+    // SSO Email Change via Google Verification states
+    const [ssoEmailStep, setSsoEmailStep] = useState(0); // 0: choose method, 1: verify google, 2: enter new email, 3: verify OTP, 4: confirm
+    const [ssoVerificationToken, setSsoVerificationToken] = useState('');
+    const [ssoEmailVerifying, setSsoEmailVerifying] = useState(false);
+    const [ssoNewEmail, setSsoNewEmail] = useState('');
+    const [ssoNewEmailOtp, setSsoNewEmailOtp] = useState('');
+    const [ssoEmailError, setSsoEmailError] = useState('');
+    const [ssoEmailLocked, setSsoEmailLocked] = useState(true);
 
     // Check if SSO user
     useEffect(() => {
@@ -340,6 +449,25 @@ export default function SecuritySettingsPage() {
             } else {
                 if (response.isSsoUser) setIsSsoUser(true);
                 throw new Error(response.message || 'Failed to change email');
+            }
+        },
+    });
+
+    // Set Password form for SSO users with Headless UI
+    const setPasswordForm = useHeadlessForm({
+        initialValues: { newPassword: '', confirmPassword: '' },
+        validate: validateSetPasswordForm,
+        onSubmit: async (values) => {
+            const response = await AuthService.setPassword(values.newPassword, values.confirmPassword);
+            if (response.success) {
+                setSuccessTitle('Password Set Successfully! 🎉');
+                setSuccessMessage('Your password has been set. Google login has been disabled. Please log in with your email and new password.');
+                setCountdown(5);
+                setShowSuccessModal(true);
+                setPasswordForm.resetForm();
+                setSsoPasswordLocked(true);
+            } else {
+                throw new Error(response.message || 'Failed to set password');
             }
         },
     });
@@ -432,7 +560,7 @@ export default function SecuritySettingsPage() {
         }
     };
 
-    const handleUnlockPassword = () => { setPasswordLocked(false); setEmailLocked(true); passwordForm.resetForm(); };
+    const handleUnlockPassword = () => { setPasswordLocked(false); setEmailLocked(true); setSsoPasswordLocked(true); passwordForm.resetForm(); };
     const handleUnlockEmail = () => {
         setEmailStep(1);
         setCurrentEmailOtp('');
@@ -443,6 +571,90 @@ export default function SecuritySettingsPage() {
         emailForm.resetForm();
         setEmailLocked(false);
         setPasswordLocked(true);
+        setSsoPasswordLocked(true);
+    };
+    const handleUnlockSetPassword = () => {
+        setSsoPasswordLocked(false);
+        setPasswordLocked(true);
+        setEmailLocked(true);
+        setPasswordForm.resetForm();
+    };
+
+    // SSO Email Change Handlers
+    const handleUnlockSsoEmail = () => {
+        setSsoEmailStep(0);
+        setSsoVerificationToken('');
+        setSsoNewEmail('');
+        setSsoNewEmailOtp('');
+        setSsoEmailError('');
+        setSsoEmailLocked(false);
+        setPasswordLocked(true);
+        setSsoPasswordLocked(true);
+    };
+
+    const resetSsoEmailFlow = () => {
+        setSsoEmailStep(0);
+        setSsoVerificationToken('');
+        setSsoNewEmail('');
+        setSsoNewEmailOtp('');
+        setSsoEmailError('');
+        setSsoEmailLocked(true);
+    };
+
+    // Handle Google verification for SSO email change
+    const handleSsoGoogleVerify = async (idToken) => {
+        setSsoEmailVerifying(true);
+        setSsoEmailError('');
+        try {
+            const response = await AuthService.verifySsoOwnership(idToken);
+            if (response.success) {
+                setSsoVerificationToken(response.verificationToken);
+                setSsoEmailStep(2); // Move to enter new email step
+            } else {
+                setSsoEmailError(response.message || 'Failed to verify Google account');
+            }
+        } catch (err) {
+            setSsoEmailError(err.message || 'Failed to verify Google account');
+        } finally {
+            setSsoEmailVerifying(false);
+        }
+    };
+
+    // Handle proceeding to confirm step after entering new email (no OTP needed for SSO flow)
+    // Since user already verified via Google, we skip OTP and go directly to confirmation
+    const handleSsoConfirmNewEmail = () => {
+        if (!ssoNewEmail || !ssoNewEmail.includes('@')) {
+            setSsoEmailError('Please enter a valid email');
+            return;
+        }
+        if (ssoNewEmail.toLowerCase() === currentUser?.email?.toLowerCase()) {
+            setSsoEmailError('New email must be different from current email');
+            return;
+        }
+        setSsoEmailError('');
+        setSsoEmailStep(3); // Go directly to confirm step (skip OTP since already verified via Google)
+    };
+
+    // Handle final email change in SSO flow
+    const handleSsoEmailChange = async () => {
+        setSsoEmailVerifying(true);
+        setSsoEmailError('');
+        try {
+            const response = await AuthService.changeEmailSso(ssoNewEmail, ssoVerificationToken);
+            if (response.success) {
+                setSuccessTitle('Email Changed! 🎉');
+                setSuccessMessage(`Your email has been changed to ${ssoNewEmail}. Please log in with your new email.`);
+                setCountdown(5);
+                setShowSuccessModal(true);
+                resetSsoEmailFlow();
+            } else {
+                setSsoEmailError(response.message || 'Failed to change email');
+            }
+        } catch (err) {
+            setSsoEmailError(err.message || 'Failed to change email');
+        } finally {
+            setSsoEmailVerifying(false);
+        }
     };
 
     return (
@@ -463,13 +675,18 @@ export default function SecuritySettingsPage() {
                 </div>
             </div>
 
-            {/* SSO Notice */}
+            {/* SSO Notice - Helpful guidance for Google SSO users */}
             {isSsoUser && (
-                <div className={`mb-6 p-4 rounded-xl flex items-start gap-3 ${isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
+                <div className={`mb-6 p-4 rounded-xl flex items-start gap-3 ${isDark ? 'bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200'}`}>
                     <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
                     <div>
-                        <p className={`font-medium ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>Google Account Connected</p>
-                        <p className={`text-sm mt-1 ${isDark ? 'text-blue-400/70' : 'text-blue-600'}`}>Manage credentials via Google account.</p>
+                        <p className={`font-medium ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+                            🔐 Google Account Connected
+                        </p>
+                        <p className={`text-sm mt-1 ${isDark ? 'text-blue-400/80' : 'text-blue-600'}`}>
+                            You signed in with Google. To enable <strong>email/password login</strong> instead,
+                            you can set a password below. This will disable Google SSO for your account.
+                        </p>
                     </div>
                 </div>
             )}
@@ -478,24 +695,120 @@ export default function SecuritySettingsPage() {
             <div className={`mb-6 p-4 rounded-xl flex items-start gap-3 ${isDark ? 'bg-dark-800/50 border border-dark-700' : 'bg-gray-50 border border-gray-200'}`}>
                 <Info className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-primary-400' : 'text-primary-500'}`} />
                 <p className={`text-sm ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
-                    Click <strong>"Unlock to Edit"</strong> to modify a section. Only one section can be edited at a time.
+                    {isSsoUser
+                        ? <>Use <strong>"Set Password"</strong> below to enable email/password login.</>
+                        : <>Click <strong>"Unlock to Edit"</strong> to modify a section. Only one section can be edited at a time.</>
+                    }
                 </p>
             </div>
 
             <div className="space-y-6">
-                {/* ==================== CHANGE PASSWORD SECTION ==================== */}
-                <div className={`relative p-6 rounded-2xl border transition-all ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'} ${isSsoUser ? 'opacity-60 pointer-events-none' : ''}`}>
-                    {passwordLocked && !isSsoUser && (
-                        <LockedOverlay icon={Lock} title="Change Password" description="Update your account password" onUnlock={handleUnlockPassword} isDark={isDark} />
-                    )}
-                    <h2 className={`text-lg font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        <Lock className="w-5 h-5 text-primary-400" /> Change Password
-                        {!passwordLocked && !isSsoUser && (
-                            <button onClick={() => setPasswordLocked(true)} className={`ml-auto text-xs px-3 py-1 rounded-lg ${isDark ? 'text-dark-400 hover:text-white hover:bg-dark-700' : 'text-gray-400 hover:bg-gray-100'}`}>Lock</button>
+                {/* ==================== SET PASSWORD SECTION (For SSO Users) ==================== */}
+                {isSsoUser && (
+                    <div className={`relative p-6 rounded-2xl border transition-all ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'}`}>
+                        {ssoPasswordLocked && (
+                            <LockedOverlay
+                                icon={KeyRound}
+                                title="Set Password"
+                                description="Enable email/password login for your account"
+                                onUnlock={handleUnlockSetPassword}
+                                isDark={isDark}
+                            />
                         )}
-                    </h2>
+                        <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            <KeyRound className="w-5 h-5 text-primary-400" /> Set Password
+                            {!ssoPasswordLocked && (
+                                <button onClick={() => setSsoPasswordLocked(true)} className={`ml-auto text-xs px-3 py-1 rounded-lg ${isDark ? 'text-dark-400 hover:text-white hover:bg-dark-700' : 'text-gray-400 hover:bg-gray-100'}`}>Lock</button>
+                            )}
+                        </h2>
 
-                    {!isSsoUser && (
+                        {/* Warning Banner */}
+                        <div className={`mb-6 p-4 rounded-xl flex items-start gap-3 ${isDark ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-orange-50 border border-orange-200'}`}>
+                            <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-orange-400' : 'text-orange-500'}`} />
+                            <div>
+                                <p className={`font-medium text-sm ${isDark ? 'text-orange-300' : 'text-orange-700'}`}>
+                                    ⚠️ Important: This Will Disable Google Login
+                                </p>
+                                <p className={`text-xs mt-1 ${isDark ? 'text-orange-400/80' : 'text-orange-600'}`}>
+                                    After setting a password, you will <strong>no longer be able to sign in with Google</strong>.
+                                    You must use your email and this password to log in. This action cannot be undone.
+                                </p>
+                            </div>
+                        </div>
+
+                        <form onSubmit={setPasswordForm.handleSubmit} className="space-y-4">
+                            <div className="relative">
+                                <FormInput
+                                    label="New Password"
+                                    name="newPassword"
+                                    type={showSetNewPassword ? 'text' : 'password'}
+                                    value={setPasswordForm.values.newPassword}
+                                    onChange={setPasswordForm.handleChange}
+                                    onBlur={setPasswordForm.handleBlur}
+                                    error={setPasswordForm.touched.newPassword && setPasswordForm.errors.newPassword}
+                                    icon={Lock}
+                                    placeholder="Enter a strong password"
+                                    required
+                                    variant={isDark ? 'dark' : 'light'}
+                                />
+                                <button type="button" onClick={() => setShowSetNewPassword(!showSetNewPassword)} className={`absolute right-3 top-9 ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-400'}`}>
+                                    {showSetNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+
+                            {setPasswordForm.values.newPassword && <PasswordStrengthIndicator password={setPasswordForm.values.newPassword} isDark={isDark} />}
+
+                            <div className="relative">
+                                <FormInput
+                                    label="Confirm Password"
+                                    name="confirmPassword"
+                                    type={showSetConfirmPassword ? 'text' : 'password'}
+                                    value={setPasswordForm.values.confirmPassword}
+                                    onChange={setPasswordForm.handleChange}
+                                    onBlur={setPasswordForm.handleBlur}
+                                    error={setPasswordForm.touched.confirmPassword && setPasswordForm.errors.confirmPassword}
+                                    icon={Lock}
+                                    placeholder="Confirm your password"
+                                    required
+                                    variant={isDark ? 'dark' : 'light'}
+                                />
+                                <button type="button" onClick={() => setShowSetConfirmPassword(!showSetConfirmPassword)} className={`absolute right-3 top-9 ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-400'}`}>
+                                    {showSetConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+
+                            {setPasswordForm.submitError && (
+                                <div className={`p-3 rounded-xl flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/20 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+                                    <AlertCircle className="w-4 h-4" />
+                                    <span className="text-sm">{setPasswordForm.submitError}</span>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end pt-2">
+                                <button type="submit" className="btn-primary" disabled={setPasswordForm.isSubmitting}>
+                                    {setPasswordForm.isSubmitting
+                                        ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Setting Password...</>
+                                        : <><KeyRound className="w-4 h-4 mr-2" />Set Password & Disable Google Login</>
+                                    }
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                {/* ==================== CHANGE PASSWORD SECTION (For Local Auth Users) ==================== */}
+                {!isSsoUser && (
+                    <div className={`relative p-6 rounded-2xl border transition-all ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'}`}>
+                        {passwordLocked && (
+                            <LockedOverlay icon={Lock} title="Change Password" description="Update your account password" onUnlock={handleUnlockPassword} isDark={isDark} />
+                        )}
+                        <h2 className={`text-lg font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            <Lock className="w-5 h-5 text-primary-400" /> Change Password
+                            {!passwordLocked && (
+                                <button onClick={() => setPasswordLocked(true)} className={`ml-auto text-xs px-3 py-1 rounded-lg ${isDark ? 'text-dark-400 hover:text-white hover:bg-dark-700' : 'text-gray-400 hover:bg-gray-100'}`}>Lock</button>
+                            )}
+                        </h2>
+
                         <form onSubmit={passwordForm.handleSubmit} className="space-y-4">
                             <div className="relative">
                                 <FormInput label="Current Password" name="currentPassword" type={showCurrentPassword ? 'text' : 'password'} value={passwordForm.values.currentPassword} onChange={passwordForm.handleChange} onBlur={passwordForm.handleBlur} error={passwordForm.touched.currentPassword && passwordForm.errors.currentPassword} icon={Lock} placeholder="Current password" required variant={isDark ? 'dark' : 'light'} />
@@ -517,22 +830,180 @@ export default function SecuritySettingsPage() {
                                 </button>
                             </div>
                         </form>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* ==================== CHANGE EMAIL SECTION ==================== */}
-                <div className={`relative p-6 rounded-2xl border transition-all ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'} ${isSsoUser ? 'opacity-60 pointer-events-none' : ''}`}>
-                    {emailLocked && !isSsoUser && (
-                        <LockedOverlay icon={Mail} title="Change Email" description="Update email with OTP verification" onUnlock={handleUnlockEmail} isDark={isDark} />
-                    )}
-                    <h2 className={`text-lg font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        <Mail className="w-5 h-5 text-primary-400" /> Change Email
-                        {!emailLocked && !isSsoUser && (
-                            <button onClick={resetEmailFlow} className={`ml-auto text-xs px-3 py-1 rounded-lg ${isDark ? 'text-dark-400 hover:text-white hover:bg-dark-700' : 'text-gray-400 hover:bg-gray-100'}`}>Lock</button>
+                {/* For SSO users: show two options (set password OR verify with Google) */}
+                {/* For local users: show normal email change flow */}
+                {isSsoUser ? (
+                    <div className={`relative p-6 rounded-2xl border transition-all ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'}`}>
+                        {ssoEmailLocked && (
+                            <LockedOverlay icon={Mail} title="Change Email" description="Two verification methods available" onUnlock={handleUnlockSsoEmail} isDark={isDark} />
                         )}
-                    </h2>
+                        <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            <Mail className="w-5 h-5 text-primary-400" /> Change Email
+                            {!ssoEmailLocked && (
+                                <button onClick={resetSsoEmailFlow} className={`ml-auto text-xs px-3 py-1 rounded-lg ${isDark ? 'text-dark-400 hover:text-white hover:bg-dark-700' : 'text-gray-400 hover:bg-gray-100'}`}>Lock</button>
+                            )}
+                        </h2>
 
-                    {!isSsoUser && (
+                        {/* Step 0: Choose verification method */}
+                        {ssoEmailStep === 0 && (
+                            <div className="space-y-4">
+                                <p className={`text-sm ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
+                                    Choose how you want to verify your identity:
+                                </p>
+
+                                {/* Option 1: Set Password First */}
+                                <div className={`p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.01] ${isDark ? 'bg-dark-700/50 border-dark-600 hover:border-primary-500/50' : 'bg-gray-50 border-gray-200 hover:border-primary-400'}`}
+                                    onClick={() => { resetSsoEmailFlow(); setSsoPasswordLocked(false); }}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-lg ${isDark ? 'bg-orange-500/20' : 'bg-orange-100'}`}>
+                                            <KeyRound className="w-5 h-5 text-orange-500" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Option 1: Set Password First</p>
+                                            <p className={`text-xs mt-0.5 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                                                Set a password, then change email (disables Google login)
+                                            </p>
+                                        </div>
+                                        <ArrowRight className={`w-4 h-4 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
+                                    </div>
+                                </div>
+
+                                {/* Option 2: Verify with Google */}
+                                <div className={`p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.01] ${isDark ? 'bg-dark-700/50 border-dark-600 hover:border-primary-500/50' : 'bg-gray-50 border-gray-200 hover:border-primary-400'}`}
+                                    onClick={() => setSsoEmailStep(1)}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-lg ${isDark ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
+                                            <ExternalLink className="w-5 h-5 text-blue-500" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Option 2: Verify with Google</p>
+                                            <p className={`text-xs mt-0.5 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                                                Verify via Google login, then change email (keeps Google login)
+                                            </p>
+                                        </div>
+                                        <ArrowRight className={`w-4 h-4 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 1: Verify with Google */}
+                        {ssoEmailStep === 1 && (
+                            <div className="space-y-4">
+                                <div className={`p-4 rounded-xl ${isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
+                                    <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+                                        Click the button below to verify your identity via Google login.
+                                    </p>
+                                </div>
+
+                                <SsoVerifyButton
+                                    onVerify={handleSsoGoogleVerify}
+                                    isLoading={ssoEmailVerifying}
+                                    isDark={isDark}
+                                />
+
+                                <button
+                                    onClick={() => setSsoEmailStep(0)}
+                                    className={`text-sm ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    ← Back to options
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Step 2: Enter new email */}
+                        {ssoEmailStep === 2 && (
+                            <div className="space-y-4">
+                                <div className={`p-4 rounded-xl ${isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
+                                    <p className={`text-sm flex items-center ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                                        <CheckCircle className="w-4 h-4 mr-2" /> Google account verified! Now enter your new email.
+                                    </p>
+                                </div>
+
+                                <FormInput
+                                    label="New Email Address"
+                                    name="ssoNewEmail"
+                                    type="email"
+                                    value={ssoNewEmail}
+                                    onChange={(e) => setSsoNewEmail(e.target.value)}
+                                    icon={Mail}
+                                    placeholder="Enter your new email"
+                                    required
+                                    variant={isDark ? 'dark' : 'light'}
+                                />
+
+                                <button
+                                    onClick={handleSsoConfirmNewEmail}
+                                    disabled={!ssoNewEmail.includes('@')}
+                                    className="btn-primary w-full"
+                                >
+                                    Continue <ArrowRight className="w-4 h-4 ml-2" />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Step 3: Confirm change (No OTP needed - already verified via Google) */}
+                        {ssoEmailStep === 3 && (
+                            <div className="space-y-4">
+                                <div className={`p-4 rounded-xl ${isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
+                                    <p className={`text-sm flex items-center ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                                        <CheckCircle className="w-4 h-4 mr-2" /> Identity verified via Google! Ready to change email.
+                                    </p>
+                                </div>
+
+                                <div className={`p-4 rounded-xl ${isDark ? 'bg-yellow-500/10 border border-yellow-500/20' : 'bg-yellow-50 border border-yellow-200'}`}>
+                                    <p className={`text-sm ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
+                                        <AlertTriangle className="w-4 h-4 inline mr-2" />
+                                        After changing your email, you'll need to log in again. If your new email is a Google account, you can continue using Google login.
+                                    </p>
+                                </div>
+
+                                <div className={`p-4 rounded-xl ${isDark ? 'bg-dark-700' : 'bg-gray-100'}`}>
+                                    <p className={`text-xs ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>Changing from:</p>
+                                    <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{currentUser?.email}</p>
+                                    <p className={`text-xs mt-2 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>To:</p>
+                                    <p className={`font-medium text-primary-400`}>{ssoNewEmail}</p>
+                                </div>
+
+                                <button
+                                    onClick={handleSsoEmailChange}
+                                    disabled={ssoEmailVerifying}
+                                    className="btn-primary w-full"
+                                >
+                                    {ssoEmailVerifying
+                                        ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Changing...</>
+                                        : <><Mail className="w-4 h-4 mr-2" />Confirm Email Change</>
+                                    }
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Error display */}
+                        {ssoEmailError && (
+                            <div className={`mt-4 p-3 rounded-xl flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/20 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+                                <AlertCircle className="w-4 h-4" />
+                                <span className="text-sm">{ssoEmailError}</span>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className={`relative p-6 rounded-2xl border transition-all ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200 shadow-sm'}`}>
+                        {emailLocked && (
+                            <LockedOverlay icon={Mail} title="Change Email" description="Update email with OTP verification" onUnlock={handleUnlockEmail} isDark={isDark} />
+                        )}
+                        <h2 className={`text-lg font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            <Mail className="w-5 h-5 text-primary-400" /> Change Email
+                            {!emailLocked && (
+                                <button onClick={resetEmailFlow} className={`ml-auto text-xs px-3 py-1 rounded-lg ${isDark ? 'text-dark-400 hover:text-white hover:bg-dark-700' : 'text-gray-400 hover:bg-gray-100'}`}>Lock</button>
+                            )}
+                        </h2>
+
                         <div className="space-y-6">
                             {/* Step Indicator */}
                             <div className="flex items-center justify-center gap-2 mb-6">
@@ -543,22 +1014,6 @@ export default function SecuritySettingsPage() {
                                     </React.Fragment>
                                 ))}
                             </div>
-
-                            {/* Google Login Warning - Show at Step 1 before email change */}
-                            {emailStep === 1 && isGoogleUser && (
-                                <div className={`p-4 rounded-xl flex items-start gap-3 ${isDark ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-orange-50 border border-orange-200'}`}>
-                                    <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-orange-400' : 'text-orange-500'}`} />
-                                    <div>
-                                        <p className={`font-medium text-sm ${isDark ? 'text-orange-300' : 'text-orange-700'}`}>
-                                            ⚠️ Google Login Will Be Disabled
-                                        </p>
-                                        <p className={`text-xs mt-1 ${isDark ? 'text-orange-400/70' : 'text-orange-600'}`}>
-                                            After changing your email, you will <strong>no longer be able to use Google Login</strong>.
-                                            You must login manually using your new email and password on our website.
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
 
                             {/* Current Email Display */}
                             <div>
@@ -660,8 +1115,8 @@ export default function SecuritySettingsPage() {
                                 </form>
                             )}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Success Modal */}

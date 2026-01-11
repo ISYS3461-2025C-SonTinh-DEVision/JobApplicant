@@ -232,5 +232,40 @@ public class RedisService {
         Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
         return ttl != null && ttl > 0 ? ttl : 0;
     }
+
+    // ==================== SSO VERIFICATION TOKEN OPERATIONS ====================
+
+    /**
+     * Store SSO verification token for user
+     * Used when SSO user verifies ownership via Google login for email change
+     * @param userId User ID
+     * @param token Verification token
+     * @param expirationMinutes Time to live in minutes (default 10)
+     */
+    public void storeSsoVerificationToken(String userId, String token, long expirationMinutes) {
+        String key = "sso_verify:" + userId;
+        redisTemplate.opsForValue().set(key, token, expirationMinutes, TimeUnit.MINUTES);
+    }
+
+    /**
+     * Verify SSO verification token for user
+     * @param userId User ID
+     * @param token Token to verify
+     * @return true if token matches, false otherwise
+     */
+    public boolean verifySsoVerificationToken(String userId, String token) {
+        String key = "sso_verify:" + userId;
+        String storedToken = redisTemplate.opsForValue().get(key);
+        return storedToken != null && storedToken.equals(token);
+    }
+
+    /**
+     * Delete SSO verification token after use
+     * @param userId User ID
+     */
+    public void deleteSsoVerificationToken(String userId) {
+        String key = "sso_verify:" + userId;
+        redisTemplate.delete(key);
+    }
 }
 

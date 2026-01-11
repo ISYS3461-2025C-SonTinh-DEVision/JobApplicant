@@ -336,6 +336,11 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
                 if (user != null) {
                     result.put("userId", user.getId());
                     result.put("email", user.getEmail());
+                    // Add authProvider for SSO detection (SRS 1.3.2)
+                    result.put("authProvider", user.getAuthProvider() != null ? user.getAuthProvider() : "local");
+                    // Indicate if user has set a local password (for SSO conversion flow)
+                    // SSO users have a random UUID password, so they "don't have" a usable password
+                    result.put("hasLocalPassword", !"google".equals(user.getAuthProvider()));
                 }
                 if (applicant != null) {
                     result.put("applicantId", applicant.getId());
@@ -552,6 +557,75 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
     }
 
     /**
+     * Set password for SSO user (converts to local authentication)
+     * 
+     * This endpoint is for users who registered via Google SSO and want to
+     * set a password to enable email/password login. After setting password:
+     * - authProvider changes from "google" to "local"
+     * - Google SSO login is disabled for this account
+     * - User must login with email/password
+     */
+    @Operation(summary = "Set password for SSO user", description = "Set password for Google SSO user and convert to local authentication")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Password set successfully"),
+        @ApiResponse(responseCode = "400", description = "Validation error or user not SSO"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated")
+    })
+    @PostMapping("/set-password")
+    public ResponseEntity<?> setPasswordForSsoUser(
+            @Valid @RequestBody com.DEVision.JobApplicant.auth.internal.dto.SetPasswordRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (userDetails == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Authentication required", "success", false),
+                    HttpStatus.UNAUTHORIZED
+                );
+            }
+
+            // Validate password confirmation
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Passwords do not match", "success", false),
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+
+            // Get user ID from authenticated user
+            User user = userRepository.findByEmail(userDetails.getUsername());
+            if (user == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "User not found", "success", false),
+                    HttpStatus.NOT_FOUND
+                );
+            }
+
+            Map<String, Object> response = authInternalService.setPasswordForSsoUser(
+                user.getId(),
+                request.getNewPassword(),
+                request.getConfirmPassword()
+            );
+
+            boolean success = (boolean) response.get("success");
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                // Check if not SSO user
+                if (response.containsKey("notSsoUser") && (boolean) response.get("notSsoUser")) {
+                    return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+                }
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            System.err.println("Error setting password: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to set password: " + e.getMessage(), "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
      * Change email for authenticated user
      * Requirement 3.1.1: Job Applicants shall be able to edit their Email
      */
@@ -684,6 +758,167 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
             System.err.println("Error verifying OTP: " + e.getMessage());
             return new ResponseEntity<>(
                 Map.of("message", "Failed to verify OTP: " + e.getMessage(), "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    // ==================== SSO EMAIL CHANGE VIA GOOGLE VERIFICATION ====================
+
+    /**
+     * Verify SSO ownership by validating Google ID token matches current email.
+     * This is step 1 of the SSO email change flow (alternative to password verification).
+     */
+    @Operation(summary = "Verify SSO ownership", description = "Verify ownership via Google login for SSO email change")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Verification successful, returns verification token"),
+        @ApiResponse(responseCode = "400", description = "Email mismatch or invalid token"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated")
+    })
+    @PostMapping("/verify-sso-ownership")
+    public ResponseEntity<?> verifySsoOwnership(
+            @Valid @RequestBody OAuth2LoginRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (userDetails == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Authentication required", "success", false),
+                    HttpStatus.UNAUTHORIZED
+                );
+            }
+
+            // Get user ID from authenticated user
+            User user = userRepository.findByEmail(userDetails.getUsername());
+            if (user == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "User not found", "success", false),
+                    HttpStatus.NOT_FOUND
+                );
+            }
+
+            Map<String, Object> response = authInternalService.verifySsoOwnership(
+                user.getId(),
+                request.getIdToken()
+            );
+
+            boolean success = (boolean) response.get("success");
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                if (response.containsKey("emailMismatch") && (boolean) response.get("emailMismatch")) {
+                    return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+                }
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            System.err.println("Error verifying SSO ownership: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to verify SSO ownership: " + e.getMessage(), "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Change email for SSO user who verified via Google (not password).
+     * This is step 2 of the SSO email change flow.
+     */
+    @Operation(summary = "Change email for SSO user", description = "Change email using SSO verification (no password required)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Email changed successfully"),
+        @ApiResponse(responseCode = "400", description = "Verification expired or email already exists"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated")
+    })
+    @PostMapping("/change-email-sso")
+    public ResponseEntity<?> changeEmailSso(
+            @Valid @RequestBody com.DEVision.JobApplicant.auth.internal.dto.ChangeEmailSsoRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (userDetails == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Authentication required", "success", false),
+                    HttpStatus.UNAUTHORIZED
+                );
+            }
+
+            // Get user ID from authenticated user
+            User user = userRepository.findByEmail(userDetails.getUsername());
+            if (user == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "User not found", "success", false),
+                    HttpStatus.NOT_FOUND
+                );
+            }
+
+            Map<String, Object> response = authInternalService.changeEmailForSsoUser(
+                user.getId(),
+                request.getNewEmail(),
+                request.getOldEmailToken(),
+                request.getNewEmailToken()
+            );
+
+            boolean success = (boolean) response.get("success");
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            System.err.println("Error changing email for SSO user: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to change email: " + e.getMessage(), "success", false),
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Step 2 of SSO email change: Verify ownership of the NEW email via Google.
+     * User must log into the NEW Gmail account to prove they own it.
+     */
+    @Operation(summary = "Verify new email ownership via Google", 
+               description = "Step 2 of SSO email change: Verify the new Gmail by logging into it")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "New email verified, returns newEmailToken"),
+        @ApiResponse(responseCode = "400", description = "Email mismatch or already registered"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated")
+    })
+    @PostMapping("/verify-new-email-ownership")
+    public ResponseEntity<?> verifyNewEmailOwnership(
+            @Valid @RequestBody com.DEVision.JobApplicant.auth.internal.dto.VerifyNewEmailRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (userDetails == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "Authentication required", "success", false),
+                    HttpStatus.UNAUTHORIZED
+                );
+            }
+
+            User user = userRepository.findByEmail(userDetails.getUsername());
+            if (user == null) {
+                return new ResponseEntity<>(
+                    Map.of("message", "User not found", "success", false),
+                    HttpStatus.NOT_FOUND
+                );
+            }
+
+            Map<String, Object> response = authInternalService.verifyNewEmailOwnership(
+                user.getId(),
+                request.getNewEmail(),
+                request.getIdToken()
+            );
+
+            boolean success = (boolean) response.get("success");
+            if (success) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            System.err.println("Error verifying new email ownership: " + e.getMessage());
+            return new ResponseEntity<>(
+                Map.of("message", "Failed to verify new email: " + e.getMessage(), "success", false),
                 HttpStatus.INTERNAL_SERVER_ERROR
             );
         }
