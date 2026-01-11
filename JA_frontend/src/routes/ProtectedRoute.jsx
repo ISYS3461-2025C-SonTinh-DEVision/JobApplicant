@@ -6,18 +6,15 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth, AUTH_STATUS } from '../context/AuthContext';
-import { Loader2 } from 'lucide-react';
+import CatLoadingSpinner from '../components/common/CatLoadingSpinner';
 
 /**
- * Loading screen component
+ * Loading screen component with cute cat animation
  */
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-gradient-mesh flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="w-12 h-12 text-primary-400 animate-spin mx-auto mb-4" />
-        <p className="text-dark-300">Loading...</p>
-      </div>
+    <div className="min-h-screen bg-dark-900 flex items-center justify-center">
+      <CatLoadingSpinner size="xl" message="Loading..." />
     </div>
   );
 }
