@@ -3,12 +3,17 @@ package com.DEVision.JobApplicant.jobManager.company.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.DEVision.JobApplicant.auth.service.CognitoTokenService;
 import com.DEVision.JobApplicant.jobManager.config.ExternalUrl;
 import com.DEVision.JobApplicant.jobManager.company.external.api.CompanyServiceInf;
 import com.DEVision.JobApplicant.jobManager.company.external.dto.*;
@@ -30,17 +35,32 @@ public class CallCompanyService implements CompanyServiceInf {
 
     @Autowired
     private ExternalUrl externalUrl;
+    
+    @Autowired
+    private CognitoTokenService cognitoTokenService;
+    
+    /**
+     * Create HTTP headers with Cognito Bearer token for system-to-system auth
+     */
+    private HttpHeaders createAuthHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", cognitoTokenService.getAuthorizationHeader());
+        return headers;
+    }
 
     @Override
     public CompanyDto getCompanyById(String companyId) {
         try {
-            // Note: Assuming single company endpoint exists, update when JM provides spec
-            CompanyDto response = restTemplate.getForObject(
+            HttpEntity<Void> entity = new HttpEntity<>(createAuthHeaders());
+            
+            ResponseEntity<CompanyDto> response = restTemplate.exchange(
                 externalUrl.getCompanyUrl() + "/{companyId}",
+                HttpMethod.GET,
+                entity,
                 CompanyDto.class,
                 companyId
             );
-            return response;
+            return response.getBody();
         } catch (HttpClientErrorException.NotFound e) {
             logger.warn("Company not found with ID: {}", companyId);
             return null;
@@ -58,11 +78,20 @@ public class CallCompanyService implements CompanyServiceInf {
         );
 
         try {
-            CompanyListResponse response = restTemplate.getForObject(url, CompanyListResponse.class);
+            HttpEntity<Void> entity = new HttpEntity<>(createAuthHeaders());
+            
+            ResponseEntity<CompanyListResponse> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                entity,
+                CompanyListResponse.class
+            );
+            
+            CompanyListResponse result = response.getBody();
             logger.debug("Fetched {} companies from JM",
-                response != null && response.getCompanies() != null
-                    ? response.getCompanies().size() : 0);
-            return response;
+                result != null && result.getCompanies() != null
+                    ? result.getCompanies().size() : 0);
+            return result;
         } catch (RestClientException e) {
             logger.error("Error searching companies with params: {}", searchRequest.toQueryParams(), e);
             throw new RuntimeException("Failed to search companies from JM system", e);
@@ -74,7 +103,15 @@ public class CallCompanyService implements CompanyServiceInf {
         String url = buildUrlWithQueryParams(externalUrl.getCompanyUrl(), queryParams);
 
         try {
-            return restTemplate.getForObject(url, CompanyListResponse.class);
+            HttpEntity<Void> entity = new HttpEntity<>(createAuthHeaders());
+            
+            ResponseEntity<CompanyListResponse> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                entity,
+                CompanyListResponse.class
+            );
+            return response.getBody();
         } catch (RestClientException e) {
             logger.error("Error searching companies with params: {}", queryParams, e);
             throw new RuntimeException("Failed to search companies from JM system", e);
@@ -86,18 +123,19 @@ public class CallCompanyService implements CompanyServiceInf {
         String url = externalUrl.getAuthAccountUrl() + "/" + accountId + "/active";
 
         try {
-            // TODO: Update request body when JM team provides spec
-            // Currently sending empty body as POST
-            AccountActionResponse response = restTemplate.postForObject(
+            HttpEntity<Void> entity = new HttpEntity<>(createAuthHeaders());
+            
+            ResponseEntity<AccountActionResponse> response = restTemplate.exchange(
                 url,
-                null,  // Empty body - update when spec is available
+                HttpMethod.POST,
+                entity,
                 AccountActionResponse.class
             );
 
             logger.info("Account activated successfully: {}", accountId);
-            logger.debug("JM Response: {}", response);
+            logger.debug("JM Response: {}", response.getBody());
 
-            return response;
+            return response.getBody();
         } catch (HttpClientErrorException e) {
             logger.error("Error activating account {}: {} - {}",
                 accountId, e.getStatusCode(), e.getResponseBodyAsString());
@@ -119,18 +157,19 @@ public class CallCompanyService implements CompanyServiceInf {
         String url = externalUrl.getAuthAccountUrl() + "/" + accountId + "/deactivate";
 
         try {
-            // TODO: Update request body when JM team provides spec
-            // Currently sending empty body as POST
-            AccountActionResponse response = restTemplate.postForObject(
+            HttpEntity<Void> entity = new HttpEntity<>(createAuthHeaders());
+            
+            ResponseEntity<AccountActionResponse> response = restTemplate.exchange(
                 url,
-                null,  // Empty body - update when spec is available
+                HttpMethod.POST,
+                entity,
                 AccountActionResponse.class
             );
 
             logger.info("Account deactivated successfully: {}", accountId);
-            logger.debug("JM Response: {}", response);
+            logger.debug("JM Response: {}", response.getBody());
 
-            return response;
+            return response.getBody();
         } catch (HttpClientErrorException e) {
             logger.error("Error deactivating account {}: {} - {}",
                 accountId, e.getStatusCode(), e.getResponseBodyAsString());

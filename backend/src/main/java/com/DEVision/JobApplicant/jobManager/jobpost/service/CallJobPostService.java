@@ -11,6 +11,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.DEVision.JobApplicant.auth.service.CognitoTokenService;
 import com.DEVision.JobApplicant.jobManager.config.ExternalUrl;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.api.JobPostServiceInf;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostDto;

@@ -1,4 +1,4 @@
-package com.DEVision.JobApplicant.jobManager.jobpost.service;
+package com.DEVision.JobApplicant.auth.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +15,10 @@ import com.DEVision.JobApplicant.common.redis.RedisService;
 /**
  * Service for obtaining and caching Cognito OAuth2 access tokens (client_credentials flow).
  * Used when JA system calls JM system (or other external systems) that require Cognito auth.
+ * 
+ * This service is shared across multiple modules:
+ * - jobManager (jobpost, company) - for job post and company API calls
+ * - subscription - for payment processing API calls
  * 
  * Tokens are cached in Redis to avoid re-authenticating on every request.
  */
