@@ -10,16 +10,17 @@ import java.util.List;
 @Repository
 public interface NotificationRepository extends MongoRepository<Notification, String> {
     
-    // Find all notifications for a specific user
-    List<Notification> findByUserId(String userId);
+    // Find all notifications for a specific user (sorted by timestamp DESC - newest first)
+    List<Notification> findByUserIdOrderByTimestampDesc(String userId);
     
-    // Find unread notifications for a user
-    List<Notification> findByUserIdAndIsRead(String userId, boolean isRead);
+    // Find unread notifications for a user (sorted by timestamp DESC)
+    List<Notification> findByUserIdAndIsReadOrderByTimestampDesc(String userId, boolean isRead);
     
-    // Find notifications by type for a user
-    List<Notification> findByUserIdAndType(String userId, String type);
+    // Find notifications by type for a user (sorted by timestamp DESC)
+    List<Notification> findByUserIdAndTypeOrderByTimestampDesc(String userId, String type);
     
     // Count unread notifications for a user
     long countByUserIdAndIsRead(String userId, boolean isRead);
 }
+
 

@@ -23,14 +23,14 @@ public class NotificationService {
         return notificationRepository.save(notification);
     }
     
-    // Get all notifications for a user
+    // Get all notifications for a user (sorted by timestamp DESC - newest first)
     public List<Notification> getNotificationsByUserId(String userId) {
-        return notificationRepository.findByUserId(userId);
+        return notificationRepository.findByUserIdOrderByTimestampDesc(userId);
     }
     
-    // Get unread notifications for a user
+    // Get unread notifications for a user (sorted by timestamp DESC)
     public List<Notification> getUnreadNotifications(String userId) {
-        return notificationRepository.findByUserIdAndIsRead(userId, false);
+        return notificationRepository.findByUserIdAndIsReadOrderByTimestampDesc(userId, false);
     }
     
     // Get notification by ID
@@ -73,8 +73,9 @@ public class NotificationService {
     
     // Delete all notifications for a user
     public void deleteAllUserNotifications(String userId) {
-        List<Notification> userNotifications = notificationRepository.findByUserId(userId);
+        List<Notification> userNotifications = notificationRepository.findByUserIdOrderByTimestampDesc(userId);
         notificationRepository.deleteAll(userNotifications);
     }
 }
+
 
