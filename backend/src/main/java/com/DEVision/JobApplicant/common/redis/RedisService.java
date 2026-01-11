@@ -267,5 +267,34 @@ public class RedisService {
         String key = "sso_verify:" + userId;
         redisTemplate.delete(key);
     }
+
+    // ==================== GENERIC KEY-VALUE OPERATIONS (SECONDS) ====================
+
+    /**
+     * Get value by key (generic getter)
+     * @param key Redis key
+     * @return Value or null if not found
+     */
+    public String getValue(String key) {
+        return redisTemplate.opsForValue().get(key);
+    }
+
+    /**
+     * Set value with expiration in seconds
+     * @param key Redis key
+     * @param value Value to store
+     * @param expirationSeconds Time to live in seconds
+     */
+    public void setValue(String key, String value, int expirationSeconds) {
+        redisTemplate.opsForValue().set(key, value, expirationSeconds, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Delete a key from Redis
+     * @param key Redis key to delete
+     */
+    public void deleteKey(String key) {
+        redisTemplate.delete(key);
+    }
 }
 
