@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Document(collection = "notifications")
 public class Notification {
@@ -29,7 +30,10 @@ public class Notification {
     @NotNull
     private boolean isRead;
     
-    private String type; // Optional: email, system, alert, etc.
+    private String type; // Optional: email, system, alert, JOB_MATCH, etc.
+    
+    // Metadata for additional data (e.g., job match details)
+    private Map<String, Object> metadata;
     
     public Notification() {
         this.timestamp = LocalDateTime.now();
@@ -100,7 +104,13 @@ public class Notification {
         this.type = type;
     }
     
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
     
-
+    public void setMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata;
+    }
 }
+
 

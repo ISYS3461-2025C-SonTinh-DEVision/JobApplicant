@@ -15,7 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Kafka consumer for job post events
@@ -76,13 +78,21 @@ public class JobPostEventConsumer {
                     User user = authRepository.findById(matchedJobPost.getUserId()).orElse(null);
 
                     if (user != null && user.getPlanType() == PlanType.PREMIUM) {
+                        // Build match data metadata for View Details modal
+                        Map<String, Object> matchData = buildMatchData(matchedJobPost, jobPost);
+                        
                         // Create notification request for premium user (saves to DB + sends via WebSocket)
                         NotificationRequest notificationRequest = new NotificationRequest(
                                 matchedJobPost.getUserId(),
-                                "Job Match Found!",
-                                String.format("A new job post '%s' matches your profile (%.1f%% match). Check it out!",
-                                        jobPost.getTitle(), matchedJobPost.getMatchScore()),
-                                "job_match"
+                                String.format("New Job Match! %.0f%% Match", matchedJobPost.getMatchScore()),
+                                String.format("Job: %s at %s in %s. Matched skills: %s",
+                                        jobPost.getTitle(),
+                                        jobPost.getCompanyName() != null ? jobPost.getCompanyName() : "Unknown Company",
+                                        matchedJobPost.getLocation() != null ? matchedJobPost.getLocation() : "Unknown",
+                                        matchedJobPost.getMatchedSkills() != null ? 
+                                            String.join(", ", matchedJobPost.getMatchedSkills()) : "N/A"),
+                                "JOB_MATCH",
+                                matchData
                         );
 
                         // Use external service for DB save + WebSocket push
@@ -105,5 +115,44 @@ public class JobPostEventConsumer {
                     jobPost.getId(), e.getMessage(), e);
         }
     }
+    
+    /**
+     * Build metadata for job match notification (for View Details modal)
+     */
+    private Map<String, Object> buildMatchData(MatchedJobPost matchedJobPost, JobPostEvent jobPost) {
+        Map<String, Object> matchData = new HashMap<>();
+        
+        // Job info
+        matchData.put("jobPostId", matchedJobPost.getJobPostId());
+        matchData.put("jobTitle", matchedJobPost.getJobTitle());
+        matchData.put("jobDescription", matchedJobPost.getJobDescription());
+        matchData.put("location", matchedJobPost.getLocation());
+        matchData.put("employmentTypes", matchedJobPost.getEmploymentTypes());
+        
+        // Salary info
+        matchData.put("salaryMin", matchedJobPost.getSalaryMin());
+        matchData.put("salaryMax", matchedJobPost.getSalaryMax());
+        matchData.put("salaryCurrency", matchedJobPost.getSalaryCurrency() != null ? 
+                matchedJobPost.getSalaryCurrency() : "USD");
+        
+        // Skills match info
+        matchData.put("requiredSkills", matchedJobPost.getRequiredSkills());
+        matchData.put("matchedSkills", matchedJobPost.getMatchedSkills());
+        
+        // Match score
+        matchData.put("matchScore", matchedJobPost.getMatchScore());
+        
+        // Dates
+        matchData.put("postedDate", matchedJobPost.getPostedDate());
+        matchData.put("expiryDate", matchedJobPost.getExpiryDate());
+        
+        // Company info from job post event
+        if (jobPost != null) {
+            matchData.put("companyName", jobPost.getCompanyName());
+        }
+        
+        return matchData;
+    }
 }
+
 

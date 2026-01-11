@@ -189,8 +189,10 @@ public class NotificationInternalService {
             notification.getContent(),
             notification.getTimestamp(),
             notification.isRead(),
-            notification.getType()
+            notification.getType(),
+            notification.getMetadata()
         );
     }
 }
+
 

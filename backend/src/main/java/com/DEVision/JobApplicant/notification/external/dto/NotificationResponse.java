@@ -1,6 +1,7 @@
 package com.DEVision.JobApplicant.notification.external.dto;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 // DTO for returning notification data to external services
 public class NotificationResponse {
@@ -12,6 +13,7 @@ public class NotificationResponse {
     private LocalDateTime timestamp;
     private boolean isRead;
     private String type;
+    private Map<String, Object> metadata; // Additional data (e.g., job match details)
     
     public NotificationResponse() {}
     
@@ -24,6 +26,19 @@ public class NotificationResponse {
         this.timestamp = timestamp;
         this.isRead = isRead;
         this.type = type;
+    }
+    
+    public NotificationResponse(String id, String userId, String title, String content, 
+                               LocalDateTime timestamp, boolean isRead, String type,
+                               Map<String, Object> metadata) {
+        this.id = id;
+        this.userId = userId;
+        this.title = title;
+        this.content = content;
+        this.timestamp = timestamp;
+        this.isRead = isRead;
+        this.type = type;
+        this.metadata = metadata;
     }
     
     // Getters and Setters
@@ -82,5 +97,14 @@ public class NotificationResponse {
     public void setType(String type) {
         this.type = type;
     }
+    
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
+    
+    public void setMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata;
+    }
 }
+
 
