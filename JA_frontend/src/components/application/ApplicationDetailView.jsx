@@ -70,13 +70,29 @@ const StatusBadge = ({ status, isDark }) => {
  * Document Card using Headless Card
  */
 const DocumentCard = ({ type, url, isDark }) => {
+    // Fix Cloudinary URL for raw resources (PDF, DOC, DOCX)
+    // Cloudinary sometimes returns /image/upload/ for PDFs which doesn't work
+    const getCorrectUrl = (originalUrl) => {
+        if (!originalUrl) return null;
+        // Check if it's a Cloudinary URL with wrong path for document files
+        if (originalUrl.includes('cloudinary.com') && originalUrl.includes('/image/upload/')) {
+            const extension = originalUrl.split('.').pop()?.toLowerCase();
+            if (['pdf', 'doc', 'docx'].includes(extension)) {
+                return originalUrl.replace('/image/upload/', '/raw/upload/');
+            }
+        }
+        return originalUrl;
+    };
+
     const handleDownload = () => {
-        if (url) {
-            window.open(url, '_blank');
+        const correctedUrl = getCorrectUrl(url);
+        if (correctedUrl) {
+            window.open(correctedUrl, '_blank');
         } else {
             alert('Document not available for download');
         }
     };
+
 
     const cardController = useCard({
         item: { type, url },
