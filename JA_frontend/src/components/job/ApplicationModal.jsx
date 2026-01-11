@@ -346,7 +346,8 @@ const ApplicationModal = ({
                                                 <button
                                                     type="button"
                                                     onClick={() => setCvFile(null)}
-                                                    className="p-2 rounded-lg hover:bg-red-500/20 text-red-500 transition-colors"
+                                                    disabled={submitting}
+                                                    className={`p-2 rounded-lg transition-colors ${submitting ? 'opacity-50 cursor-not-allowed text-gray-400' : 'hover:bg-red-500/20 text-red-500'}`}
                                                 >
                                                     <Trash2 className="w-5 h-5" />
                                                 </button>
@@ -442,7 +443,8 @@ const ApplicationModal = ({
                                                 <button
                                                     type="button"
                                                     onClick={() => setCoverLetterFile(null)}
-                                                    className="p-2 rounded-lg hover:bg-red-500/20 text-red-500 transition-colors"
+                                                    disabled={submitting}
+                                                    className={`p-2 rounded-lg transition-colors ${submitting ? 'opacity-50 cursor-not-allowed text-gray-400' : 'hover:bg-red-500/20 text-red-500'}`}
                                                 >
                                                     <Trash2 className="w-5 h-5" />
                                                 </button>
