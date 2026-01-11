@@ -18,16 +18,42 @@ const JobListPage = () => {
     // Default country filter can be passed here if needed, but we use the new Location dropdown default logic
     const defaultSearchFilters = useMemo(() => ({}), []);
 
-    // Local State for Dynamic Filters
-    // Default location: Vietnam per Requirement 4.3.1
-    const [filters, setFilters] = useState({
+    // Session storage key for persisting filters during navigation
+    const FILTERS_SESSION_KEY = 'jobSearchFilters';
+
+    // Default filters per Requirement 4.3.1 (Vietnam as default location)
+    const DEFAULT_FILTERS = useMemo(() => ({
         location: 'Vietnam', // Default to Vietnam per 4.3.1
         employmentType: [], // Array for multi-select per 4.1.1
         minSalary: '',
         maxSalary: '',
         fresher: false,
         search: ''
+    }), []);
+
+    // Initialize filters from sessionStorage (for navigation persistence) or defaults (for refresh)
+    const [filters, setFilters] = useState(() => {
+        try {
+            const savedFilters = sessionStorage.getItem(FILTERS_SESSION_KEY);
+            if (savedFilters) {
+                const parsed = JSON.parse(savedFilters);
+                // Merge with defaults to ensure all fields exist
+                return { ...DEFAULT_FILTERS, ...parsed };
+            }
+        } catch (e) {
+            console.warn('Failed to load filters from session:', e);
+        }
+        return DEFAULT_FILTERS;
     });
+
+    // Save filters to sessionStorage whenever they change (for navigation persistence)
+    useEffect(() => {
+        try {
+            sessionStorage.setItem(FILTERS_SESSION_KEY, JSON.stringify(filters));
+        } catch (e) {
+            console.warn('Failed to save filters to session:', e);
+        }
+    }, [filters]);
 
     // Debounce search input - waits 500ms after user stops typing
     // This prevents excessive API calls on every keystroke
