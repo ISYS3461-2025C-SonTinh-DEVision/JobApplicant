@@ -26,6 +26,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useNotifications } from '../../context/NotificationContext';
 import useDashboardData from '../../hooks/useDashboardData';
 import { DashboardService } from '../../services/DashboardService';
+import CatLoadingSpinner from '../../components/common/CatLoadingSpinner';
 
 /**
  * Skeleton loader component for stats cards
@@ -643,8 +644,8 @@ export default function DashboardHome() {
             </div>
             <div className="space-y-2">
               {loading ? (
-                <div className={`text-center py-8 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
-                  Loading applications...
+                <div className="flex items-center justify-center py-8">
+                  <CatLoadingSpinner size="lg" message="Loading applications..." />
                 </div>
               ) : filteredApplications.length > 0 ? (
                 filteredApplications.slice(0, 5).map(app => (
@@ -706,8 +707,8 @@ export default function DashboardHome() {
             </div>
             <div className="space-y-4">
               {loading ? (
-                <div className={`text-center py-8 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
-                  Loading activity...
+                <div className="flex items-center justify-center py-8">
+                  <CatLoadingSpinner size="lg" message="Loading activity..." />
                 </div>
               ) : filteredActivities.length > 0 ? (
                 filteredActivities.map((activity, index) => (
