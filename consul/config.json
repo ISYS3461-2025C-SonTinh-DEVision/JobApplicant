@@ -79,17 +79,18 @@
         {
             "id": "kafka-broker",
             "name": "kafka-broker",
-            "address": "kafka",
+            "address": "pkc-921jm.us-east-2.aws.confluent.cloud",
             "port": 9092,
             "tags": [
                 "kafka",
                 "messaging",
-                "real-time"
+                "confluent-cloud",
+                "external"
             ],
-            "check": {
-                "tcp": "kafka:9092",
-                "interval": "10s",
-                "timeout": "3s"
+            "meta": {
+                "provider": "confluent-cloud",
+                "region": "us-east-2",
+                "notes": "External Kafka service - Confluent Cloud. Health managed by Confluent."
             }
         }
     ]
