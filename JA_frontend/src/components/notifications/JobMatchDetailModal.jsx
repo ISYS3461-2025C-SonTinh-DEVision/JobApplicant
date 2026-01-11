@@ -19,40 +19,51 @@ import { useNavigate } from 'react-router-dom';
 
 /**
  * Circular Progress Ring for Match Score
+ * Redesigned with proper spacing to prevent text cramping
  */
-const MatchScoreRing = ({ score, size = 140, isDark }) => {
-    // Larger radius with thinner stroke for cleaner look
-    const strokeWidth = 8;
-    const radius = (size - strokeWidth * 2) / 2 - 8; // Extra padding for text
+const MatchScoreRing = ({ score, size = 160, isDark }) => {
+    // Calculate dimensions with proper text breathing room
+    const center = size / 2;
+    const strokeWidth = 6;
+    // Make radius smaller to leave more room for center text
+    const radius = (size / 2) - strokeWidth - 20; // 20px padding from edge
     const circumference = 2 * Math.PI * radius;
     const strokeDashoffset = circumference - (score / 100) * circumference;
 
     // Color based on score
     const getScoreColor = () => {
-        if (score >= 80) return { ring: '#10b981', bg: isDark ? '#10b98130' : '#d1fae5', text: 'text-emerald-500' };
-        if (score >= 60) return { ring: '#3b82f6', bg: isDark ? '#3b82f630' : '#dbeafe', text: 'text-blue-500' };
-        if (score >= 40) return { ring: '#f59e0b', bg: isDark ? '#f59e0b30' : '#fef3c7', text: 'text-amber-500' };
-        return { ring: '#ef4444', bg: isDark ? '#ef444430' : '#fee2e2', text: 'text-red-500' };
+        if (score >= 80) return { ring: '#10b981', text: 'text-emerald-500' };
+        if (score >= 60) return { ring: '#3b82f6', text: 'text-blue-500' };
+        if (score >= 40) return { ring: '#f59e0b', text: 'text-amber-500' };
+        return { ring: '#ef4444', text: 'text-red-500' };
     };
 
     const colors = getScoreColor();
 
     return (
-        <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-            <svg className="transform -rotate-90" width={size} height={size}>
+        <div
+            className="relative flex-shrink-0"
+            style={{ width: size, height: size }}
+        >
+            <svg
+                className="transform -rotate-90"
+                width={size}
+                height={size}
+                viewBox={`0 0 ${size} ${size}`}
+            >
                 {/* Background ring */}
                 <circle
-                    cx={size / 2}
-                    cy={size / 2}
+                    cx={center}
+                    cy={center}
                     r={radius}
                     fill="none"
-                    stroke={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}
+                    stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}
                     strokeWidth={strokeWidth}
                 />
-                {/* Progress ring */}
+                {/* Progress ring with gradient effect */}
                 <circle
-                    cx={size / 2}
-                    cy={size / 2}
+                    cx={center}
+                    cy={center}
                     r={radius}
                     fill="none"
                     stroke={colors.ring}
@@ -60,15 +71,21 @@ const MatchScoreRing = ({ score, size = 140, isDark }) => {
                     strokeLinecap="round"
                     strokeDasharray={circumference}
                     strokeDashoffset={strokeDashoffset}
-                    style={{ transition: 'stroke-dashoffset 1s ease-out' }}
+                    style={{
+                        transition: 'stroke-dashoffset 1s ease-out',
+                        filter: 'drop-shadow(0 0 6px ' + colors.ring + '40)'
+                    }}
                 />
             </svg>
-            {/* Center content - with more padding */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className={`text-4xl font-bold ${colors.text}`}>
+            {/* Center content - positioned absolutely for perfect centering */}
+            <div
+                className="absolute inset-0 flex flex-col items-center justify-center"
+                style={{ padding: strokeWidth + 20 }} // Match the radius padding
+            >
+                <span className={`text-4xl font-bold tracking-tight ${colors.text}`}>
                     {Math.round(score)}%
                 </span>
-                <span className={`text-sm font-medium mt-1 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                <span className={`text-sm font-medium ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
                     Match
                 </span>
             </div>
@@ -280,9 +297,9 @@ export default function JobMatchDetailModal({ isOpen, onClose, matchData }) {
                                     </button>
 
                                     {/* Title area with score ring */}
-                                    <div className="flex items-start gap-5">
-                                        <MatchScoreRing score={matchScore} size={120} isDark={isDark} />
-                                        <div className="flex-1 min-w-0 pt-2">
+                                    <div className="flex items-center gap-6">
+                                        <MatchScoreRing score={matchScore} isDark={isDark} />
+                                        <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className={`
                                                     inline-flex items-center gap-1 text-xs font-semibold
