@@ -85,9 +85,8 @@ public class JobPostEventConsumer {
                         NotificationRequest notificationRequest = new NotificationRequest(
                                 matchedJobPost.getUserId(),
                                 String.format("New Job Match! %.0f%% Match", matchedJobPost.getMatchScore()),
-                                String.format("Job: %s at %s in %s. Matched skills: %s",
+                                String.format("Job: %s in %s. Matched skills: %s",
                                         jobPost.getTitle(),
-                                        jobPost.getCompanyName() != null ? jobPost.getCompanyName() : "Unknown Company",
                                         matchedJobPost.getLocation() != null ? matchedJobPost.getLocation() : "Unknown",
                                         matchedJobPost.getMatchedSkills() != null ? 
                                             String.join(", ", matchedJobPost.getMatchedSkills()) : "N/A"),
@@ -146,10 +145,7 @@ public class JobPostEventConsumer {
         matchData.put("postedDate", matchedJobPost.getPostedDate());
         matchData.put("expiryDate", matchedJobPost.getExpiryDate());
         
-        // Company info from job post event
-        if (jobPost != null) {
-            matchData.put("companyName", jobPost.getCompanyName());
-        }
+        // Company info - not available in JobPostEvent, leave for frontend to fetch if needed
         
         return matchData;
     }
