@@ -383,11 +383,13 @@ export default function SecuritySettingsPage() {
     const [isGoogleUser, setIsGoogleUser] = useState(false);
 
     // SSO Email Change via Google Verification states
-    const [ssoEmailStep, setSsoEmailStep] = useState(0); // 0: choose method, 1: verify google, 2: enter new email, 3: verify OTP, 4: confirm
-    const [ssoVerificationToken, setSsoVerificationToken] = useState('');
+    // Flow: Step 0 (choose) → Step 1 (verify old email via Google) → Step 2 (enter + verify new email via Google) → Step 3 (confirm)
+    const [ssoEmailStep, setSsoEmailStep] = useState(0);
+    const [ssoOldEmailToken, setSsoOldEmailToken] = useState(''); // Token from verifying OLD email
+    const [ssoNewEmailToken, setSsoNewEmailToken] = useState(''); // Token from verifying NEW email
     const [ssoEmailVerifying, setSsoEmailVerifying] = useState(false);
     const [ssoNewEmail, setSsoNewEmail] = useState('');
-    const [ssoNewEmailOtp, setSsoNewEmailOtp] = useState('');
+    const [ssoNewEmailVerified, setSsoNewEmailVerified] = useState(false);
     const [ssoEmailError, setSsoEmailError] = useState('');
     const [ssoEmailLocked, setSsoEmailLocked] = useState(true);
 
@@ -583,9 +585,10 @@ export default function SecuritySettingsPage() {
     // SSO Email Change Handlers
     const handleUnlockSsoEmail = () => {
         setSsoEmailStep(0);
-        setSsoVerificationToken('');
+        setSsoOldEmailToken('');
+        setSsoNewEmailToken('');
         setSsoNewEmail('');
-        setSsoNewEmailOtp('');
+        setSsoNewEmailVerified(false);
         setSsoEmailError('');
         setSsoEmailLocked(false);
         setPasswordLocked(true);
@@ -594,22 +597,23 @@ export default function SecuritySettingsPage() {
 
     const resetSsoEmailFlow = () => {
         setSsoEmailStep(0);
-        setSsoVerificationToken('');
+        setSsoOldEmailToken('');
+        setSsoNewEmailToken('');
         setSsoNewEmail('');
-        setSsoNewEmailOtp('');
+        setSsoNewEmailVerified(false);
         setSsoEmailError('');
         setSsoEmailLocked(true);
     };
 
-    // Handle Google verification for SSO email change
+    // Step 1: Handle Google verification for OLD email (proving current account ownership)
     const handleSsoGoogleVerify = async (idToken) => {
         setSsoEmailVerifying(true);
         setSsoEmailError('');
         try {
             const response = await AuthService.verifySsoOwnership(idToken);
             if (response.success) {
-                setSsoVerificationToken(response.verificationToken);
-                setSsoEmailStep(2); // Move to enter new email step
+                setSsoOldEmailToken(response.verificationToken);
+                setSsoEmailStep(2); // Move to enter + verify new email step
             } else {
                 setSsoEmailError(response.message || 'Failed to verify Google account');
             }
@@ -620,27 +624,46 @@ export default function SecuritySettingsPage() {
         }
     };
 
-    // Handle proceeding to confirm step after entering new email (no OTP needed for SSO flow)
-    // Since user already verified via Google, we skip OTP and go directly to confirmation
-    const handleSsoConfirmNewEmail = () => {
+    // Step 2: Handle Google verification for NEW email (proving new email ownership)
+    const handleSsoNewEmailVerify = async (idToken) => {
         if (!ssoNewEmail || !ssoNewEmail.includes('@')) {
-            setSsoEmailError('Please enter a valid email');
+            setSsoEmailError('Please enter a valid email first');
             return;
         }
         if (ssoNewEmail.toLowerCase() === currentUser?.email?.toLowerCase()) {
             setSsoEmailError('New email must be different from current email');
             return;
         }
+
+        setSsoEmailVerifying(true);
         setSsoEmailError('');
-        setSsoEmailStep(3); // Go directly to confirm step (skip OTP since already verified via Google)
+        try {
+            const response = await AuthService.verifyNewEmailOwnership(ssoNewEmail, idToken);
+            if (response.success) {
+                setSsoNewEmailToken(response.newEmailToken);
+                setSsoNewEmailVerified(true);
+                setSsoEmailStep(3); // Move to confirm step
+            } else {
+                // Show helpful message if user logged into wrong account
+                if (response.mismatch) {
+                    setSsoEmailError(`You logged into ${response.loggedInAs}. Please log into ${ssoNewEmail} to verify ownership.`);
+                } else {
+                    setSsoEmailError(response.message || 'Failed to verify new email');
+                }
+            }
+        } catch (err) {
+            setSsoEmailError(err.message || 'Failed to verify new email');
+        } finally {
+            setSsoEmailVerifying(false);
+        }
     };
 
-    // Handle final email change in SSO flow
+    // Step 3: Handle final email change (requires both tokens)
     const handleSsoEmailChange = async () => {
         setSsoEmailVerifying(true);
         setSsoEmailError('');
         try {
-            const response = await AuthService.changeEmailSso(ssoNewEmail, ssoVerificationToken);
+            const response = await AuthService.changeEmailSso(ssoNewEmail, ssoOldEmailToken, ssoNewEmailToken);
             if (response.success) {
                 setSuccessTitle('Email Changed! 🎉');
                 setSuccessMessage(`Your email has been changed to ${ssoNewEmail}. Please log in with your new email.`);
@@ -917,12 +940,19 @@ export default function SecuritySettingsPage() {
                             </div>
                         )}
 
-                        {/* Step 2: Enter new email */}
+                        {/* Step 2: Enter new email + Verify via Google */}
                         {ssoEmailStep === 2 && (
                             <div className="space-y-4">
                                 <div className={`p-4 rounded-xl ${isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
                                     <p className={`text-sm flex items-center ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-                                        <CheckCircle className="w-4 h-4 mr-2" /> Google account verified! Now enter your new email.
+                                        <CheckCircle className="w-4 h-4 mr-2" /> Step 1 complete! Current email verified.
+                                    </p>
+                                </div>
+
+                                <div className={`p-4 rounded-xl ${isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
+                                    <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+                                        <Info className="w-4 h-4 inline mr-2" />
+                                        <strong>Step 2:</strong> Enter your new email, then verify by logging into that Google account.
                                     </p>
                                 </div>
 
@@ -933,27 +963,42 @@ export default function SecuritySettingsPage() {
                                     value={ssoNewEmail}
                                     onChange={(e) => setSsoNewEmail(e.target.value)}
                                     icon={Mail}
-                                    placeholder="Enter your new email"
+                                    placeholder="Enter your new Gmail address"
                                     required
                                     variant={isDark ? 'dark' : 'light'}
                                 />
 
+                                {ssoNewEmail && ssoNewEmail.includes('@') && (
+                                    <div className="space-y-3">
+                                        <p className={`text-sm ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
+                                            Now verify you own <strong className="text-primary-400">{ssoNewEmail}</strong> by logging into it:
+                                        </p>
+                                        <SsoVerifyButton
+                                            onVerify={handleSsoNewEmailVerify}
+                                            isLoading={ssoEmailVerifying}
+                                            isDark={isDark}
+                                        />
+                                    </div>
+                                )}
+
                                 <button
-                                    onClick={handleSsoConfirmNewEmail}
-                                    disabled={!ssoNewEmail.includes('@')}
-                                    className="btn-primary w-full"
+                                    onClick={() => setSsoEmailStep(1)}
+                                    className={`text-sm ${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
                                 >
-                                    Continue <ArrowRight className="w-4 h-4 ml-2" />
+                                    ← Back to Step 1
                                 </button>
                             </div>
                         )}
 
-                        {/* Step 3: Confirm change (No OTP needed - already verified via Google) */}
+                        {/* Step 3: Confirm change (Both old and new email verified) */}
                         {ssoEmailStep === 3 && (
                             <div className="space-y-4">
                                 <div className={`p-4 rounded-xl ${isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
+                                    <p className={`text-sm flex items-center mb-2 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                                        <CheckCircle className="w-4 h-4 mr-2" /> Current email verified: <strong className="ml-1">{currentUser?.email}</strong>
+                                    </p>
                                     <p className={`text-sm flex items-center ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-                                        <CheckCircle className="w-4 h-4 mr-2" /> Identity verified via Google! Ready to change email.
+                                        <CheckCircle className="w-4 h-4 mr-2" /> New email verified: <strong className="ml-1">{ssoNewEmail}</strong>
                                     </p>
                                 </div>
 
