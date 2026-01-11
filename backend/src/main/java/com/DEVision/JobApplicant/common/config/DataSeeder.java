@@ -19,6 +19,7 @@ import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.model.PlanType;
+import com.DEVision.JobApplicant.subscription.service.SubscriptionService;
 
 /**
  * Database Data Seeder
@@ -41,6 +42,9 @@ public class DataSeeder implements CommandLineRunner {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private SubscriptionService subscriptionService;
 
     @Override
     public void run(String... args) throws Exception {
@@ -70,7 +74,14 @@ public class DataSeeder implements CommandLineRunner {
         admin.setActivated(true);
         admin.setPlanType(PlanType.PREMIUM);
         
-        authRepository.save(admin);
+        User savedAdmin = authRepository.save(admin);
+        
+        // Create subscription for admin
+        subscriptionService.createSubscription(
+            savedAdmin.getId(), 
+            com.DEVision.JobApplicant.subscription.enums.PlanType.PREMIUM
+        );
+        
         logger.info("Admin account created: {}", adminEmail);
     }
 
@@ -154,21 +165,38 @@ public class DataSeeder implements CommandLineRunner {
         String address, String city, List<String> skills,
         String education, String objectiveSummary
     ) {
-        if (authRepository.findByEmail(email) != null) {
-            logger.debug("Applicant account already exists: {}", email);
-            return false;
+        User existingUser = authRepository.findByEmail(email);
+        User savedUser;
+        
+        if (existingUser != null) {
+            // User exists - check if Applicant profile also exists
+            Applicant existingApplicant = applicantRepository.findByUserId(existingUser.getId());
+            if (existingApplicant != null) {
+                logger.debug("User and Applicant already exist: {}", email);
+                return false;
+            }
+            // User exists but Applicant doesn't - create missing Applicant
+            logger.info("User exists but Applicant missing, creating: {}", email);
+            savedUser = existingUser;
+        } else {
+            // Create new User
+            User user = new User();
+            user.setEmail(email);
+            user.setPassword(passwordEncoder.encode(password));
+            user.setRole(RoleConfig.APPLICANT.getRoleName());
+            user.setEnabled(true);
+            user.setActivated(true);
+            user.setPlanType(planType);
+            user.setCountry(country);
+            savedUser = authRepository.save(user);
         }
 
-        User user = new User();
-        user.setEmail(email);
-        user.setPassword(passwordEncoder.encode(password));
-        user.setRole(RoleConfig.APPLICANT.getRoleName());
-        user.setEnabled(true);
-        user.setActivated(true);
-        user.setPlanType(planType);
-        user.setCountry(country);
-        User savedUser = authRepository.save(user);
+        // Create subscription (idempotent - won't duplicate if exists)
+        com.DEVision.JobApplicant.subscription.enums.PlanType subscriptionPlanType = 
+            com.DEVision.JobApplicant.subscription.enums.PlanType.valueOf(planType.name());
+        subscriptionService.createSubscription(savedUser.getId(), subscriptionPlanType);
 
+        // Create Applicant profile
         Applicant applicant = new Applicant(savedUser.getId());
         applicant.setFirstName(firstName);
         applicant.setLastName(lastName);

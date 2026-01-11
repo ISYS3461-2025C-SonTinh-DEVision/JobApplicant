@@ -85,8 +85,59 @@ public class SubscriptionService {
     }
 
     public Subscription getSubscriptionByUserId(String userId) {
-        return subscriptionRepository.findByUserId(userId)
+        Subscription subscription = subscriptionRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Subscription not found for user: " + userId));
+        
+        return checkAndDowngradeIfExpired(subscription);
+    }
+
+    private Subscription checkAndDowngradeIfExpired(Subscription subscription) {
+        if (subscription.getPlanType() != PlanType.PREMIUM 
+                || subscription.getStatus() != SubscriptionStatus.ACTIVE
+                || subscription.getExpiresAt() == null) {
+            return subscription;
+        }
+        
+        Instant now = Instant.now();
+        if (subscription.getExpiresAt().isBefore(now)) {
+            subscription.setPlanType(PlanType.FREEMIUM);
+            subscription.setStatus(SubscriptionStatus.ACTIVE);
+            subscription.setExpiresAt(null);
+            subscription.setUpdatedAt(now);
+            
+            Subscription saved = subscriptionRepository.save(subscription);
+            sendExpirationNotification(subscription.getUserId());
+            return saved;
+        }
+        
+        return subscription;
+    }
+
+    public Subscription createFreemiumSubscription(String userId) {
+        return createSubscription(userId, PlanType.FREEMIUM);
+    }
+
+    public Subscription createSubscription(String userId, PlanType planType) {
+        if (subscriptionRepository.findByUserId(userId).isPresent()) {
+            return subscriptionRepository.findByUserId(userId).get();
+        }
+
+        Instant now = Instant.now();
+        Instant expiresAt = (planType == PlanType.PREMIUM) 
+                ? now.plus(PLAN_DURATION_DAYS, ChronoUnit.DAYS) 
+                : null;
+
+        Subscription subscription = Subscription.builder()
+                .userId(userId)
+                .planType(planType)
+                .status(SubscriptionStatus.ACTIVE)
+                .startDate(now)
+                .expiresAt(expiresAt)
+                .updatedAt(now)
+                .createdAt(now)
+                .build();
+
+        return subscriptionRepository.save(subscription);
     }
 
     @Transactional
@@ -96,7 +147,6 @@ public class SubscriptionService {
 
         subscription.setStatus(SubscriptionStatus.ACTIVE);
         subscription.setUpdatedAt(Instant.now());
-
         subscriptionRepository.save(subscription);
     }
 
@@ -107,7 +157,6 @@ public class SubscriptionService {
 
         subscription.setStatus(SubscriptionStatus.CANCELLED);
         subscription.setUpdatedAt(Instant.now());
-
         subscriptionRepository.save(subscription);
     }
 
@@ -125,29 +174,51 @@ public class SubscriptionService {
         };
     }
 
+    // Runs daily at midnight - catches expired subscriptions not accessed by users
     @Scheduled(cron = "0 0 0 * * ?")
     @Transactional
     public void expireSubscriptions() {
         Instant now = Instant.now();
         subscriptionRepository.findAll().stream()
-                .filter(s -> s.getExpiresAt().isAfter(now))
+                .filter(s -> s.getPlanType() == PlanType.PREMIUM)
+                .filter(s -> s.getStatus() == SubscriptionStatus.ACTIVE)
+                .filter(s -> s.getExpiresAt() != null)
+                .filter(s -> s.getExpiresAt().isBefore(now))
                 .forEach(s -> {
-                    s.setStatus(SubscriptionStatus.EXPIRED);
+                    s.setPlanType(PlanType.FREEMIUM);
+                    s.setStatus(SubscriptionStatus.ACTIVE);
+                    s.setExpiresAt(null);
                     s.setUpdatedAt(now);
                     subscriptionRepository.save(s);
-                    sendExpirationNotification(s.getUserId(), now);
+                    sendExpirationNotification(s.getUserId());
                 });
-
     }
 
-    private void sendExpirationNotification(String userId, Instant expiryDate) {
+    @Transactional
+    public Subscription downgradeToFreemium(String userId) {
+        Subscription subscription = subscriptionRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Subscription not found for user: " + userId));
+
+        if (subscription.getPlanType() != PlanType.PREMIUM) {
+            throw new IllegalStateException("User is not on PREMIUM plan");
+        }
+
+        Instant now = Instant.now();
+        subscription.setPlanType(PlanType.FREEMIUM);
+        subscription.setStatus(SubscriptionStatus.ACTIVE);
+        subscription.setExpiresAt(null);
+        subscription.setUpdatedAt(now);
+
+        return subscriptionRepository.save(subscription);
+    }
+
+    private void sendExpirationNotification(String userId) {
         Notification notification = new Notification();
         notification.setUserId(userId);
-        notification.setTitle("Subscription Expired");
-        notification.setContent("Your subscription has expired. Please renew to continue enjoying premium features.");
-        notification.setTimestamp(LocalDateTime.from(expiryDate));
+        notification.setTitle("Premium Subscription Expired");
+        notification.setContent("Your premium subscription has expired. Upgrade anytime to regain premium features.");
+        notification.setTimestamp(LocalDateTime.now());
         notification.setRead(false);
-
         notificationService.createNotification(notification);
     }
 }

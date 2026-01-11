@@ -26,6 +26,7 @@ import com.DEVision.JobApplicant.common.config.RoleConfig;
 import com.DEVision.JobApplicant.common.mail.EmailService;
 import com.DEVision.JobApplicant.common.redis.RedisService;
 import com.DEVision.JobApplicant.common.sharding.ShardingConfig;
+import com.DEVision.JobApplicant.subscription.service.SubscriptionService;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -62,6 +63,9 @@ public class AuthInternalService {
 
     @Autowired
     private RedisService redisService;
+
+    @Autowired
+    private SubscriptionService subscriptionService;
 
     /**
      * Register new user with applicant profile
@@ -123,6 +127,9 @@ public class AuthInternalService {
         applicantRequest.setCity(request.getCity());
 
         ApplicantDto savedApplicant = applicantExternalService.createApplicant(applicantRequest);
+
+        // Create default freemium subscription for the new user
+        subscriptionService.createFreemiumSubscription(savedUser.getId());
 
         // Send activation email - if this fails, exception will propagate and @Transactional will rollback
         // This ensures user and applicant are not created if email fails
@@ -306,6 +313,9 @@ public class AuthInternalService {
                 applicantRequest.setCountry(null);
 
                 applicantExternalService.createApplicant(applicantRequest);
+
+                // Create default freemium subscription for the new OAuth2 user
+                subscriptionService.createFreemiumSubscription(savedUser.getId());
 
                 // Optional: Upload avatar from OAuth2 provider
                 // This could be implemented later to fetch and upload the profile picture
