@@ -70,9 +70,17 @@ const StatusBadge = ({ status, isDark }) => {
  * Document Card using Headless Card
  */
 const DocumentCard = ({ type, url, isDark }) => {
+    const handleDownload = () => {
+        if (url) {
+            window.open(url, '_blank');
+        } else {
+            alert('Document not available for download');
+        }
+    };
+
     const cardController = useCard({
         item: { type, url },
-        onView: () => window.open(url, '_blank'),
+        onView: handleDownload,
     });
 
     const documentInfo = {
@@ -83,6 +91,9 @@ const DocumentCard = ({ type, url, isDark }) => {
 
     const info = documentInfo[type] || { label: type, icon: FileText, color: 'gray' };
     const IconComponent = info.icon;
+
+    // Check if URL is valid
+    const hasValidUrl = url && url.startsWith('http');
 
     return (
         <Card
@@ -107,23 +118,26 @@ const DocumentCard = ({ type, url, isDark }) => {
                                 {info.label}
                             </p>
                             <p className={`text-sm ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
-                                PDF Document
+                                {hasValidUrl ? 'PDF Document' : 'Not available'}
                             </p>
                         </div>
                     </div>
                     <Button
                         variant="secondary"
                         size="sm"
-                        className={`transition-all ${isHovered ? 'opacity-100' : 'opacity-70'}`}
+                        onClick={handleDownload}
+                        disabled={!hasValidUrl}
+                        className={`transition-all ${isHovered ? 'opacity-100' : 'opacity-70'} ${!hasValidUrl ? 'cursor-not-allowed opacity-50' : ''}`}
                     >
                         <Download className="w-4 h-4 mr-1" />
-                        Download
+                        {hasValidUrl ? 'Download' : 'Unavailable'}
                     </Button>
                 </>
             )}
         </Card>
     );
 };
+
 
 /**
  * Timeline Event Component
