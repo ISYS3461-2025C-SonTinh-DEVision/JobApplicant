@@ -27,7 +27,26 @@ public class CloudinaryService implements FileStorageService {
             throw new FileStorageException("File must not be null or empty");
         }
 
-        Map<String, Object> options = ObjectUtils.asMap("resource_type", "auto");
+        // Determine resource type based on file content type
+        String contentType = file.getContentType();
+        String originalFilename = file.getOriginalFilename();
+        String extension = originalFilename != null ? 
+            originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase() : "";
+        
+        // Use 'raw' for documents (PDF, DOC, DOCX) to ensure proper download
+        // Cloudinary 'auto' detection sometimes misclassifies PDFs as images
+        String resourceType = "auto";
+        boolean isDocument = contentType != null && (
+            contentType.equals("application/pdf") ||
+            contentType.equals("application/msword") ||
+            contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        ) || "pdf".equals(extension) || "doc".equals(extension) || "docx".equals(extension);
+        
+        if (isDocument) {
+            resourceType = "raw";
+        }
+
+        Map<String, Object> options = ObjectUtils.asMap("resource_type", resourceType);
         if (StringUtils.hasText(folderName)) {
             options.put("folder", folderName);
         }
@@ -36,17 +55,24 @@ public class CloudinaryService implements FileStorageService {
             Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), options);
             String secureUrl = (String) uploadResult.get("secure_url");
             String publicId = (String) uploadResult.get("public_id");
-            String resourceType = (String) uploadResult.get("resource_type");
+            String actualResourceType = (String) uploadResult.get("resource_type");
 
-            if (!StringUtils.hasText(secureUrl) || !StringUtils.hasText(publicId) || !StringUtils.hasText(resourceType)) {
+            if (!StringUtils.hasText(secureUrl) || !StringUtils.hasText(publicId) || !StringUtils.hasText(actualResourceType)) {
                 throw new FileStorageException("Cloudinary upload returned incomplete data");
             }
 
-            return new FileUploadResult(secureUrl, publicId, resourceType);
+            // For raw resources, ensure URL uses /raw/upload/ path
+            // Cloudinary sometimes returns incorrect URL path for raw resources
+            if ("raw".equals(actualResourceType) && secureUrl.contains("/image/upload/")) {
+                secureUrl = secureUrl.replace("/image/upload/", "/raw/upload/");
+            }
+
+            return new FileUploadResult(secureUrl, publicId, actualResourceType);
         } catch (IOException ex) {
             throw new FileStorageException("Failed to upload file to Cloudinary", ex);
         }
     }
+
 
     @Override
     public void deleteFile(String publicId, String resourceType) {
