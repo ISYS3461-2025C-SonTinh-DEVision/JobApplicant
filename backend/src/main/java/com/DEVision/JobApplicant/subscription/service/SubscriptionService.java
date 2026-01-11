@@ -145,7 +145,7 @@ public class SubscriptionService {
         notification.setUserId(userId);
         notification.setTitle("Subscription Expired");
         notification.setContent("Your subscription has expired. Please renew to continue enjoying premium features.");
-        notification.setTimestamp(LocalDateTime.from(expiryDate));
+        notification.setTimestamp(expiryDate); // Use Instant directly
         notification.setRead(false);
 
         notificationService.createNotification(notification);
