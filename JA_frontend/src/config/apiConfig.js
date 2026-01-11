@@ -136,6 +136,9 @@ export const API_ENDPOINTS = {
     CREATE: '/api/search-profiles/me',
     UPDATE: '/api/search-profiles/me',
     DELETE: '/api/search-profiles/me',
+    MATCHED_JOBS: '/api/search-profiles/me/matched-jobs',
+    SIMULATE_MATCH: '/api/search-profiles/me/simulate-job-match',
+    CHECK_MATCHES: '/api/search-profiles/me/check-matches',
   },
 
   // Notification endpoints
