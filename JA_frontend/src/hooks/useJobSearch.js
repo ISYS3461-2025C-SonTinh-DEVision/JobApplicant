@@ -33,9 +33,15 @@ export const useJobSearch = (initialFilters = {}) => {
             setJobs(prev => append ? [...prev, ...data] : data);
             setTotal(totalCount);
 
-            // Report success to JM Connection context
-            if (jmConnection?.reportSuccess) {
-                jmConnection.reportSuccess();
+            // Report connection status based on whether we fell back to mock
+            if (jmConnection) {
+                if (JobSearchService.isUsingMock()) {
+                    // API failed, using mock data - report as disconnected
+                    jmConnection.reportError?.('API unavailable - using cached data');
+                } else {
+                    // Real API succeeded - report as connected
+                    jmConnection.reportSuccess?.();
+                }
             }
 
             return data;
