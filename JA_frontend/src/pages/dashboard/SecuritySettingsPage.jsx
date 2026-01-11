@@ -624,29 +624,22 @@ export default function SecuritySettingsPage() {
         }
     };
 
-    // Step 2: Handle Google verification for NEW email (proving new email ownership)
+    // Step 2: Handle Google verification for NEW email (email auto-extracted from Google token)
     const handleSsoNewEmailVerify = async (idToken) => {
-        if (!ssoNewEmail || !ssoNewEmail.includes('@')) {
-            setSsoEmailError('Please enter a valid email first');
-            return;
-        }
-        if (ssoNewEmail.toLowerCase() === currentUser?.email?.toLowerCase()) {
-            setSsoEmailError('New email must be different from current email');
-            return;
-        }
-
         setSsoEmailVerifying(true);
         setSsoEmailError('');
         try {
-            const response = await AuthService.verifyNewEmailOwnership(ssoNewEmail, idToken);
+            // Backend extracts email from Google token automatically
+            const response = await AuthService.verifyNewEmailOwnership(idToken);
             if (response.success) {
+                setSsoNewEmail(response.verifiedEmail); // Set email from Google response
                 setSsoNewEmailToken(response.newEmailToken);
                 setSsoNewEmailVerified(true);
                 setSsoEmailStep(3); // Move to confirm step
             } else {
-                // Show helpful message if user logged into wrong account
-                if (response.mismatch) {
-                    setSsoEmailError(`You logged into ${response.loggedInAs}. Please log into ${ssoNewEmail} to verify ownership.`);
+                // Show helpful message for same email or other errors
+                if (response.sameEmail) {
+                    setSsoEmailError('You logged into your current email. Please log into a DIFFERENT Google account.');
                 } else {
                     setSsoEmailError(response.message || 'Failed to verify new email');
                 }
@@ -940,7 +933,7 @@ export default function SecuritySettingsPage() {
                             </div>
                         )}
 
-                        {/* Step 2: Enter new email + Verify via Google */}
+                        {/* Step 2: Verify new email via Google (auto-extracted) */}
                         {ssoEmailStep === 2 && (
                             <div className="space-y-4">
                                 <div className={`p-4 rounded-xl ${isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
@@ -952,34 +945,20 @@ export default function SecuritySettingsPage() {
                                 <div className={`p-4 rounded-xl ${isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
                                     <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
                                         <Info className="w-4 h-4 inline mr-2" />
-                                        <strong>Step 2:</strong> Enter your new email, then verify by logging into that Google account.
+                                        <strong>Step 2:</strong> Log into the Google account you want to switch to.
                                     </p>
                                 </div>
 
-                                <FormInput
-                                    label="New Email Address"
-                                    name="ssoNewEmail"
-                                    type="email"
-                                    value={ssoNewEmail}
-                                    onChange={(e) => setSsoNewEmail(e.target.value)}
-                                    icon={Mail}
-                                    placeholder="Enter your new Gmail address"
-                                    required
-                                    variant={isDark ? 'dark' : 'light'}
-                                />
-
-                                {ssoNewEmail && ssoNewEmail.includes('@') && (
-                                    <div className="space-y-3">
-                                        <p className={`text-sm ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
-                                            Now verify you own <strong className="text-primary-400">{ssoNewEmail}</strong> by logging into it:
-                                        </p>
-                                        <SsoVerifyButton
-                                            onVerify={handleSsoNewEmailVerify}
-                                            isLoading={ssoEmailVerifying}
-                                            isDark={isDark}
-                                        />
-                                    </div>
-                                )}
+                                <div className="space-y-3">
+                                    <p className={`text-sm ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
+                                        Click below to log into your <strong className="text-primary-400">new Google account</strong>:
+                                    </p>
+                                    <SsoVerifyButton
+                                        onVerify={handleSsoNewEmailVerify}
+                                        isLoading={ssoEmailVerifying}
+                                        isDark={isDark}
+                                    />
+                                </div>
 
                                 <button
                                     onClick={() => setSsoEmailStep(1)}

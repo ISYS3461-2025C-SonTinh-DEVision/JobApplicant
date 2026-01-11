@@ -360,15 +360,13 @@ class AuthService {
    * Verify new email ownership via Google login
    * 
    * Step 2 of SSO email change flow: User proves they own the NEW email
-   * by logging into that Google account. The idToken must match the newEmail.
+   * by logging into that Google account. Email is automatically extracted from token.
    * 
-   * @param {string} newEmail - New email address to verify
    * @param {string} idToken - Google ID token from logging into NEW Gmail
-   * @returns {Promise<Object>} Result with newEmailToken if successful
+   * @returns {Promise<Object>} Result with newEmailToken and verifiedEmail if successful
    */
-  async verifyNewEmailOwnership(newEmail, idToken) {
+  async verifyNewEmailOwnership(idToken) {
     const response = await httpUtil.post('/api/auth/verify-new-email-ownership', {
-      newEmail,
       idToken,
     });
     return response;

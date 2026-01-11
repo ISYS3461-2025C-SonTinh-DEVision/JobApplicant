@@ -863,19 +863,8 @@ public class AuthInternalService {
             );
         }
 
-        // Check new email is different from current
-        if (user.getEmail().equalsIgnoreCase(newEmail)) {
-            return Map.of("message", "New email must be different from current email", "success", false);
-        }
-
-        // Check if new email is already in use
-        User existingUser = userRepository.findByEmail(newEmail);
-        if (existingUser != null && !existingUser.getId().equals(userId)) {
-            return Map.of("message", "This email is already registered. Please use a different email.", "success", false);
-        }
-
         try {
-            // Verify Google ID token
+            // Verify Google ID token and extract email automatically
             OAuth2UserInfo oauth2UserInfo = oauth2Service.verifyGoogleIdToken(idToken);
             
             if (oauth2UserInfo == null || oauth2UserInfo.getEmail() == null) {
@@ -885,14 +874,24 @@ public class AuthInternalService {
                 );
             }
 
-            // IMPORTANT: Check if token email matches the NEW email user wants to change to
-            if (!newEmail.equalsIgnoreCase(oauth2UserInfo.getEmail())) {
+            // Use email from Google token (user doesn't need to input it manually)
+            String verifiedNewEmail = oauth2UserInfo.getEmail();
+
+            // Check new email is different from current
+            if (user.getEmail().equalsIgnoreCase(verifiedNewEmail)) {
                 return Map.of(
-                    "message", "You logged into a different Google account (" + oauth2UserInfo.getEmail() + "). Please log into " + newEmail + " to verify ownership.",
+                    "message", "You logged into the same email (" + verifiedNewEmail + "). Please log into a DIFFERENT Google account to change your email.",
                     "success", false,
-                    "mismatch", true,
-                    "loggedInAs", oauth2UserInfo.getEmail(),
-                    "expectedEmail", newEmail
+                    "sameEmail", true
+                );
+            }
+
+            // Check if new email is already in use
+            User existingUser = userRepository.findByEmail(verifiedNewEmail);
+            if (existingUser != null && !existingUser.getId().equals(userId)) {
+                return Map.of(
+                    "message", "The email " + verifiedNewEmail + " is already registered. Please use a different Google account.",
+                    "success", false
                 );
             }
 
@@ -900,14 +899,14 @@ public class AuthInternalService {
             String verificationToken = UUID.randomUUID().toString();
             
             // Store new email and token in Redis with 10 minute expiry
-            redisService.setValue("sso_new_email:" + userId, newEmail, 10 * 60);
+            redisService.setValue("sso_new_email:" + userId, verifiedNewEmail, 10 * 60);
             redisService.setValue("sso_new_email_token:" + userId, verificationToken, 10 * 60);
 
             return Map.of(
                 "message", "New email verified successfully! You can now complete the email change.",
                 "success", true,
                 "newEmailToken", verificationToken,
-                "verifiedEmail", newEmail
+                "verifiedEmail", verifiedNewEmail
             );
 
         } catch (Exception e) {
