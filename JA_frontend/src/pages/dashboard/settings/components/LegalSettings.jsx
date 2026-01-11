@@ -40,9 +40,9 @@ const getColorClasses = (color, isDark) => {
     return colors[color] || colors.blue;
 };
 
-export default function LegalSettings() {
+export default function LegalSettings({ initialSection = null }) {
     const { isDark } = useTheme();
-    const [expandedSection, setExpandedSection] = useState(null);
+    const [expandedSection, setExpandedSection] = useState(initialSection);
     const [fullScreenDoc, setFullScreenDoc] = useState(null);
 
     const textPrimary = isDark ? 'text-white' : 'text-gray-900';

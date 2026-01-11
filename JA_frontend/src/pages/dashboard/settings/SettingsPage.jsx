@@ -37,10 +37,29 @@ const SETTINGS_TABS = [
     { id: 'legal', label: 'Legal', icon: FileText, description: 'Terms & policies' },
 ];
 
+// Legal document sub-sections (for direct linking)
+const LEGAL_SECTIONS = ['terms', 'privacy', 'cookies', 'disclaimer', 'refund', 'faq'];
+
 export default function SettingsPage() {
     const { isDark } = useTheme();
     const [searchParams, setSearchParams] = useSearchParams();
-    const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'general');
+
+    // Handle initial tab from URL - map legal sections to legal tab
+    const getInitialTab = () => {
+        const tab = searchParams.get('tab') || 'general';
+        // If it's a legal document section, use 'legal' tab
+        if (LEGAL_SECTIONS.includes(tab)) {
+            return 'legal';
+        }
+        return tab;
+    };
+
+    const [activeTab, setActiveTab] = useState(getInitialTab());
+
+    // Get legal section to auto-expand (if coming from direct link)
+    const initialLegalSection = LEGAL_SECTIONS.includes(searchParams.get('tab'))
+        ? searchParams.get('tab')
+        : null;
 
     // Update URL when tab changes
     useEffect(() => {
@@ -158,7 +177,7 @@ export default function SettingsPage() {
                             {activeTab === 'notifications' && <NotificationSettings />}
                             {activeTab === 'appearance' && <AppearanceSettings />}
                             {activeTab === 'privacy' && <PrivacySettings />}
-                            {activeTab === 'legal' && <LegalSettings />}
+                            {activeTab === 'legal' && <LegalSettings initialSection={initialLegalSection} />}
                         </div>
                     </div>
                 </div>
