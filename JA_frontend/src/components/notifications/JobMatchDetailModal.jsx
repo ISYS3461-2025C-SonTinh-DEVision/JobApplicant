@@ -20,8 +20,10 @@ import { useNavigate } from 'react-router-dom';
 /**
  * Circular Progress Ring for Match Score
  */
-const MatchScoreRing = ({ score, size = 120, isDark }) => {
-    const radius = (size - 20) / 2;
+const MatchScoreRing = ({ score, size = 140, isDark }) => {
+    // Larger radius with thinner stroke for cleaner look
+    const strokeWidth = 8;
+    const radius = (size - strokeWidth * 2) / 2 - 8; // Extra padding for text
     const circumference = 2 * Math.PI * radius;
     const strokeDashoffset = circumference - (score / 100) * circumference;
 
@@ -45,7 +47,7 @@ const MatchScoreRing = ({ score, size = 120, isDark }) => {
                     r={radius}
                     fill="none"
                     stroke={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}
-                    strokeWidth="10"
+                    strokeWidth={strokeWidth}
                 />
                 {/* Progress ring */}
                 <circle
@@ -54,25 +56,26 @@ const MatchScoreRing = ({ score, size = 120, isDark }) => {
                     r={radius}
                     fill="none"
                     stroke={colors.ring}
-                    strokeWidth="10"
+                    strokeWidth={strokeWidth}
                     strokeLinecap="round"
                     strokeDasharray={circumference}
                     strokeDashoffset={strokeDashoffset}
                     style={{ transition: 'stroke-dashoffset 1s ease-out' }}
                 />
             </svg>
-            {/* Center content */}
+            {/* Center content - with more padding */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className={`text-3xl font-bold ${colors.text}`}>
+                <span className={`text-4xl font-bold ${colors.text}`}>
                     {Math.round(score)}%
                 </span>
-                <span className={`text-xs font-medium ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                <span className={`text-sm font-medium mt-1 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
                     Match
                 </span>
             </div>
         </div>
     );
 };
+
 
 /**
  * Score Breakdown Item
@@ -160,16 +163,33 @@ export default function JobMatchDetailModal({ isOpen, onClose, matchData }) {
         postedDate,
         expiryDate,
         jobPostId,
+        // Real score breakdown from backend (actual algorithm results)
+        skillsScore,
+        salaryScore,
+        locationScore,
+        employmentScore,
+        titleScore,
     } = matchData;
 
-    // Calculate individual scores (simulated breakdown based on match algorithm)
-    // Backend weights: skills 30%, salary 25%, location 20%, employment 15%, title 10%
-    const calculateBreakdown = () => {
+    // Use real scores from backend, fallback to calculated estimates if not available
+    const getBreakdown = () => {
+        // If backend provides real scores, use them directly
+        if (skillsScore !== undefined && salaryScore !== undefined) {
+            return {
+                skills: skillsScore,
+                salary: salaryScore,
+                location: locationScore || 50,
+                employment: employmentScore || 50,
+                title: titleScore || 50,
+            };
+        }
+
+        // Fallback: Calculate estimates based on available data
+        // (for backward compatibility with old notifications without breakdown)
         const skillMatchRatio = requiredSkills.length > 0
             ? (matchedSkills.length / requiredSkills.length) * 100
             : 50;
 
-        // Estimate scores based on overall match
         return {
             skills: Math.min(100, skillMatchRatio),
             salary: matchScore > 70 ? 85 : matchScore > 50 ? 65 : 40,
@@ -179,7 +199,8 @@ export default function JobMatchDetailModal({ isOpen, onClose, matchData }) {
         };
     };
 
-    const breakdown = calculateBreakdown();
+    const breakdown = getBreakdown();
+
 
     const formatSalary = () => {
         if (!salaryMin && !salaryMax) return 'Not specified';
@@ -260,7 +281,7 @@ export default function JobMatchDetailModal({ isOpen, onClose, matchData }) {
 
                                     {/* Title area with score ring */}
                                     <div className="flex items-start gap-5">
-                                        <MatchScoreRing score={matchScore} size={100} isDark={isDark} />
+                                        <MatchScoreRing score={matchScore} size={120} isDark={isDark} />
                                         <div className="flex-1 min-w-0 pt-2">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className={`

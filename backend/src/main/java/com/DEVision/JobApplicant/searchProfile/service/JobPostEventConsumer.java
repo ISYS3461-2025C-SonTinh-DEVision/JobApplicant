@@ -138,17 +138,24 @@ public class JobPostEventConsumer {
         matchData.put("requiredSkills", matchedJobPost.getRequiredSkills());
         matchData.put("matchedSkills", matchedJobPost.getMatchedSkills());
         
-        // Match score
+        // Overall match score
         matchData.put("matchScore", matchedJobPost.getMatchScore());
+        
+        // ========== SCORE BREAKDOWN (actual algorithm values) ==========
+        // These are the real calculated scores from JobMatchingService
+        matchData.put("skillsScore", matchedJobPost.getSkillsScore() != null ? matchedJobPost.getSkillsScore() : 0);
+        matchData.put("salaryScore", matchedJobPost.getSalaryScore() != null ? matchedJobPost.getSalaryScore() : 0);
+        matchData.put("locationScore", matchedJobPost.getLocationScore() != null ? matchedJobPost.getLocationScore() : 0);
+        matchData.put("employmentScore", matchedJobPost.getEmploymentScore() != null ? matchedJobPost.getEmploymentScore() : 0);
+        matchData.put("titleScore", matchedJobPost.getTitleScore() != null ? matchedJobPost.getTitleScore() : 0);
         
         // Dates
         matchData.put("postedDate", matchedJobPost.getPostedDate());
         matchData.put("expiryDate", matchedJobPost.getExpiryDate());
         
-        // Company info - not available in JobPostEvent, leave for frontend to fetch if needed
-        
         return matchData;
     }
 }
+
 
 

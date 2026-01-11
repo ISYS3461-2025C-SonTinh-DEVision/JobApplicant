@@ -58,21 +58,21 @@ public class JobMatchingService {
 
         for (SearchProfile searchProfile : searchProfiles) {
             try {
-                double matchScore = calculateMatchScore(searchProfile, jobPost);
+                MatchScoreResult matchResult = calculateMatchScore(searchProfile, jobPost);
 
-                if (matchScore >= MIN_MATCH_SCORE) {
+                if (matchResult.totalScore >= MIN_MATCH_SCORE) {
                     // Check if already matched
                     if (!matchedJobPostRepository.existsByUserIdAndJobPostId(searchProfile.getUserId(), jobPost.getId())) {
-                        saveMatchedJobPost(searchProfile, jobPost, matchScore);
+                        saveMatchedJobPost(searchProfile, jobPost, matchResult);
                         logger.info("Matched job post {} with search profile {} (userId: {}, score: {}%)",
-                                jobPost.getId(), searchProfile.getId(), searchProfile.getUserId(), matchScore);
+                                jobPost.getId(), searchProfile.getId(), searchProfile.getUserId(), matchResult.totalScore);
                     } else {
                         logger.debug("Job post {} already matched for user {}", jobPost.getId(),
                                 searchProfile.getUserId());
                     }
                 } else {
                     logger.debug("Job post {} does not match search profile {} (score: {}%)",
-                            jobPost.getId(), searchProfile.getId(), matchScore);
+                            jobPost.getId(), searchProfile.getId(), matchResult.totalScore);
                 }
             } catch (Exception e) {
                 logger.error("Error matching job post {} with search profile {}: {}",
@@ -82,9 +82,32 @@ public class JobMatchingService {
     }
 
     /**
-     * Calculate match score between search profile and job post (0-100)
+     * Result class to hold match score with detailed breakdown
      */
-    private double calculateMatchScore(SearchProfile searchProfile, JobPostEvent jobPost) {
+    private static class MatchScoreResult {
+        double totalScore;
+        double skillsScore;
+        double salaryScore;
+        double locationScore;
+        double employmentScore;
+        double titleScore;
+        
+        MatchScoreResult(double totalScore, double skillsScore, double salaryScore, 
+                         double locationScore, double employmentScore, double titleScore) {
+            this.totalScore = totalScore;
+            this.skillsScore = skillsScore;
+            this.salaryScore = salaryScore;
+            this.locationScore = locationScore;
+            this.employmentScore = employmentScore;
+            this.titleScore = titleScore;
+        }
+    }
+
+    /**
+     * Calculate match score between search profile and job post (0-100)
+     * Returns detailed breakdown of individual component scores
+     */
+    private MatchScoreResult calculateMatchScore(SearchProfile searchProfile, JobPostEvent jobPost) {
         double totalScore = 0.0;
         double maxScore = 0.0;
 
@@ -109,12 +132,14 @@ public class JobMatchingService {
         maxScore += 15.0;
 
         // Job title matching (10% weight)
-        double jobTitleScore = matchJobTitle(searchProfile.getJobTitles(), jobPost.getTitle());
-        totalScore += jobTitleScore * 0.1;
+        double titleScore = matchJobTitle(searchProfile.getJobTitles(), jobPost.getTitle());
+        totalScore += titleScore * 0.1;
         maxScore += 10.0;
 
         // Normalize to 0-100
-        return maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+        double finalScore = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+        
+        return new MatchScoreResult(finalScore, skillsScore, salaryScore, locationScore, employmentScore, titleScore);
     }
 
     /**
@@ -300,9 +325,9 @@ public class JobMatchingService {
     }
 
     /**
-     * Save matched job post
+     * Save matched job post with detailed score breakdown
      */
-    private void saveMatchedJobPost(SearchProfile searchProfile, JobPostEvent jobPost, double matchScore) {
+    private void saveMatchedJobPost(SearchProfile searchProfile, JobPostEvent jobPost, MatchScoreResult matchResult) {
         MatchedJobPost matchedJobPost = new MatchedJobPost();
         matchedJobPost.setUserId(searchProfile.getUserId());
         matchedJobPost.setApplicantId(null); // Not using applicant ID anymore
@@ -312,9 +337,16 @@ public class JobMatchingService {
         matchedJobPost.setEmploymentTypes(jobPost.getEmploymentType());
         matchedJobPost.setLocation(jobPost.getLocation());
         matchedJobPost.setRequiredSkills(jobPost.getSkills());
-        matchedJobPost.setMatchScore(matchScore);
+        matchedJobPost.setMatchScore(matchResult.totalScore);
         matchedJobPost.setPostedDate(jobPost.getPostedDate());
         matchedJobPost.setExpiryDate(jobPost.getExpiryDate());
+        
+        // Save individual component scores for detailed breakdown
+        matchedJobPost.setSkillsScore(matchResult.skillsScore);
+        matchedJobPost.setSalaryScore(matchResult.salaryScore);
+        matchedJobPost.setLocationScore(matchResult.locationScore);
+        matchedJobPost.setEmploymentScore(matchResult.employmentScore);
+        matchedJobPost.setTitleScore(matchResult.titleScore);
 
         // Calculate matched skills (skills that user wants AND job requires)
         List<String> matchedSkills = findMatchedSkills(searchProfile.getDesiredSkills(), jobPost.getSkills());
@@ -329,6 +361,7 @@ public class JobMatchingService {
 
         matchedJobPostRepository.save(matchedJobPost);
     }
+
 
     /**
      * Find skills that match between search profile desired skills and job post required skills
