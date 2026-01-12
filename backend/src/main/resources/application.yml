@@ -50,12 +50,12 @@ spring:
       timeout: 60000
       ssl:
         enabled: ${REDIS_SSL_ENABLED:false}
-      lettuce:
+      jedis:
         pool:
           max-active: 8
           max-idle: 8
           min-idle: 0
-          max-wait: -1ms
+          max-wait: -1
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
