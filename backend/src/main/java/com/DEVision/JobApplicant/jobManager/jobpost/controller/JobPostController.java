@@ -74,5 +74,41 @@ public class JobPostController {
         }
         return ResponseEntity.notFound().build();
     }
+    
+    @Operation(
+        summary = "Delete job post",
+        description = "Delete a job post from JM system. Admin-only operation per Requirement 6.2.2."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Job post deleted successfully"),
+        @ApiResponse(responseCode = "404", description = "Job post not found"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    @DeleteMapping("/{jobPostId}")
+    public ResponseEntity<?> deleteJobPost(
+            @Parameter(description = "Job post ID to delete")
+            @PathVariable String jobPostId,
+            @RequestHeader("Authorization") String authorizationHeader) {
+        try {
+            // Forward the user's JWT token for authentication with JM API
+            boolean deleted = callJobPostService.deleteJobPost(jobPostId, authorizationHeader);
+            if (deleted) {
+                return ResponseEntity.ok(java.util.Map.of(
+                    "success", true,
+                    "message", "Job post deleted successfully"
+                ));
+            } else {
+                return ResponseEntity.status(404).body(java.util.Map.of(
+                    "success", false,
+                    "message", "Job post not found"
+                ));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(java.util.Map.of(
+                "success", false,
+                "message", "Failed to delete job post: " + e.getMessage()
+            ));
+        }
+    }
 }
 

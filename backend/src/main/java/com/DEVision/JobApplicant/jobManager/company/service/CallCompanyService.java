@@ -136,6 +136,15 @@ public class CallCompanyService implements CompanyServiceInf {
             logger.debug("JM Response: {}", response.getBody());
 
             return response.getBody();
+        } catch (HttpClientErrorException.NotFound e) {
+            // JM API doesn't have this endpoint - return user-friendly message
+            logger.warn("Activate endpoint not found in JM system for account {}: {}", accountId, e.getMessage());
+            AccountActionResponse errorResponse = new AccountActionResponse();
+            errorResponse.setSuccess(false);
+            errorResponse.setMessage("Company activation is not supported by the Job Manager system. " +
+                "This feature may be available in a future update.");
+            errorResponse.setStatusCode(404);
+            return errorResponse;
         } catch (HttpClientErrorException e) {
             logger.error("Error activating account {}: {} - {}",
                 accountId, e.getStatusCode(), e.getResponseBodyAsString());
@@ -170,6 +179,15 @@ public class CallCompanyService implements CompanyServiceInf {
             logger.debug("JM Response: {}", response.getBody());
 
             return response.getBody();
+        } catch (HttpClientErrorException.NotFound e) {
+            // JM API doesn't have this endpoint - return user-friendly message
+            logger.warn("Deactivate endpoint not found in JM system for account {}: {}", accountId, e.getMessage());
+            AccountActionResponse errorResponse = new AccountActionResponse();
+            errorResponse.setSuccess(false);
+            errorResponse.setMessage("Company deactivation is not supported by the Job Manager system. " +
+                "This feature may be available in a future update.");
+            errorResponse.setStatusCode(404);
+            return errorResponse;
         } catch (HttpClientErrorException e) {
             logger.error("Error deactivating account {}: {} - {}",
                 accountId, e.getStatusCode(), e.getResponseBodyAsString());

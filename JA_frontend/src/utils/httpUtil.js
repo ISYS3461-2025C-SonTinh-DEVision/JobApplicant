@@ -164,10 +164,21 @@ class HttpUtil {
     switch (response.status) {
       case 401:
         error.message = data?.error || data?.message || 'Unauthorized - Please login again';
-        // Clear tokens on 401
-        this.clearTokens();
-        // Dispatch event for auth context to handle
-        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        // Check if this is an account deactivation error
+        if (data?.error === 'ACCOUNT_DEACTIVATED') {
+          // Dispatch account deactivated event for modal to show
+          window.dispatchEvent(new CustomEvent('auth:account-deactivated', {
+            detail: {
+              message: data?.message || 'Your account has been deactivated.',
+              reason: 'Your account has been deactivated by an administrator. Please contact support if you believe this is an error.',
+            }
+          }));
+          // Don't clear tokens immediately - let the modal show first
+        } else {
+          // Regular 401 - clear tokens and dispatch unauthorized
+          this.clearTokens();
+          window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        }
         break;
       case 403:
         error.message = data?.error || data?.message || 'Forbidden - Access denied';
