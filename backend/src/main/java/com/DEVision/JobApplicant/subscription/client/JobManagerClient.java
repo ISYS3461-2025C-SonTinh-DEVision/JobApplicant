@@ -3,6 +3,7 @@ package com.DEVision.JobApplicant.subscription.client;
 import java.math.BigDecimal;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -32,7 +33,7 @@ public class JobManagerClient {
     @Value("${app.backend.base-url:http://localhost:8080}")
     private String backendBaseUrl;
 
-    public JobManagerClient(RestClient restClient) {
+    public JobManagerClient(@Qualifier("jobManagerRestClient") RestClient restClient) {
         this.restClient = restClient;
     }
 

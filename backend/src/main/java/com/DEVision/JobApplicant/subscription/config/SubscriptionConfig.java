@@ -8,7 +8,7 @@ import org.springframework.web.client.RestClient;
 @Configuration
 public class SubscriptionConfig {
 
-    @Value("${jm.service.url}")
+    @Value("${app.job-manager.base-url}")
     private String jobManagerBaseUrl;
 
     @Bean
