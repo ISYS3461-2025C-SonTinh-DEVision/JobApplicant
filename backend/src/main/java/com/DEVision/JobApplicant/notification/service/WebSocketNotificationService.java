@@ -24,11 +24,14 @@ public class WebSocketNotificationService {
      * Destination: /user/{userId}/queue/notifications
      */
     public void sendToUser(String userId, NotificationResponse notification) {
+        logger.info("Sending WebSocket notification to user: {} - Type: {} - Title: {}", 
+            userId, notification.getType(), notification.getTitle());
         messagingTemplate.convertAndSendToUser(
             userId, 
             "/queue/notifications", 
             notification
         );
+        logger.info("WebSocket notification sent successfully to user: {}", userId);
     }
     
     /**

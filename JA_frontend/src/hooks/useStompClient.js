@@ -78,12 +78,11 @@ export default function useStompClient(options = {}) {
     }, [config.debug]);
 
     /**
-     * Get WebSocket URL for STOMP connection
+     * Get WebSocket URL for STOMP connection (HTTP URL for SockJS)
      */
     const getWebSocketUrl = useCallback(() => {
-        const baseUrl = API_BASE_URL.replace(/^http/, 'ws');
-        // SockJS-compatible endpoint typically ends with /websocket
-        return `${baseUrl}/ws/notifications/websocket`;
+        // For SockJS, use HTTP URL (not WS)
+        return `${API_BASE_URL}/ws/notifications`;
     }, []);
 
     /**
@@ -110,9 +109,15 @@ export default function useStompClient(options = {}) {
         const wsUrl = getWebSocketUrl();
         log('Connecting to:', wsUrl);
 
-        // Create STOMP client
+        // Create STOMP client with SockJS support
         const client = new Client({
-            brokerURL: wsUrl,
+            // Use webSocketFactory for SockJS compatibility with Spring WebSocket
+            webSocketFactory: () => {
+                // Try native WebSocket first with the /websocket suffix
+                const nativeWsUrl = wsUrl.replace(/^http/, 'ws') + '/websocket';
+                log('Creating WebSocket connection to:', nativeWsUrl);
+                return new WebSocket(nativeWsUrl);
+            },
             connectHeaders: {
                 'Authorization': `Bearer ${token}`,
             },

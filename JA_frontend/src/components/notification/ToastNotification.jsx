@@ -5,10 +5,12 @@
  * Uses Headless UI pattern with useHeadlessNotification hook.
  * 
  * Architecture: A.3.a (Ultimo Frontend) - Headless UI Pattern
+ * 
+ * NOTE: This component is rendered outside RouterProvider in App.js,
+ * so we cannot use useNavigate(). We use window.location.href instead.
  */
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
     CheckCircle, XCircle, AlertCircle, Info, X,
     ExternalLink, Briefcase, Bell
@@ -74,7 +76,6 @@ function getToastConfig(type, isDark) {
  */
 function Toast({ toast, onDismiss }) {
     const { isDark } = useTheme();
-    const navigate = useNavigate();
     const [isExiting, setIsExiting] = useState(false);
     const [progress, setProgress] = useState(100);
 
@@ -105,10 +106,10 @@ function Toast({ toast, onDismiss }) {
         setTimeout(() => onDismiss(toast.id), 200);
     };
 
-    // Handle action click
+    // Handle action click (uses window.location since outside Router)
     const handleAction = () => {
         if (toast.action?.href) {
-            navigate(toast.action.href);
+            window.location.href = toast.action.href;
         } else if (toast.action?.onClick) {
             toast.action.onClick();
         }
