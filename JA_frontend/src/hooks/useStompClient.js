@@ -132,7 +132,7 @@ export default function useStompClient(options = {}) {
                 setConnectionState(STOMP_STATE.CONNECTED);
                 reconnectAttemptRef.current = 0;
 
-                // Subscribe to user notification queue
+                // Subscribe to user notification queue (personal notifications)
                 const notificationSub = client.subscribe('/user/queue/notifications', (message) => {
                     try {
                         const data = JSON.parse(message.body);
@@ -167,6 +167,30 @@ export default function useStompClient(options = {}) {
                     }
                 });
                 subscriptionsRef.current.set('notification-count', countSub);
+
+                // Subscribe to broadcast topic for system-wide notifications
+                const broadcastSub = client.subscribe('/topic/notifications', (message) => {
+                    try {
+                        const data = JSON.parse(message.body);
+                        log('Broadcast notification received:', data);
+                        messageHandlersRef.current.onNotification?.(data);
+                    } catch (e) {
+                        log('Failed to parse broadcast notification:', e);
+                    }
+                });
+                subscriptionsRef.current.set('broadcast-notifications', broadcastSub);
+
+                // Subscribe to broadcast admin actions (job deletions, company deactivations)
+                const broadcastAdminSub = client.subscribe('/topic/admin-action', (message) => {
+                    try {
+                        const data = JSON.parse(message.body);
+                        log('Broadcast admin action received:', data);
+                        messageHandlersRef.current.onAdminAction?.(data);
+                    } catch (e) {
+                        log('Failed to parse broadcast admin action:', e);
+                    }
+                });
+                subscriptionsRef.current.set('broadcast-admin-action', broadcastAdminSub);
 
                 // Call user callback
                 onConnectRef.current?.(frame);

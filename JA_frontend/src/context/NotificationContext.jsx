@@ -211,14 +211,59 @@ export function NotificationProvider({ children }) {
         messageHandlers: {
             onAdminAction: handleAdminAction,
             onNotification: (data) => {
-                // Also handle notifications via STOMP if received
-                handleWebSocketMessage({ type: 'NOTIFICATION', payload: data });
+                console.log('[NotificationContext] Real-time notification received via STOMP:', data);
+
+                // Map backend NotificationResponse format to frontend format
+                // Backend sends: { id, userId, title, content, timestamp, read, type, metadata }
+                const notification = {
+                    id: data.id || `notif_${Date.now()}`,
+                    type: data.type || 'JOB_MATCH',
+                    title: data.title || 'New Notification',
+                    content: data.content || data.message || '',
+                    read: data.read || false,
+                    createdAt: data.timestamp || new Date().toISOString(),
+                    // Preserve metadata for job match details (View Details modal)
+                    metadata: data.metadata || {},
+                    jobId: data.metadata?.jobPostId || data.jobId,
+                };
+
+                // Add to notifications list (prepend for newest first)
+                setNotifications(prev => {
+                    // Avoid duplicates
+                    if (prev.some(n => n.id === notification.id)) {
+                        return prev;
+                    }
+                    return [notification, ...prev];
+                });
+
+                // Update unread count
+                if (!notification.read) {
+                    setUnreadCount(prev => prev + 1);
+                }
+
+                // Show toast notification immediately - this is the real-time feedback!
+                showToastInternal({
+                    id: notification.id,
+                    type: notification.type === 'JOB_MATCH' ? 'success' : notification.type,
+                    title: notification.title,
+                    message: notification.content,
+                    duration: 8000, // Longer duration for important job match notifications
+                    action: notification.jobId ? {
+                        label: 'View Job',
+                        href: `/dashboard/jobs/${notification.jobId}`,
+                    } : null,
+                });
             },
             onNotificationCount: (data) => {
+                console.log('[NotificationContext] Unread count update:', data);
                 setUnreadCount(data.unreadCount || 0);
             },
         },
-        onConnect: () => console.log('[NotificationContext] STOMP connected'),
+        onConnect: () => {
+            console.log('[NotificationContext] STOMP connected - Real-time notifications active!');
+            // Refresh notifications when STOMP reconnects to get any missed notifications
+            loadNotifications();
+        },
         onDisconnect: () => console.log('[NotificationContext] STOMP disconnected'),
         onError: (e) => console.error('[NotificationContext] STOMP error:', e),
     });
