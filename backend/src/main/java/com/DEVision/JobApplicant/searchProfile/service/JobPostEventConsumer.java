@@ -45,11 +45,30 @@ public class JobPostEventConsumer {
 
     /**
      * Consume job post events from Kafka
+     * Handles wrapped events from JM with eventType, eventId, timestamp, and data fields
      */
     @KafkaListener(topics = TOPIC, groupId = GROUP_ID)
     public void consumeJobPostEvent(JobPostEvent jobPost) {
         try {
-            logger.info("Received job post event: {} - {}", jobPost.getId(), jobPost.getTitle());
+            logger.info("===== Received Kafka event from topic: {} =====", TOPIC);
+            logger.info("Event details: {}", jobPost);
+            
+            // Check event type - only process JOB_POST_CREATED events
+            String eventType = jobPost.getEventType();
+            if (eventType != null && !"JOB_POST_CREATED".equalsIgnoreCase(eventType) 
+                    && !"JOB_POST_UPDATED".equalsIgnoreCase(eventType)) {
+                logger.debug("Skipping event type: {} (only processing JOB_POST_CREATED/JOB_POST_UPDATED)", eventType);
+                return;
+            }
+            
+            // Validate required fields using smart getters
+            if (jobPost.getId() == null || jobPost.getTitle() == null) {
+                logger.warn("Received job post event with null id or title. Event: {}", jobPost);
+                return;
+            }
+            
+            logger.info("Processing job post: id={}, title={}, status={}, skills={}", 
+                    jobPost.getId(), jobPost.getTitle(), jobPost.getStatus(), jobPost.getSkills());
 
             // Match job post with search profiles (user's job search preferences)
             jobMatchingService.matchJobPostWithSearchProfiles(jobPost);
@@ -58,7 +77,7 @@ public class JobPostEventConsumer {
             notifyPremiumUsers(jobPost);
 
         } catch (Exception e) {
-            logger.error("Error processing job post event {}: {}", jobPost.getId(), e.getMessage(), e);
+            logger.error("Error processing job post event: {}", e.getMessage(), e);
         }
     }
 

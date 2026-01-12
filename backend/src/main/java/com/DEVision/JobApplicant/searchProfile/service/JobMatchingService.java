@@ -11,6 +11,8 @@ import com.DEVision.JobApplicant.searchProfile.entity.MatchedJobPost;
 import com.DEVision.JobApplicant.searchProfile.entity.SearchProfile;
 import com.DEVision.JobApplicant.searchProfile.repository.MatchedJobPostRepository;
 import com.DEVision.JobApplicant.searchProfile.repository.SearchProfileRepository;
+import com.DEVision.JobApplicant.jobManager.jobpost.service.CallJobPostService;
+import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostDto;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,6 +35,9 @@ public class JobMatchingService {
 
     @Autowired
     private MatchedJobPostRepository matchedJobPostRepository;
+    
+    @Autowired
+    private CallJobPostService callJobPostService;
 
     /**
      * Match a job post with all search profiles (user's job search preferences)
@@ -326,8 +331,9 @@ public class JobMatchingService {
 
     /**
      * Save matched job post with detailed score breakdown
+     * @return the saved MatchedJobPost entity
      */
-    private void saveMatchedJobPost(SearchProfile searchProfile, JobPostEvent jobPost, MatchScoreResult matchResult) {
+    private MatchedJobPost saveMatchedJobPost(SearchProfile searchProfile, JobPostEvent jobPost, MatchScoreResult matchResult) {
         MatchedJobPost matchedJobPost = new MatchedJobPost();
         matchedJobPost.setUserId(searchProfile.getUserId());
         matchedJobPost.setApplicantId(null); // Not using applicant ID anymore
@@ -359,7 +365,7 @@ public class JobMatchingService {
             matchedJobPost.setSalaryCurrency(jobPost.getSalary().getCurrency());
         }
 
-        matchedJobPostRepository.save(matchedJobPost);
+        return matchedJobPostRepository.save(matchedJobPost);
     }
 
 
@@ -384,4 +390,129 @@ public class JobMatchingService {
                 .filter(normalizedJobSkills::contains)
                 .collect(Collectors.toList());
     }
+    
+    /**
+     * On-demand job matching for a specific user
+     * Only matches jobs posted AFTER the search profile was created
+     * (Requirement 5.3.1: match incoming NEW job posts against subscriber criteria)
+     * 
+     * @param userId The user ID to check matches for
+     * @return List of newly matched job posts (only new ones from this check)
+     */
+    public List<MatchedJobPost> checkMatchesForUser(String userId) {
+        logger.info("===== On-demand job matching for user {} =====", userId);
+        
+        List<MatchedJobPost> newMatches = new ArrayList<>();
+        
+        // Get user's search profile
+        List<SearchProfile> profiles = searchProfileRepository.findByUserId(userId);
+        if (profiles == null || profiles.isEmpty()) {
+            logger.warn("No search profile found for user {}", userId);
+            return newMatches;
+        }
+        
+        SearchProfile searchProfile = profiles.get(0);
+        Instant profileCreatedAt = searchProfile.getCreatedAt();
+        
+        logger.info("Found search profile for user {}: skills={}, country={}, createdAt={}", 
+                userId, searchProfile.getDesiredSkills(), searchProfile.getDesiredCountry(), profileCreatedAt);
+        
+        // Fetch all job posts from JM API
+        List<JobPostDto> jobPosts;
+        try {
+            jobPosts = callJobPostService.getAllJobPosts();
+            logger.info("Fetched {} job posts from JM API", jobPosts.size());
+        } catch (Exception e) {
+            logger.error("Failed to fetch job posts from JM API: {}", e.getMessage(), e);
+            return newMatches;
+        }
+        
+        // Match each job post against the user's search profile
+        for (JobPostDto jobPost : jobPosts) {
+            try {
+                // Skip inactive jobs
+                if (!Boolean.TRUE.equals(jobPost.getIsActive())) {
+                    continue;
+                }
+                
+                // Check if already matched
+                if (matchedJobPostRepository.existsByUserIdAndJobPostId(userId, jobPost.getUniqueId())) {
+                    logger.debug("Job {} already matched for user {}", jobPost.getUniqueId(), userId);
+                    continue;
+                }
+                
+                // Only match jobs posted AFTER the search profile was created
+                // This ensures only "new" jobs are matched (Requirement 5.3.1)
+                Instant jobPostedDate = parseDate(jobPost.getPostedDate());
+                if (profileCreatedAt != null && jobPostedDate != null && jobPostedDate.isBefore(profileCreatedAt)) {
+                    logger.debug("Skipping job {} - posted {} before profile created {}", 
+                            jobPost.getUniqueId(), jobPostedDate, profileCreatedAt);
+                    continue;
+                }
+                
+                // Convert JobPostDto to JobPostEvent for matching
+                JobPostEvent event = convertToJobPostEvent(jobPost);
+                
+                // Calculate match score
+                MatchScoreResult matchResult = calculateMatchScore(searchProfile, event);
+                
+                if (matchResult.totalScore >= MIN_MATCH_SCORE) {
+                    MatchedJobPost match = saveMatchedJobPost(searchProfile, event, matchResult);
+                    newMatches.add(match);
+                    logger.info("New match found: job={}, title='{}', user={}, score={}%", 
+                            jobPost.getUniqueId(), jobPost.getTitle(), userId, matchResult.totalScore);
+                }
+            } catch (Exception e) {
+                logger.error("Error matching job {} for user {}: {}", 
+                        jobPost.getUniqueId(), userId, e.getMessage(), e);
+            }
+        }
+        
+        logger.info("On-demand matching complete: {} new matches for user {}", newMatches.size(), userId);
+        return newMatches;
+    }
+    
+    /**
+     * Convert JobPostDto from JM API to JobPostEvent for matching algorithm
+     */
+    private JobPostEvent convertToJobPostEvent(JobPostDto dto) {
+        JobPostEvent event = new JobPostEvent();
+        event.setId(dto.getUniqueId());
+        event.setTitle(dto.getTitle());
+        event.setDescription(dto.getDescription());
+        event.setLocation(dto.getLocation());
+        event.setEmploymentType(dto.getEmploymentType());
+        event.setSkills(dto.getRequiredSkills());
+        event.setStatus("published"); // Active jobs are published
+        event.setPostedDate(parseDate(dto.getPostedDate()));
+        event.setExpiryDate(parseDate(dto.getExpiryDate()));
+        event.setIsFresherFriendly(dto.getIsFresherFriendly());
+        
+        // Convert salary
+        if (dto.getMinSalary() != null || dto.getMaxSalary() != null) {
+            JobPostEvent.SalaryInfo salary = new JobPostEvent.SalaryInfo();
+            salary.setMin(dto.getMinSalary() != null ? BigDecimal.valueOf(dto.getMinSalary()) : null);
+            salary.setMax(dto.getMaxSalary() != null ? BigDecimal.valueOf(dto.getMaxSalary()) : null);
+            salary.setCurrency(dto.getSalaryCurrency());
+            event.setSalary(salary);
+        }
+        
+        return event;
+    }
+    
+    /**
+     * Parse date string to Instant
+     */
+    private Instant parseDate(String dateStr) {
+        if (dateStr == null || dateStr.isEmpty()) {
+            return null;
+        }
+        try {
+            return Instant.parse(dateStr);
+        } catch (Exception e) {
+            logger.debug("Could not parse date '{}': {}", dateStr, e.getMessage());
+            return null;
+        }
+    }
 }
+

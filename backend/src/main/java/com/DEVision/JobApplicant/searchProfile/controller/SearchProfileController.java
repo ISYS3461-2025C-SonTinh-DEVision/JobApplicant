@@ -28,6 +28,7 @@ import com.DEVision.JobApplicant.searchProfile.entity.MatchedJobPost;
 import com.DEVision.JobApplicant.searchProfile.service.MatchedJobPostService;
 import com.DEVision.JobApplicant.searchProfile.service.SearchProfileService;
 import com.DEVision.JobApplicant.searchProfile.service.SkillService;
+import com.DEVision.JobApplicant.searchProfile.service.JobMatchingService;
 import com.DEVision.JobApplicant.notification.external.dto.NotificationRequest;
 import com.DEVision.JobApplicant.notification.external.service.NotificationExternalService;
 
@@ -44,6 +45,7 @@ public class SearchProfileController {
     private final MatchedJobPostService matchedJobPostService;
     private final AuthRepository authRepository;
     private final NotificationExternalService notificationService;
+    private final JobMatchingService jobMatchingService;
 
     // ===== Helper method to get current user ID from JWT =====
     private String getCurrentUserId() {
@@ -154,22 +156,10 @@ public class SearchProfileController {
     }
 
     /**
-     * Get matched jobs for current authenticated user
-     */
-    @GetMapping("/me/matched-jobs")
-    public ResponseEntity<?> getMyMatchedJobs() {
-        try {
-            String userId = getCurrentUserId();
-            List<MatchedJobPost> matchedJobPosts = matchedJobPostService.getMatchedJobPostsByUserId(userId);
-            return ResponseEntity.ok(matchedJobPosts);
-        } catch (SecurityException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
-        }
-    }
-
-    /**
      * Check for job matches for current authenticated user
-     * This endpoint triggers a job matching check and returns matched jobs
+     * This endpoint triggers on-demand job matching: fetches NEW jobs from JM API
+     * (posted after search profile creation), runs matching algorithm, and returns NEW matches only.
+     * (Requirement 5.3.1: match incoming NEW job posts against subscriber criteria)
      */
     @PostMapping("/me/check-matches")
     public ResponseEntity<?> checkMyJobMatches() {
@@ -177,16 +167,52 @@ public class SearchProfileController {
         try {
             String userId = getCurrentUserId();
             System.out.println("DEBUG: userId = " + userId);
-            // Get matched jobs for the user
-            List<MatchedJobPost> matchedJobPosts = matchedJobPostService.getMatchedJobPostsByUserId(userId);
-            System.out.println("DEBUG: Found " + (matchedJobPosts != null ? matchedJobPosts.size() : 0) + " matched jobs");
-            return ResponseEntity.ok(matchedJobPosts);
+            
+            // Trigger on-demand job matching (only matches jobs posted AFTER profile creation)
+            List<MatchedJobPost> newMatches = jobMatchingService.checkMatchesForUser(userId);
+            System.out.println("DEBUG: On-demand matching found " + newMatches.size() + " new matches");
+            
+            // Return ONLY the new matches from this check (not all historical matches)
+            return ResponseEntity.ok(newMatches);
         } catch (SecurityException e) {
             System.out.println("DEBUG: SecurityException - " + e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         } catch (Exception e) {
             System.out.println("DEBUG: Exception - " + e.getMessage());
             e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+    
+    /**
+     * Get all matched jobs for current user (history view)
+     * Returns all matches including viewed ones
+     */
+    @GetMapping("/me/matched-jobs")
+    public ResponseEntity<?> getMyMatchedJobs() {
+        try {
+            String userId = getCurrentUserId();
+            List<MatchedJobPost> matchedJobs = matchedJobPostService.getMatchedJobPostsByUserId(userId);
+            return ResponseEntity.ok(matchedJobs);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+    
+    /**
+     * Clear all matched jobs for current user (for testing/reset)
+     */
+    @DeleteMapping("/me/matched-jobs")
+    public ResponseEntity<?> clearMyMatchedJobs() {
+        try {
+            String userId = getCurrentUserId();
+            matchedJobPostService.deleteMatchedJobsByUserId(userId);
+            return ResponseEntity.ok().body("Matched jobs cleared successfully");
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
