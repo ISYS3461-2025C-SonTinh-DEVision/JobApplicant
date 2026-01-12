@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.DEVision.JobApplicant.common.config.RoleConfig;
 import com.DEVision.JobApplicant.common.config.SystemAuthConfig;
 import com.DEVision.JobApplicant.jwt.CognitoJwtVerifier;
 import com.DEVision.JobApplicant.jwt.JweTokenVerifier;
@@ -57,15 +58,19 @@ public class SystemAuthFilter extends OncePerRequestFilter {
         }
 
         boolean isValid = false;
+        String subsystem = null;
 
         // 1) Prefer Cognito Bearer token on Authorization header
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String bearerToken = authHeader.substring(7);
             System.out.println("SystemAuthFilter: Attempting Cognito token validation for path: " + requestPath);
-            isValid = cognitoJwtVerifier.validateAccessToken(bearerToken);
+            var validationResult = cognitoJwtVerifier.validateAccessTokenWithSubsystem(bearerToken);
+            isValid = validationResult.isValid();
+            subsystem = validationResult.getSubsystem();
             if (isValid) {
-                System.out.println("SystemAuthFilter: Cognito token validation succeeded");
+                System.out.println("SystemAuthFilter: Cognito token validation succeeded" + 
+                    (subsystem != null ? ", subsystem: " + subsystem : ""));
             } else {
                 System.err.println("SystemAuthFilter: Cognito token validation failed, will try fallback methods");
             }
@@ -99,17 +104,28 @@ public class SystemAuthFilter extends OncePerRequestFilter {
         }
 
         if (isValid) {
-            // Create authentication for system
+            // Determine role based on subsystem claim using RoleConfig
+            String role = "ROLE_" + RoleConfig.SYSTEM.getRoleName(); // Default fallback
+            if (subsystem != null) {
+                if ("COMPANY".equals(subsystem)) {
+                    role = "ROLE_" + RoleConfig.COMPANY.getRoleName();
+                } else if ("APPLICANT".equals(subsystem)) {
+                    role = "ROLE_" + RoleConfig.APPLICANT.getRoleName();
+                }
+            }
+
+            // Create authentication for system with subsystem role
             UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
                     SystemAuthConfig.JOB_MANAGER_SYSTEM,
                     null,
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_SYSTEM"))
+                    Collections.singletonList(new SimpleGrantedAuthority(role))
                 );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            System.out.println("System-to-system authentication successful for: " + requestPath);
+            System.out.println("System-to-system authentication successful for: " + requestPath + 
+                " with role: " + role + (subsystem != null ? " (subsystem: " + subsystem + ")" : ""));
         } else {
             System.err.println("System-to-system authentication failed for: " + requestPath);
             System.err.println("  - Authorization header present: " + (authHeader != null));

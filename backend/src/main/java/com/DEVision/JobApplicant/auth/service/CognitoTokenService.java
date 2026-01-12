@@ -42,6 +42,10 @@ public class CognitoTokenService {
     @Value("${cognito.required-scope:default-m2m-resource-server-wti-ej/read}")
     private String scope;
 
+    // Note: For custom claims in Cognito tokens (like subsystem), a Pre-Token Generation
+    // Lambda trigger must be configured in AWS Cognito. The trigger can identify the
+    // calling system by client_id and add appropriate claims (e.g., subsystem: "APPLICANT")
+
     @Autowired
     private RedisService redisService;
 
@@ -69,6 +73,7 @@ public class CognitoTokenService {
 
         // Fetch new token from Cognito
         System.out.println("Fetching new Cognito token from: " + tokenUrl);
+        System.out.println("Cognito token: " + fetchAndCacheToken());
         return fetchAndCacheToken();
     }
 
@@ -101,6 +106,8 @@ public class CognitoTokenService {
                 body.add("client_secret", clientSecret);
             }
             body.add("scope", scope);
+            // Note: Custom claims (like subsystem) require a Pre-Token Generation Lambda
+            // trigger in AWS Cognito. The trigger identifies the client by client_id.
 
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 

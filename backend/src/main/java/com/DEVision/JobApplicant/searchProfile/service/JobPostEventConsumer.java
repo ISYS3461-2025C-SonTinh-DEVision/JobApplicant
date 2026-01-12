@@ -1,13 +1,14 @@
 package com.DEVision.JobApplicant.searchProfile.service;
 
-import com.DEVision.JobApplicant.auth.entity.User;
-import com.DEVision.JobApplicant.auth.repository.AuthRepository;
-import com.DEVision.JobApplicant.common.model.PlanType;
 import com.DEVision.JobApplicant.notification.external.dto.NotificationRequest;
 import com.DEVision.JobApplicant.notification.external.service.NotificationExternalService;
 import com.DEVision.JobApplicant.searchProfile.dto.JobPostEvent;
 import com.DEVision.JobApplicant.searchProfile.entity.MatchedJobPost;
 import com.DEVision.JobApplicant.searchProfile.repository.MatchedJobPostRepository;
+import com.DEVision.JobApplicant.subscription.entity.Subscription;
+import com.DEVision.JobApplicant.subscription.enums.PlanType;
+import com.DEVision.JobApplicant.subscription.enums.SubscriptionStatus;
+import com.DEVision.JobApplicant.subscription.service.SubscriptionService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,9 +16,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Kafka consumer for job post events
@@ -41,7 +44,7 @@ public class JobPostEventConsumer {
     private NotificationExternalService notificationExternalService;
 
     @Autowired
-    private AuthRepository authRepository;
+    private SubscriptionService subscriptionService;
 
     /**
      * Consume job post events from Kafka
@@ -74,10 +77,10 @@ public class JobPostEventConsumer {
             for (MatchedJobPost matchedJobPost : matchedJobPosts) {
                 // Only notify if not already notified
                 if (matchedJobPost.getIsNotified() == null || !matchedJobPost.getIsNotified()) {
-                    // Get user to check plan type
-                    User user = authRepository.findById(matchedJobPost.getUserId()).orElse(null);
+                    // Check premium status via Subscription (NOT User.planType)
+                    boolean isPremium = checkUserIsPremium(matchedJobPost.getUserId());
 
-                    if (user != null && user.getPlanType() == PlanType.PREMIUM) {
+                    if (isPremium) {
                         // Build match data metadata for View Details modal
                         Map<String, Object> matchData = buildMatchData(matchedJobPost, jobPost);
                         
@@ -104,7 +107,7 @@ public class JobPostEventConsumer {
                         logger.info("Sent notification to premium user {} for job post {}", 
                                 matchedJobPost.getUserId(), jobPost.getId());
                     } else {
-                        logger.debug("Skipping notification for user {} - not premium or user not found", 
+                        logger.debug("Skipping notification for user {} - not premium", 
                                 matchedJobPost.getUserId());
                     }
                 }
@@ -112,6 +115,31 @@ public class JobPostEventConsumer {
         } catch (Exception e) {
             logger.error("Error sending notifications for job post {}: {}", 
                     jobPost.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Check if user has active premium subscription
+     * Uses SubscriptionService instead of User.planType (which should not exist)
+     */
+    private boolean checkUserIsPremium(String userId) {
+        try {
+            Optional<Subscription> subscriptionOpt = subscriptionService.getSubscriptionByUserId(userId);
+            
+            if (subscriptionOpt.isEmpty()) {
+                return false;
+            }
+            
+            Subscription subscription = subscriptionOpt.get();
+            
+            // Check if subscription is PREMIUM, ACTIVE, and not expired
+            return subscription.getPlanType() == PlanType.PREMIUM 
+                    && subscription.getStatus() == SubscriptionStatus.ACTIVE
+                    && subscription.getExpiresAt() != null 
+                    && subscription.getExpiresAt().isAfter(Instant.now());
+        } catch (Exception e) {
+            logger.warn("Error checking premium status for user {}: {}", userId, e.getMessage());
+            return false;
         }
     }
     

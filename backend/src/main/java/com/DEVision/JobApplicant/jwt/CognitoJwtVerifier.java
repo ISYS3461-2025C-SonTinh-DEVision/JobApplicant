@@ -59,12 +59,14 @@ public class CognitoJwtVerifier {
      * - client_id
      * - required scope
      * - token_use == "access" (if present)
+     * 
+     * @return ValidationResult containing validation status and subsystem claim
      */
-    public boolean validateAccessToken(String token) {
+    public ValidationResult validateAccessTokenWithSubsystem(String token) {
         try {
             if (token == null || token.trim().isEmpty()) {
                 System.err.println("Cognito token validation failed: Token is null or empty");
-                return false;
+                return new ValidationResult(false, null);
             }
 
             SignedJWT signedJwt = SignedJWT.parse(token);
@@ -79,11 +81,11 @@ public class CognitoJwtVerifier {
             Date now = new Date();
             if (exp == null) {
                 System.err.println("Cognito token validation failed: No expiration time in token");
-                return false;
+                return new ValidationResult(false, null);
             }
             if (exp.before(now)) {
                 System.err.println("Cognito token validation failed: Token expired. Exp: " + exp + ", Now: " + now);
-                return false;
+                return new ValidationResult(false, null);
             }
             System.out.println("Cognito token expiration check passed. Expires at: " + exp);
 
@@ -91,11 +93,11 @@ public class CognitoJwtVerifier {
             String actualIssuer = claims.getIssuer();
             if (actualIssuer == null) {
                 System.err.println("Cognito token validation failed: No issuer in token");
-                return false;
+                return new ValidationResult(false, null);
             }
             if (!expectedIssuer.equals(actualIssuer)) {
                 System.err.println("Cognito token validation failed: Issuer mismatch. Expected: " + expectedIssuer + ", Actual: " + actualIssuer);
-                return false;
+                return new ValidationResult(false, null);
             }
             System.out.println("Cognito token issuer check passed. Issuer: " + actualIssuer);
 
@@ -103,12 +105,12 @@ public class CognitoJwtVerifier {
             Object clientIdClaim = claims.getClaim("client_id");
             if (clientIdClaim == null) {
                 System.err.println("Cognito token validation failed: No client_id claim in token");
-                return false;
+                return new ValidationResult(false, null);
             }
             String actualClientId = clientIdClaim.toString();
             if (!expectedClientId.equals(actualClientId)) {
                 System.err.println("Cognito token validation failed: Client ID mismatch. Expected: " + expectedClientId + ", Actual: " + actualClientId);
-                return false;
+                return new ValidationResult(false, null);
             }
             System.out.println("Cognito token client_id check passed. Client ID: " + actualClientId);
 
@@ -117,11 +119,11 @@ public class CognitoJwtVerifier {
             if (requiredScope != null && !requiredScope.isBlank()) {
                 if (scope == null || scope.isBlank()) {
                     System.err.println("Cognito token validation failed: No scope in token. Required scope: " + requiredScope);
-                    return false;
+                    return new ValidationResult(false, null);
                 }
                 if (!scope.contains(requiredScope)) {
                     System.err.println("Cognito token validation failed: Scope mismatch. Required: " + requiredScope + ", Actual: " + scope);
-                    return false;
+                    return new ValidationResult(false, null);
                 }
                 System.out.println("Cognito token scope check passed. Scope: " + scope);
             }
@@ -130,22 +132,92 @@ public class CognitoJwtVerifier {
             Object tokenUse = claims.getClaim("token_use");
             if (tokenUse != null && !"access".equals(tokenUse.toString())) {
                 System.err.println("Cognito token validation failed: Token use is not 'access'. Actual: " + tokenUse);
-                return false;
+                return new ValidationResult(false, null);
             }
             if (tokenUse != null) {
                 System.out.println("Cognito token token_use check passed. Token use: " + tokenUse);
             }
 
+            // Extract subsystem claim
+            String subsystem = extractSubsystem(claims);
+            if (subsystem != null) {
+                System.out.println("Cognito token subsystem claim found: " + subsystem);
+            } else {
+                System.out.println("Cognito token: No subsystem claim found (optional)");
+            }
+
             System.out.println("Cognito token validation successful!");
-            return true;
+            return new ValidationResult(true, subsystem);
         } catch (ParseException e) {
             System.err.println("Failed to parse Cognito token: " + e.getMessage());
             e.printStackTrace();
-            return false;
+            return new ValidationResult(false, null);
         } catch (Exception e) {
             System.err.println("Failed to validate Cognito token: " + e.getMessage());
             e.printStackTrace();
-            return false;
+            return new ValidationResult(false, null);
+        }
+    }
+
+    /**
+     * Validate a Cognito access token for system-to-system communication.
+     * Legacy method for backward compatibility.
+     *
+     * Checks:
+     * - Signature (via JWKS)
+     * - Expiration
+     * - Issuer (user pool)
+     * - client_id
+     * - required scope
+     * - token_use == "access" (if present)
+     */
+    public boolean validateAccessToken(String token) {
+        return validateAccessTokenWithSubsystem(token).isValid();
+    }
+
+    /**
+     * Extract subsystem claim from token claims
+     * @param claims JWT claims
+     * @return subsystem value (COMPANY or APPLICANT) or null if not present
+     */
+    private String extractSubsystem(com.nimbusds.jwt.JWTClaimsSet claims) {
+        try {
+            Object subsystemClaim = claims.getClaim("subsystem");
+            if (subsystemClaim != null) {
+                String subsystem = subsystemClaim.toString().toUpperCase();
+                // Validate subsystem value
+                if ("COMPANY".equals(subsystem) || "APPLICANT".equals(subsystem)) {
+                    return subsystem;
+                } else {
+                    System.err.println("Cognito token: Invalid subsystem value: " + subsystem + ". Expected: COMPANY or APPLICANT");
+                    return null;
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            System.err.println("Error extracting subsystem claim: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Result of Cognito token validation
+     */
+    public static class ValidationResult {
+        private final boolean valid;
+        private final String subsystem;
+
+        public ValidationResult(boolean valid, String subsystem) {
+            this.valid = valid;
+            this.subsystem = subsystem;
+        }
+
+        public boolean isValid() {
+            return valid;
+        }
+
+        public String getSubsystem() {
+            return subsystem;
         }
     }
 }

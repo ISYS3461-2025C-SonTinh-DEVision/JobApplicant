@@ -19,9 +19,10 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import com.DEVision.JobApplicant.auth.config.AuthConfig;
-import com.DEVision.JobApplicant.jwt.JweUtil;
-import com.DEVision.JobApplicant.jwt.CognitoJwtVerifier;
+import com.DEVision.JobApplicant.common.config.RoleConfig;
 import com.DEVision.JobApplicant.common.config.SystemAuthConfig;
+import com.DEVision.JobApplicant.jwt.CognitoJwtVerifier;
+import com.DEVision.JobApplicant.jwt.JweUtil;
 
 @Component
 public class AuthRequestFilter extends OncePerRequestFilter {
@@ -98,19 +99,31 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 			// If JWE validation fails, try Cognito JWT validation (for system access)
 			if (!isValidToken && cognitoJwtVerifier != null) {
 				System.out.println("AuthRequestFilter: JWE validation failed, trying Cognito JWT validation");
-				boolean isCognitoToken = cognitoJwtVerifier.validateAccessToken(token);
-				if (isCognitoToken) {
+				var validationResult = cognitoJwtVerifier.validateAccessTokenWithSubsystem(token);
+				if (validationResult.isValid()) {
 					System.out.println("AuthRequestFilter: Cognito token validated successfully");
-					// For Cognito tokens, create system authentication
-					// Note: Cognito tokens don't have user info, so we use system role
+					
+					// Determine role based on subsystem claim using RoleConfig
+					String subsystem = validationResult.getSubsystem();
+					String role = "ROLE_" + RoleConfig.SYSTEM.getRoleName(); // Default fallback
+					if (subsystem != null) {
+						if ("COMPANY".equals(subsystem)) {
+							role = "ROLE_" + RoleConfig.COMPANY.getRoleName();
+						} else if ("APPLICANT".equals(subsystem)) {
+							role = "ROLE_" + RoleConfig.APPLICANT.getRoleName();
+						}
+					}
+					
+					// For Cognito tokens, create system authentication with subsystem role
 					UsernamePasswordAuthenticationToken systemAuth = 
 						new UsernamePasswordAuthenticationToken(
 							SystemAuthConfig.JOB_MANAGER_SYSTEM,
 							null,
-							Collections.singletonList(new SimpleGrantedAuthority("ROLE_SYSTEM"))
+							Collections.singletonList(new SimpleGrantedAuthority(role))
 						);
 					SecurityContextHolder.getContext().setAuthentication(systemAuth);
-					System.out.println("AuthRequestFilter: System authentication set for Cognito token");
+					System.out.println("AuthRequestFilter: System authentication set for Cognito token with role: " + role + 
+						(subsystem != null ? " (subsystem: " + subsystem + ")" : ""));
 					filterChain.doFilter(request, response);
 					return;
 				} else {
@@ -157,9 +170,13 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 		if (token != null && isValidToken
 				&& SecurityContextHolder.getContext().getAuthentication() == null) {
 
-			String username = jweUtil.extractUsername(token);
+			// Extract email from token - for new tokens email is in claims, for legacy tokens it's the subject
+			String email = jweUtil.extractEmail(token);
+			// Also extract userId and role from token (for logging/debugging)
+			String userId = jweUtil.extractUserId(token);
+			String role = jweUtil.extractRole(token);
 
-			UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+			UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
 			UsernamePasswordAuthenticationToken usernamePasswordAuthToken = new UsernamePasswordAuthenticationToken(
 					userDetails,
@@ -172,9 +189,13 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 			SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthToken);
 
 			System.out.println(String.format("Authenticate Token Set:\n"
-					+ "Username: %s\n"
+					+ "UserId: %s\n"
+					+ "Email: %s\n"
+					+ "Role (from token): %s\n"
 					+ "Authority: %s\n",
-					userDetails.getUsername(),
+					userId,
+					email,
+					role,
 					userDetails.getAuthorities().toString()));
 		}
 

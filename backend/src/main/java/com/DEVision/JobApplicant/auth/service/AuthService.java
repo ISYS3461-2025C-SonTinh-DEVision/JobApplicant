@@ -40,18 +40,35 @@ public class AuthService implements UserDetailsService {
                 .disabled(!user.isEnabled())
                 .build();
     }
+    
+    /**
+     * Get User entity by email
+     */
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
 
     public User createUser(User user) {
         return userRepository.save(user);
     }
     
-    // Generate JWE tokens (encrypted)
+    /**
+     * Generate JWE tokens with full user claims (matching JM token structure)
+     * Token claims: sub (userId), email, role, jti, iat, exp
+     */
     public Map<String, String> createAuthTokens(UserDetails userDetails, boolean isAuthenticated) {
         Map<String, String> tokens = new HashMap<>();
         
         if (isAuthenticated) {
-            String accessToken = jweUtil.generateToken(userDetails);
-            String refreshToken = jweUtil.generateRefreshToken(userDetails);
+            // Get User entity to include full claims (userId, email, role)
+            User user = userRepository.findByEmail(userDetails.getUsername());
+            if (user == null) {
+                throw new UsernameNotFoundException("User not found: " + userDetails.getUsername());
+            }
+            
+            // Generate tokens with full user info (matching JM structure)
+            String accessToken = jweUtil.generateToken(user);
+            String refreshToken = jweUtil.generateRefreshToken(user);
             
             tokens.put("accessToken", accessToken);
             tokens.put("refreshToken", refreshToken);
@@ -60,16 +77,23 @@ public class AuthService implements UserDetailsService {
         return tokens;
     }
     
-    // Refresh an access token using a refresh token
+    /**
+     * Refresh an access token using a refresh token
+     */
     public Map<String, String> refreshToken(String refreshToken) {
         Map<String, String> tokens = new HashMap<>();
         
         if (jweUtil.verifyJweToken(refreshToken)) {
-            String username = jweUtil.extractUsername(refreshToken);
-            UserDetails userDetails = this.loadUserByUsername(username);
+            // Extract email from token (for new tokens, email is in claims; for legacy, it's the subject)
+            String email = jweUtil.extractEmail(refreshToken);
+            User user = userRepository.findByEmail(email);
             
-            // Generate new access token
-            String newAccessToken = jweUtil.generateToken(userDetails);
+            if (user == null) {
+                throw new IllegalArgumentException("User not found for refresh token");
+            }
+            
+            // Generate new access token with full user info
+            String newAccessToken = jweUtil.generateToken(user);
             
             tokens.put("accessToken", newAccessToken);
             tokens.put("refreshToken", refreshToken); // Return the existing refresh token
