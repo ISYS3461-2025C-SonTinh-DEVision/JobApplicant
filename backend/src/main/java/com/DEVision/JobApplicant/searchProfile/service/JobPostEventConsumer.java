@@ -30,8 +30,7 @@ import java.util.Optional;
 public class JobPostEventConsumer {
 
     private static final Logger logger = LoggerFactory.getLogger(JobPostEventConsumer.class);
-    private static final String TOPIC = "job-post-events"; // Adjust topic name as needed
-    private static final String GROUP_ID = "job-applicant-search-profile-group";
+    private static final String TOPIC = "job-post-events";
 
     @Autowired
     private JobMatchingService jobMatchingService;
@@ -49,7 +48,7 @@ public class JobPostEventConsumer {
      * Consume job post events from Kafka
      * Handles wrapped events from JM with eventType, eventId, timestamp, and data fields
      */
-    @KafkaListener(topics = TOPIC, groupId = GROUP_ID)
+    @KafkaListener(topics = TOPIC, groupId = "${spring.kafka.consumer.group-id:job-applicant-search-profile-group-local}")
     public void consumeJobPostEvent(JobPostEvent jobPost) {
         try {
             logger.info("===== Received Kafka event from topic: {} =====", TOPIC);

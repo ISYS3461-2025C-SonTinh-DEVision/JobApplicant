@@ -26,18 +26,30 @@ public class ApplicationExternalService {
     private ActivityService activityService;
     
     /**
-     * Create a new application
-     * Call this from other backend services when an application is submitted
+     * Create a new application or re-apply after withdrawal
      */
     public ApplicationResponse createApplication(ApplicationRequest request) {
-        // Check if applicant already applied
-        if (applicationService.hasApplicantApplied(request.getJobPostId(), request.getApplicantId())) {
-            throw new DuplicateApplicationException("You have already applied for this job. Please choose a different position.");
+        Application existing = applicationService.getApplicationByJobPostAndApplicant(
+            request.getJobPostId(), request.getApplicantId());
+        
+        Application application;
+        
+        if (existing != null) {
+            if (existing.getStatus() == Application.ApplicationStatus.WITHDRAWN) {
+                // Re-applying after withdrawal - update existing application
+                application = existing;
+            } else {
+                // Active application exists - reject
+                throw new DuplicateApplicationException("You have already applied for this job. Please choose a different position.");
+            }
+        } else {
+            // New application
+            application = new Application();
+            application.setJobPostId(request.getJobPostId());
+            application.setApplicantId(request.getApplicantId());
         }
         
-        Application application = new Application();
-        application.setJobPostId(request.getJobPostId());
-        application.setApplicantId(request.getApplicantId());
+        // Set/update application data
         application.setCvUrl(request.getCvUrl());
         application.setCvPublicId(request.getCvPublicId());
         application.setCoverLetterUrl(request.getCoverLetterUrl());
@@ -46,16 +58,17 @@ public class ApplicationExternalService {
         application.setCompanyName(request.getCompanyName());
         application.setLocation(request.getLocation());
         application.setEmploymentType(request.getEmploymentType());
+        application.setStatus(Application.ApplicationStatus.PENDING);
+        application.setAppliedAt(java.time.LocalDateTime.now());
         
-        Application saved = applicationService.createApplication(application);
+        Application saved = applicationService.updateApplication(application);
         
-        // Record activity for application submission
+        // Record activity
         try {
             String jobTitle = request.getJobTitle() != null ? request.getJobTitle() : "a position";
             String company = request.getCompanyName() != null ? request.getCompanyName() : "a company";
             activityService.recordApplicationSubmit(jobTitle, company);
         } catch (Exception e) {
-            // Don't fail the application if activity recording fails
             System.err.println("Failed to record application activity: " + e.getMessage());
         }
         

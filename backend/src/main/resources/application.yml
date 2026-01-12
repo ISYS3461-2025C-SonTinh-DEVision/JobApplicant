@@ -70,7 +70,7 @@ spring:
       properties:
         spring.json.add.type.headers: false
     consumer:
-      group-id: job-applicant-search-profile-group
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:job-applicant-search-profile-group-local}
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:

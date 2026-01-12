@@ -64,9 +64,16 @@ public class ApplicationService {
         return applicationRepository.findByApplicantIdAndStatus(applicantId, status, pageable);
     }
     
-    // Check if applicant already applied to a job post
+    // Check if applicant already applied to a job post (active application only)
     public boolean hasApplicantApplied(String jobPostId, String applicantId) {
-        return applicationRepository.existsByJobPostIdAndApplicantId(jobPostId, applicantId);
+        Application existing = applicationRepository.findByJobPostIdAndApplicantId(jobPostId, applicantId);
+        // Allow re-apply if no application or if previous was withdrawn
+        return existing != null && existing.getStatus() != Application.ApplicationStatus.WITHDRAWN;
+    }
+    
+    // Get existing application by job post and applicant
+    public Application getApplicationByJobPostAndApplicant(String jobPostId, String applicantId) {
+        return applicationRepository.findByJobPostIdAndApplicantId(jobPostId, applicantId);
     }
     
     // Update application status
