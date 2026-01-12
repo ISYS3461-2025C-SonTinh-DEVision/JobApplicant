@@ -2,7 +2,6 @@ package com.DEVision.JobApplicant.subscription.entity;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
 
 import com.DEVision.JobApplicant.subscription.enums.PaymentProvider;
 import org.springframework.data.annotation.CreatedDate;

@@ -2,7 +2,6 @@ package com.DEVision.JobApplicant.subscription.service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
@@ -72,7 +71,7 @@ public class SubscriptionService {
                 && existingExpiry != null
                 && existingExpiry.isAfter(now);
 
-        Instant baseTime = currentlyActive ? existingExpiry : now;
+        Instant baseTime = currentlyActive && existingExpiry != null ? existingExpiry : now;
         Instant newExpiry = baseTime.plus(PLAN_DURATION_DAYS, ChronoUnit.DAYS);
         Instant startDate = currentlyActive && subscription.getStartDate() != null ? subscription.getStartDate() : now;
 
@@ -86,11 +85,15 @@ public class SubscriptionService {
         return new SubscriptionResponse(savedSubscription, paymentResponse.paymentUrl());
     }
 
-    public Subscription getSubscriptionByUserId(String userId) {
-        Subscription subscription = subscriptionRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Subscription not found for user: " + userId));
+    public Optional<Subscription> getSubscriptionByUserId(String userId) {
+        Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(userId);
         
-        return checkAndDowngradeIfExpired(subscription);
+        if (subscriptionOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        
+        Subscription subscription = checkAndDowngradeIfExpired(subscriptionOpt.get());
+        return Optional.of(subscription);
     }
 
     private Subscription checkAndDowngradeIfExpired(Subscription subscription) {
@@ -219,7 +222,7 @@ public class SubscriptionService {
         notification.setUserId(userId);
         notification.setTitle("Subscription Expired");
         notification.setContent("Your subscription has expired. Please renew to continue enjoying premium features.");
-        notification.setTimestamp(expiryDate); // Use Instant directly
+        notification.setTimestamp(Instant.now());
         notification.setRead(false);
         notificationService.createNotification(notification);
     }

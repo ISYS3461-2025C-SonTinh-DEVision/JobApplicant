@@ -3,6 +3,7 @@ package com.DEVision.JobApplicant.subscription.client;
 import java.math.BigDecimal;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -37,9 +38,6 @@ public class JobManagerClient {
 
 
     public PaymentResponse processPayment(String email, BigDecimal amount, String subscriptionType) {
-        // Authenticate with Job Manager to get access token
-        String accessToken = authenticate();
-
         // Build URLs for Stripe redirect (frontend)
         // Note: JM handles payment callbacks internally via Stripe webhooks
         // JA receives callback from JM at /api/subscription/payment/callback
