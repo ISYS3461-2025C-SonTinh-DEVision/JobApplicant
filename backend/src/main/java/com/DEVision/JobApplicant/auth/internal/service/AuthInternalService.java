@@ -192,8 +192,13 @@ public class AuthInternalService {
         String email = request.getEmail().trim().toLowerCase();
 
         // Check brute-force protection before processing login
-        if (!redisService.allowLoginAttempt(email)) {
-            throw new RuntimeException("Too many failed login attempts. Please try again later.");
+        try {
+            if (!redisService.allowLoginAttempt(email)) {
+                throw new RuntimeException("Too many failed login attempts. Please try again later.");
+            }
+        } catch (Exception redisException) {
+            // Redis unavailable - log warning and allow login to proceed without rate limiting
+            System.out.println("Warning: Redis unavailable, skipping rate limit check during login: " + redisException.getMessage());
         }
 
         // Find user by email
@@ -251,7 +256,12 @@ public class AuthInternalService {
         }
 
         // Reset login attempts on successful authentication
-        redisService.resetLoginAttempts(email);
+        try {
+            redisService.resetLoginAttempts(email);
+        } catch (Exception redisException) {
+            // Redis unavailable - log warning but allow login to succeed
+            System.out.println("Warning: Redis unavailable, unable to reset login attempts: " + redisException.getMessage());
+        }
 
         // Generate tokens
         UserDetails userDetails = authService.loadUserByUsername(email);
