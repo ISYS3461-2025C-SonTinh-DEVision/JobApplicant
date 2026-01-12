@@ -72,5 +72,12 @@ public class MatchedJobPostService {
     public MatchedJobPost saveMatchedJobPost(MatchedJobPost matchedJobPost) {
         return matchedJobPostRepository.save(matchedJobPost);
     }
+    
+    /**
+     * Delete all matched job posts for a user (for testing/reset)
+     */
+    public void deleteMatchedJobsByUserId(String userId) {
+        matchedJobPostRepository.deleteByUserId(userId);
+    }
 }
 

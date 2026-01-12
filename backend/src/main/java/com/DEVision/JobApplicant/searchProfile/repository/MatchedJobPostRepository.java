@@ -38,4 +38,9 @@ public interface MatchedJobPostRepository extends MongoRepository<MatchedJobPost
      * Find all matched job posts for a specific job post ID
      */
     List<MatchedJobPost> findByJobPostId(String jobPostId);
+    
+    /**
+     * Delete all matched job posts for a user (for testing/reset)
+     */
+    void deleteByUserId(String userId);
 }

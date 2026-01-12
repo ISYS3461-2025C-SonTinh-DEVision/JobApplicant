@@ -5,16 +5,16 @@
  * Integrates with ThemeContext for light/dark mode.
  * 
  * Architecture: A.3.a (Ultimo Frontend)
+ * 
+ * NOTE: Compact Mode and Animations are Coming Soon.
  */
 
-import React, { useState } from 'react';
-import { Sun, Moon, Monitor, Sparkles, Check, Eye, Maximize2 } from 'lucide-react';
+import React from 'react';
+import { Sun, Moon, Sparkles, Check, Eye, Maximize2, Clock } from 'lucide-react';
 import { useTheme } from '../../../../context/ThemeContext';
 
 export default function AppearanceSettings() {
-    const { isDark, theme, setTheme, toggleTheme, THEMES } = useTheme();
-    const [animations, setAnimations] = useState(true);
-    const [compactMode, setCompactMode] = useState(false);
+    const { isDark, theme, setTheme } = useTheme();
 
     const textPrimary = isDark ? 'text-white' : 'text-gray-900';
     const textSecondary = isDark ? 'text-dark-400' : 'text-gray-500';
@@ -26,9 +26,16 @@ export default function AppearanceSettings() {
         { id: 'dark', label: 'Dark', icon: Moon, description: 'Easy on the eyes' },
     ];
 
+    // Coming Soon Badge Component
+    const ComingSoonBadge = () => (
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
+            Coming Soon
+        </span>
+    );
+
     return (
         <div className="space-y-8">
-            {/* Theme Selection */}
+            {/* Theme Selection - WORKING */}
             <div>
                 <h3 className={`font-semibold mb-4 ${textPrimary}`}>Theme</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -73,57 +80,53 @@ export default function AppearanceSettings() {
                 </div>
             </div>
 
-            {/* Animation Settings */}
+            {/* Animation Settings - COMING SOON */}
             <div>
-                <h3 className={`font-semibold mb-4 ${textPrimary}`}>Effects</h3>
+                <div className="flex items-center gap-2 mb-4">
+                    <h3 className={`font-semibold ${textPrimary}`}>Effects</h3>
+                </div>
                 <div className={`rounded-xl border ${borderColor} divide-y ${isDark ? 'divide-dark-700' : 'divide-gray-100'}`}>
-                    {/* Animations Toggle */}
-                    <div className="flex items-center justify-between p-4">
+                    {/* Animations Toggle - COMING SOON */}
+                    <div className="flex items-center justify-between p-4 opacity-60 cursor-not-allowed">
                         <div className="flex items-center gap-3">
                             <div className={`p-2 rounded-lg ${isDark ? 'bg-dark-700' : 'bg-gray-100'}`}>
-                                <Sparkles className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-500'}`} />
+                                <Sparkles className={`w-4 h-4 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
                             </div>
                             <div>
-                                <p className={`font-medium ${textPrimary}`}>Animations</p>
-                                <p className={`text-sm ${textSecondary}`}>Enable smooth transitions and effects</p>
+                                <div className="flex items-center gap-2">
+                                    <p className={`font-medium ${isDark ? 'text-dark-300' : 'text-gray-500'}`}>Animations</p>
+                                    <ComingSoonBadge />
+                                </div>
+                                <p className={`text-sm ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>Enable smooth transitions and effects</p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setAnimations(!animations)}
-                            className={`
-                                relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                                ${animations ? 'bg-primary-500' : isDark ? 'bg-dark-600' : 'bg-gray-300'}
-                            `}
-                        >
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${animations ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
+                        <div className={`relative inline-flex h-6 w-11 items-center rounded-full ${isDark ? 'bg-dark-600/50' : 'bg-gray-200'}`}>
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white/50 shadow-sm translate-x-1`} />
+                        </div>
                     </div>
 
-                    {/* Compact Mode Toggle */}
-                    <div className="flex items-center justify-between p-4">
+                    {/* Compact Mode Toggle - COMING SOON */}
+                    <div className="flex items-center justify-between p-4 opacity-60 cursor-not-allowed">
                         <div className="flex items-center gap-3">
                             <div className={`p-2 rounded-lg ${isDark ? 'bg-dark-700' : 'bg-gray-100'}`}>
-                                <Maximize2 className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-500'}`} />
+                                <Maximize2 className={`w-4 h-4 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
                             </div>
                             <div>
-                                <p className={`font-medium ${textPrimary}`}>Compact Mode</p>
-                                <p className={`text-sm ${textSecondary}`}>Reduce spacing for denser content</p>
+                                <div className="flex items-center gap-2">
+                                    <p className={`font-medium ${isDark ? 'text-dark-300' : 'text-gray-500'}`}>Compact Mode</p>
+                                    <ComingSoonBadge />
+                                </div>
+                                <p className={`text-sm ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>Reduce spacing for denser content</p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setCompactMode(!compactMode)}
-                            className={`
-                                relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                                ${compactMode ? 'bg-primary-500' : isDark ? 'bg-dark-600' : 'bg-gray-300'}
-                            `}
-                        >
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${compactMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
+                        <div className={`relative inline-flex h-6 w-11 items-center rounded-full ${isDark ? 'bg-dark-600/50' : 'bg-gray-200'}`}>
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white/50 shadow-sm translate-x-1`} />
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Preview Card */}
+            {/* Preview Card - WORKING */}
             <div>
                 <h3 className={`font-semibold mb-4 ${textPrimary}`}>Preview</h3>
                 <div className={`p-6 rounded-xl border ${borderColor} ${cardBg}`}>

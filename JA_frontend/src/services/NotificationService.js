@@ -204,7 +204,25 @@ class NotificationService {
         }
 
         try {
-            return await httpUtil.post(`${API_ENDPOINTS.SEARCH_PROFILE.GET}/check-matches`);
+            const response = await httpUtil.post(`${API_ENDPOINTS.SEARCH_PROFILE.GET}/check-matches`);
+            // Backend returns array of MatchedJobPost objects directly
+            // Convert to the format expected by NotificationContext
+            const matches = Array.isArray(response) ? response : (response?.data || []);
+
+            // Map MatchedJobPost to the expected format
+            const formattedMatches = matches.map(match => ({
+                jobId: match.jobPostId,
+                jobTitle: match.jobTitle || 'Unknown Job',
+                companyName: match.companyName || 'Unknown Company',
+                location: match.location || 'Unknown Location',
+                matchScore: match.matchScore,
+                matchedSkills: match.matchedSkills || [],
+            }));
+
+            return {
+                success: true,
+                data: formattedMatches,
+            };
         } catch (error) {
             console.error('Error checking job matches:', error);
             throw error;

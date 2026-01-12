@@ -1,7 +1,6 @@
 package com.DEVision.JobApplicant.searchProfile.entity;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -15,8 +14,7 @@ import java.util.List;
  * These are job posts that match the applicant's profile and can be viewed
  * later
  */
-@Setter
-@Getter
+@Data
 @Document(collection = "matched_job_posts")
 public class MatchedJobPost {
 

@@ -166,12 +166,13 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
 
 
     /**
-     * Login endpoint (old implementation - to be updated)
+     * Login endpoint with brute-force protection
      */
-    @Operation(summary = "User login", description = "Authenticate user and return JWT tokens in HttpOnly cookies")
+    @Operation(summary = "User login", description = "Authenticate user and return JWT tokens in HttpOnly cookies. Protected against brute-force attacks: max 5 attempts per 60 seconds.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Login successful"),
-        @ApiResponse(responseCode = "401", description = "Invalid credentials or account not activated")
+        @ApiResponse(responseCode = "401", description = "Invalid credentials or account not activated"),
+        @ApiResponse(responseCode = "429", description = "Too many failed login attempts - rate limit exceeded")
     })
     @PostMapping("/login")
     public ResponseEntity<?> login(
@@ -198,6 +199,17 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
             return new ResponseEntity<>(responseBody, HttpStatus.OK);
 
         } catch (Exception e) {
+            // Check if it's a rate limiting error
+            if (e.getMessage().contains("Too many failed login attempts")) {
+                return new ResponseEntity<>(
+                    Map.of(
+                        "message", e.getMessage(),
+                        "rateLimited", true
+                    ),
+                    HttpStatus.TOO_MANY_REQUESTS
+                );
+            }
+            
             return new ResponseEntity<>(
                 Map.of("message", e.getMessage()),
                 HttpStatus.UNAUTHORIZED

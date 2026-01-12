@@ -5,23 +5,19 @@
  * Includes Cookie Consent status and account deletion with modal confirmation.
  * 
  * Architecture: A.3.a (Ultimo Frontend) - Uses HeadlessModal
+ * 
+ * NOTE: Profile Visibility, Contact Information, Data Export, and Delete Account are Coming Soon.
  */
 
 import React, { useState, useEffect } from 'react';
-import { Eye, Globe, Users, Lock, Trash2, AlertTriangle, Download, Shield, Cookie, Check, Mail, Info } from 'lucide-react';
+import { Eye, Globe, Users, Lock, Trash2, AlertTriangle, Download, Shield, Cookie, Check, Mail, Info, Clock } from 'lucide-react';
 import { useTheme } from '../../../../context/ThemeContext';
-import { useHeadlessModal } from '../../../../components/headless';
 import { getCookieConsentDetails } from '../../../../components/common/CookieConsentBanner';
 
 export default function PrivacySettings() {
     const { isDark } = useTheme();
-    const deleteModal = useHeadlessModal();
 
-    // Privacy settings state
-    const [visibility, setVisibility] = useState('public');
-    const [showEmail, setShowEmail] = useState(false);
-    const [showPhone, setShowPhone] = useState(false);
-    const [dataSharingEnabled, setDataSharingEnabled] = useState(true);
+    // Cookie consent state
     const [cookieConsentDate, setCookieConsentDate] = useState(null);
 
     // Load cookie consent details
@@ -49,9 +45,16 @@ export default function PrivacySettings() {
         { id: 'private', label: 'Private', icon: Lock, description: 'Hidden from employer searches' },
     ];
 
+    // Coming Soon Badge Component
+    const ComingSoonBadge = () => (
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
+            Coming Soon
+        </span>
+    );
+
     return (
         <div className="space-y-8">
-            {/* Cookie Consent Status */}
+            {/* Cookie Consent Status - WORKING */}
             <div>
                 <div className="flex items-center gap-2 mb-4">
                     <Cookie className={`w-5 h-5 ${isDark ? 'text-orange-400' : 'text-orange-500'}`} />
@@ -109,109 +112,99 @@ export default function PrivacySettings() {
                 </div>
             </div>
 
-            {/* Profile Visibility */}
-            <div>
+            {/* Profile Visibility - COMING SOON */}
+            <div className="opacity-60">
                 <div className="flex items-center gap-2 mb-4">
-                    <Eye className={`w-5 h-5 ${isDark ? 'text-primary-400' : 'text-primary-500'}`} />
-                    <h3 className={`font-semibold ${textPrimary}`}>Profile Visibility</h3>
+                    <Eye className={`w-5 h-5 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
+                    <h3 className={`font-semibold ${isDark ? 'text-dark-300' : 'text-gray-500'}`}>Profile Visibility</h3>
+                    <ComingSoonBadge />
                 </div>
                 <div className="space-y-3">
                     {visibilityOptions.map((option) => {
                         const Icon = option.icon;
-                        const isSelected = visibility === option.id;
                         return (
-                            <button
+                            <div
                                 key={option.id}
-                                onClick={() => setVisibility(option.id)}
-                                className={`
-                                    w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all
-                                    ${isSelected
-                                        ? 'border-primary-500 bg-primary-500/10'
-                                        : `${borderColor} ${cardBg} hover:border-primary-500/30`
-                                    }
+                                className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 cursor-not-allowed
+                                    ${borderColor} ${cardBg}
                                 `}
                             >
-                                <div className={`p-3 rounded-xl ${isSelected ? 'bg-primary-500/20' : isDark ? 'bg-dark-600' : 'bg-gray-200'}`}>
-                                    <Icon className={`w-5 h-5 ${isSelected ? 'text-primary-400' : isDark ? 'text-dark-300' : 'text-gray-500'}`} />
+                                <div className={`p-3 rounded-xl ${isDark ? 'bg-dark-600' : 'bg-gray-200'}`}>
+                                    <Icon className={`w-5 h-5 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
                                 </div>
                                 <div className="flex-1 text-left">
-                                    <p className={`font-medium ${textPrimary}`}>{option.label}</p>
-                                    <p className={`text-sm ${textSecondary}`}>{option.description}</p>
+                                    <p className={`font-medium ${isDark ? 'text-dark-300' : 'text-gray-500'}`}>{option.label}</p>
+                                    <p className={`text-sm ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>{option.description}</p>
                                 </div>
-                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-primary-500 bg-primary-500' : borderColor}`}>
-                                    {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
-                                </div>
-                            </button>
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${borderColor}`} />
+                            </div>
                         );
                     })}
                 </div>
             </div>
 
-            {/* Contact Info Visibility */}
-            <div>
+            {/* Contact Info Visibility - COMING SOON */}
+            <div className="opacity-60">
                 <div className="flex items-center gap-2 mb-4">
-                    <Shield className={`w-5 h-5 ${isDark ? 'text-primary-400' : 'text-primary-500'}`} />
-                    <h3 className={`font-semibold ${textPrimary}`}>Contact Information</h3>
+                    <Shield className={`w-5 h-5 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
+                    <h3 className={`font-semibold ${isDark ? 'text-dark-300' : 'text-gray-500'}`}>Contact Information</h3>
+                    <ComingSoonBadge />
                 </div>
                 <div className={`rounded-xl border ${borderColor} divide-y ${isDark ? 'divide-dark-700' : 'divide-gray-100'}`}>
-                    <ToggleItem
+                    <DisabledToggleItem
                         label="Show Email"
                         description="Display email on your public profile"
-                        enabled={showEmail}
-                        onChange={setShowEmail}
                         isDark={isDark}
                     />
-                    <ToggleItem
+                    <DisabledToggleItem
                         label="Show Phone Number"
                         description="Display phone number on your profile"
-                        enabled={showPhone}
-                        onChange={setShowPhone}
-                        isDark={isDark}
-                    />
-                    <ToggleItem
-                        label="Allow Data Sharing"
-                        description="Share anonymized data to improve recommendations"
-                        enabled={dataSharingEnabled}
-                        onChange={setDataSharingEnabled}
                         isDark={isDark}
                     />
                 </div>
             </div>
 
-            {/* Data Export */}
-            <div>
+            {/* Data Export - COMING SOON */}
+            <div className="opacity-60">
                 <div className="flex items-center gap-2 mb-4">
-                    <Download className={`w-5 h-5 ${isDark ? 'text-primary-400' : 'text-primary-500'}`} />
-                    <h3 className={`font-semibold ${textPrimary}`}>Your Data</h3>
+                    <Download className={`w-5 h-5 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
+                    <h3 className={`font-semibold ${isDark ? 'text-dark-300' : 'text-gray-500'}`}>Your Data</h3>
+                    <ComingSoonBadge />
                 </div>
                 <div className={`p-4 rounded-xl border ${borderColor} ${cardBg}`}>
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className={`font-medium ${textPrimary}`}>Download Your Data</p>
-                            <p className={`text-sm ${textSecondary}`}>Get a copy of all your DEVision data</p>
+                            <p className={`font-medium ${isDark ? 'text-dark-300' : 'text-gray-500'}`}>Download Your Data</p>
+                            <p className={`text-sm ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>Get a copy of all your DEVision data</p>
                         </div>
-                        <button className={`px-4 py-2 rounded-xl border ${borderColor} font-medium text-sm transition-colors ${isDark ? 'text-dark-300 hover:text-white hover:bg-dark-700' : 'text-gray-600 hover:bg-gray-100'}`}>
+                        <button
+                            disabled
+                            className={`px-4 py-2 rounded-xl border ${borderColor} font-medium text-sm cursor-not-allowed opacity-50
+                                ${isDark ? 'text-dark-400 bg-dark-600' : 'text-gray-400 bg-gray-100'}`}
+                        >
                             Request Export
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* Danger Zone */}
-            <div>
+            {/* Danger Zone - COMING SOON */}
+            <div className="opacity-60">
                 <div className="flex items-center gap-2 mb-4">
-                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                    <h3 className={`font-semibold text-red-500`}>Danger Zone</h3>
+                    <AlertTriangle className={`w-5 h-5 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
+                    <h3 className={`font-semibold ${isDark ? 'text-dark-300' : 'text-gray-500'}`}>Danger Zone</h3>
+                    <ComingSoonBadge />
                 </div>
-                <div className={`p-4 rounded-xl border-2 border-red-500/30 ${isDark ? 'bg-red-500/5' : 'bg-red-50'}`}>
+                <div className={`p-4 rounded-xl border-2 ${isDark ? 'border-dark-600 bg-dark-700/30' : 'border-gray-200 bg-gray-50'}`}>
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className={`font-medium ${textPrimary}`}>Delete Account</p>
-                            <p className={`text-sm ${textSecondary}`}>Permanently delete your account and all data</p>
+                            <p className={`font-medium ${isDark ? 'text-dark-300' : 'text-gray-500'}`}>Delete Account</p>
+                            <p className={`text-sm ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>Permanently delete your account and all data</p>
                         </div>
                         <button
-                            onClick={deleteModal.open}
-                            className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-medium text-sm transition-colors flex items-center gap-2"
+                            disabled
+                            className={`px-4 py-2 rounded-xl font-medium text-sm cursor-not-allowed opacity-50 flex items-center gap-2
+                                ${isDark ? 'bg-dark-600 text-dark-400' : 'bg-gray-200 text-gray-400'}`}
                         >
                             <Trash2 className="w-4 h-4" />
                             Delete
@@ -219,54 +212,19 @@ export default function PrivacySettings() {
                     </div>
                 </div>
             </div>
-
-            {/* Delete Confirmation Modal */}
-            {deleteModal.isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className={`w-full max-w-md p-6 rounded-2xl ${isDark ? 'bg-dark-800 border border-dark-700' : 'bg-white'} shadow-2xl`}>
-                        <div className="text-center mb-6">
-                            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${isDark ? 'bg-red-500/20' : 'bg-red-100'}`}>
-                                <AlertTriangle className="w-8 h-8 text-red-500" />
-                            </div>
-                            <h3 className={`text-xl font-bold ${textPrimary}`}>Delete Account?</h3>
-                            <p className={`mt-2 ${textSecondary}`}>
-                                This action cannot be undone. All your data, applications, and profile will be permanently deleted.
-                            </p>
-                        </div>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={deleteModal.close}
-                                className={`flex-1 px-4 py-3 rounded-xl border ${borderColor} font-medium transition-colors ${isDark ? 'text-dark-300 hover:bg-dark-700' : 'hover:bg-gray-50'}`}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={deleteModal.close}
-                                className="flex-1 px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-medium transition-colors"
-                            >
-                                Yes, Delete My Account
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
 
-// Simple Toggle Item Component
-const ToggleItem = ({ label, description, enabled, onChange, isDark }) => (
-    <div className="flex items-center justify-between p-4">
+// Disabled Toggle Item Component
+const DisabledToggleItem = ({ label, description, isDark }) => (
+    <div className="flex items-center justify-between p-4 cursor-not-allowed">
         <div>
-            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{label}</p>
-            <p className={`text-sm ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>{description}</p>
+            <p className={`font-medium ${isDark ? 'text-dark-300' : 'text-gray-500'}`}>{label}</p>
+            <p className={`text-sm ${isDark ? 'text-dark-500' : 'text-gray-400'}`}>{description}</p>
         </div>
-        <button
-            onClick={() => onChange(!enabled)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enabled ? 'bg-primary-500' : isDark ? 'bg-dark-600' : 'bg-gray-300'}`}
-        >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-        </button>
+        <div className={`relative inline-flex h-6 w-11 items-center rounded-full ${isDark ? 'bg-dark-600/50' : 'bg-gray-200'}`}>
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white/50 shadow-sm translate-x-1`} />
+        </div>
     </div>
 );
-
