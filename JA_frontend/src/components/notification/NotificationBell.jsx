@@ -4,6 +4,10 @@
  * Header notification bell with unread badge and dropdown panel.
  * Uses Headless UI hooks for behavior logic.
  * 
+ * Features:
+ * - Premium gold glow/shake animation when new notifications arrive
+ * - Real-time notification updates via WebSocket
+ * 
  * Architecture: A.3.a (Ultimo Frontend) - Headless UI Pattern
  */
 
@@ -22,7 +26,9 @@ import NotificationItem from '../../components/notifications/NotificationItem';
 export default function NotificationBell() {
     const { isDark } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
+    const [hasNewNotification, setHasNewNotification] = useState(false);
     const dropdownRef = useRef(null);
+    const prevUnreadCountRef = useRef(0);
     const navigate = useNavigate();
 
     const {
@@ -33,6 +39,18 @@ export default function NotificationBell() {
         markAllAsRead,
         deleteNotification,
     } = useNotifications();
+
+    // Detect new notifications for premium animation
+    useEffect(() => {
+        if (unreadCount > prevUnreadCountRef.current && prevUnreadCountRef.current !== 0) {
+            // New notification arrived!
+            setHasNewNotification(true);
+            // Reset after animation
+            const timeout = setTimeout(() => setHasNewNotification(false), 5000);
+            return () => clearTimeout(timeout);
+        }
+        prevUnreadCountRef.current = unreadCount;
+    }, [unreadCount]);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -60,27 +78,58 @@ export default function NotificationBell() {
 
     const recentNotifications = notifications.slice(0, 5);
 
+    // Premium gold animation classes
+    const bellAnimationClasses = hasNewNotification || unreadCount > 0
+        ? 'animate-bell-ring'
+        : '';
+
+    const glowClasses = hasNewNotification
+        ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/30'
+        : unreadCount > 0
+            ? 'ring-1 ring-amber-400/30'
+            : '';
+
     return (
         <div className="relative" ref={dropdownRef}>
-            {/* Bell Button */}
+            {/* Bell Button with Premium Animation */}
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => {
+                    setIsOpen(!isOpen);
+                    setHasNewNotification(false);
+                }}
                 className={`
-          relative p-2 rounded-xl transition-all duration-200
+          relative p-2 rounded-xl transition-all duration-300
+          ${glowClasses}
           ${isOpen
-                        ? isDark ? 'bg-dark-700 text-primary-400' : 'bg-primary-50 text-primary-600'
-                        : isDark ? 'text-dark-400 hover:text-white hover:bg-dark-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                        ? isDark ? 'bg-dark-700 text-amber-400' : 'bg-amber-50 text-amber-600'
+                        : hasNewNotification
+                            ? isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-50 text-amber-600'
+                            : unreadCount > 0
+                                ? isDark ? 'text-amber-400 hover:bg-dark-700' : 'text-amber-600 hover:bg-amber-50'
+                                : isDark ? 'text-dark-400 hover:text-white hover:bg-dark-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                     }
         `}
                 aria-label="Notifications"
             >
-                <Bell className="w-5 h-5" />
+                <Bell className={`w-5 h-5 ${bellAnimationClasses}`} />
 
-                {/* Unread Badge */}
+                {/* Premium Unread Badge - Gold/Amber theme */}
                 {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                    <span className={`
+                        absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 
+                        flex items-center justify-center text-xs font-bold rounded-full
+                        ${hasNewNotification
+                            ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-gray-900 animate-pulse shadow-lg shadow-amber-500/50'
+                            : 'bg-gradient-to-r from-amber-500 to-amber-600 text-white'
+                        }
+                    `}>
                         {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
+                )}
+
+                {/* Glow ring effect for new notifications */}
+                {hasNewNotification && (
+                    <span className="absolute inset-0 rounded-xl animate-ping bg-amber-400/30" />
                 )}
             </button>
 
