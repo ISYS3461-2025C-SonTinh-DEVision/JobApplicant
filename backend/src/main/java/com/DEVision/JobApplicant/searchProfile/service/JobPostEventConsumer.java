@@ -1,13 +1,14 @@
 package com.DEVision.JobApplicant.searchProfile.service;
 
-import com.DEVision.JobApplicant.auth.entity.User;
-import com.DEVision.JobApplicant.auth.repository.AuthRepository;
-import com.DEVision.JobApplicant.common.model.PlanType;
 import com.DEVision.JobApplicant.notification.external.dto.NotificationRequest;
 import com.DEVision.JobApplicant.notification.external.service.NotificationExternalService;
 import com.DEVision.JobApplicant.searchProfile.dto.JobPostEvent;
 import com.DEVision.JobApplicant.searchProfile.entity.MatchedJobPost;
 import com.DEVision.JobApplicant.searchProfile.repository.MatchedJobPostRepository;
+import com.DEVision.JobApplicant.subscription.entity.Subscription;
+import com.DEVision.JobApplicant.subscription.enums.PlanType;
+import com.DEVision.JobApplicant.subscription.enums.SubscriptionStatus;
+import com.DEVision.JobApplicant.subscription.repository.SubscriptionRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Kafka consumer for job post events
@@ -41,7 +43,7 @@ public class JobPostEventConsumer {
     private NotificationExternalService notificationExternalService;
 
     @Autowired
-    private AuthRepository authRepository;
+    private SubscriptionRepository subscriptionRepository;
 
     /**
      * Consume job post events from Kafka
@@ -74,37 +76,47 @@ public class JobPostEventConsumer {
             for (MatchedJobPost matchedJobPost : matchedJobPosts) {
                 // Only notify if not already notified
                 if (matchedJobPost.getIsNotified() == null || !matchedJobPost.getIsNotified()) {
-                    // Get user to check plan type
-                    User user = authRepository.findById(matchedJobPost.getUserId()).orElse(null);
+                    // Get subscription to check plan type
+                    Optional<Subscription> subscriptionOpt = subscriptionRepository
+                            .findByUserId(matchedJobPost.getUserId());
 
-                    if (user != null && user.getPlanType() == PlanType.PREMIUM) {
-                        // Build match data metadata for View Details modal
-                        Map<String, Object> matchData = buildMatchData(matchedJobPost, jobPost);
+                    if (subscriptionOpt.isPresent()) {
+                        Subscription subscription = subscriptionOpt.get();
                         
-                        // Create notification request for premium user (saves to DB + sends via WebSocket)
-                        NotificationRequest notificationRequest = new NotificationRequest(
-                                matchedJobPost.getUserId(),
-                                String.format("New Job Match! %.0f%% Match", matchedJobPost.getMatchScore()),
-                                String.format("Job: %s in %s. Matched skills: %s",
-                                        jobPost.getTitle(),
-                                        matchedJobPost.getLocation() != null ? matchedJobPost.getLocation() : "Unknown",
-                                        matchedJobPost.getMatchedSkills() != null ? 
-                                            String.join(", ", matchedJobPost.getMatchedSkills()) : "N/A"),
-                                "JOB_MATCH",
-                                matchData
-                        );
+                        // Check if subscription is PREMIUM and ACTIVE
+                        if (subscription.getPlanType() == PlanType.PREMIUM 
+                                && subscription.getStatus() == SubscriptionStatus.ACTIVE) {
+                            // Build match data metadata for View Details modal
+                            Map<String, Object> matchData = buildMatchData(matchedJobPost, jobPost);
+                            
+                            // Create notification request for premium user (saves to DB + sends via WebSocket)
+                            NotificationRequest notificationRequest = new NotificationRequest(
+                                    matchedJobPost.getUserId(),
+                                    String.format("New Job Match! %.0f%% Match", matchedJobPost.getMatchScore()),
+                                    String.format("Job: %s in %s. Matched skills: %s",
+                                            jobPost.getTitle(),
+                                            matchedJobPost.getLocation() != null ? matchedJobPost.getLocation() : "Unknown",
+                                            matchedJobPost.getMatchedSkills() != null ? 
+                                                String.join(", ", matchedJobPost.getMatchedSkills()) : "N/A"),
+                                    "JOB_MATCH",
+                                    matchData
+                            );
 
-                        // Use external service for DB save + WebSocket push
-                        notificationExternalService.sendNotification(notificationRequest);
+                            // Use external service for DB save + WebSocket push
+                            notificationExternalService.sendNotification(notificationRequest);
 
-                        // Mark as notified
-                        matchedJobPost.setIsNotified(true);
-                        matchedJobPostRepository.save(matchedJobPost);
+                            // Mark as notified
+                            matchedJobPost.setIsNotified(true);
+                            matchedJobPostRepository.save(matchedJobPost);
 
-                        logger.info("Sent notification to premium user {} for job post {}", 
-                                matchedJobPost.getUserId(), jobPost.getId());
+                            logger.info("Sent notification to premium user {} for job post {}", 
+                                    matchedJobPost.getUserId(), jobPost.getId());
+                        } else {
+                            logger.debug("Skipping notification for user {} - subscription is not premium or not active", 
+                                    matchedJobPost.getUserId());
+                        }
                     } else {
-                        logger.debug("Skipping notification for user {} - not premium or user not found", 
+                        logger.debug("Skipping notification for user {} - no subscription found", 
                                 matchedJobPost.getUserId());
                     }
                 }

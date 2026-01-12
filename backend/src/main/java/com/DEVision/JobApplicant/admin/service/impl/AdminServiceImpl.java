@@ -17,10 +17,15 @@ import com.DEVision.JobApplicant.jobManager.company.external.dto.CompanyListResp
 import com.DEVision.JobApplicant.jobManager.company.service.CallCompanyService;
 import com.DEVision.JobApplicant.jobManager.jobpost.service.CallJobPostService;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostListResponse;
+import com.DEVision.JobApplicant.subscription.entity.Subscription;
+import com.DEVision.JobApplicant.subscription.enums.PlanType;
+import com.DEVision.JobApplicant.subscription.enums.SubscriptionStatus;
+import com.DEVision.JobApplicant.subscription.repository.SubscriptionRepository;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -44,6 +49,9 @@ public class AdminServiceImpl implements AdminService {
     @Autowired
     private CallJobPostService callJobPostService;
 
+    @Autowired
+    private SubscriptionRepository subscriptionRepository;
+
     @Override
     public AdminStatsDto getDashboardStats() {
         // Count only applicants (not admin or company users)
@@ -54,9 +62,9 @@ public class AdminServiceImpl implements AdminService {
             .filter(u -> RoleConfig.APPLICANT.getRoleName().equals(u.getRole()))
             .collect(Collectors.toList());
 
-        // Premium count - only APPLICANT role users
-        long premiumCount = applicantUsers.stream()
-            .filter(u -> u.getPlanType() != null && u.getPlanType().name().equals("PREMIUM"))
+        // Premium count - check from subscriptions (PREMIUM and ACTIVE status)
+        long premiumCount = subscriptionRepository.findAll().stream()
+            .filter(s -> s.getPlanType() == PlanType.PREMIUM && s.getStatus() == SubscriptionStatus.ACTIVE)
             .count();
 
         // Active users - only APPLICANT role users that are enabled
@@ -234,9 +242,13 @@ public class AdminServiceImpl implements AdminService {
         if (user != null) {
             dto.setEmail(user.getEmail());
             dto.setStatus(user.isEnabled() ? "active" : "inactive");
-            dto.setIsPremium(user.getPlanType() != null &&
-                           user.getPlanType().name().equals("PREMIUM"));
             dto.setCountry(user.getCountry() != null ? user.getCountry().getDisplayName() : "");
+            
+            // Check premium status from subscription
+            Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(applicant.getUserId());
+            dto.setIsPremium(subscriptionOpt.isPresent() 
+                && subscriptionOpt.get().getPlanType() == PlanType.PREMIUM
+                && subscriptionOpt.get().getStatus() == SubscriptionStatus.ACTIVE);
         } else {
             dto.setEmail("");
             dto.setStatus("unknown");
@@ -269,8 +281,12 @@ public class AdminServiceImpl implements AdminService {
         if (user != null) {
             dto.setEmail(user.getEmail());
             dto.setStatus(user.isEnabled() ? "active" : "inactive");
-            dto.setIsPremium(user.getPlanType() != null &&
-                           user.getPlanType().name().equals("PREMIUM"));
+            
+            // Check premium status from subscription
+            Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(user.getId());
+            dto.setIsPremium(subscriptionOpt.isPresent() 
+                && subscriptionOpt.get().getPlanType() == PlanType.PREMIUM
+                && subscriptionOpt.get().getStatus() == SubscriptionStatus.ACTIVE);
         }
 
         return dto;

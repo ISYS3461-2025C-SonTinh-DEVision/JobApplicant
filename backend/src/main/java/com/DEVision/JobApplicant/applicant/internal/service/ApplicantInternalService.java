@@ -30,10 +30,14 @@ import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.model.PlanType;
+import com.DEVision.JobApplicant.subscription.entity.Subscription;
+import com.DEVision.JobApplicant.subscription.enums.SubscriptionStatus;
+import com.DEVision.JobApplicant.subscription.repository.SubscriptionRepository;
 import com.DEVision.JobApplicant.activity.service.ActivityService;
 import com.DEVision.JobApplicant.activity.entity.Activity.ActivityType;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -48,6 +52,9 @@ public class ApplicantInternalService {
 
     @Autowired
     private AuthRepository authRepository;
+
+    @Autowired
+    private SubscriptionRepository subscriptionRepository;
     
     @Autowired
     private ActivityService activityService;
@@ -636,12 +643,17 @@ public class ApplicantInternalService {
                 .collect(Collectors.toList())
             : List.of();
 
-        // Fetch user to get planType and country
+        // Fetch user to get country
         User user = authRepository.findById(applicant.getUserId()).orElse(null);
-        PlanType planType = user != null && user.getPlanType() != null
-            ? user.getPlanType()
-            : PlanType.FREEMIUM;
         Country country = user != null ? user.getCountry() : null;
+
+        // Fetch planType from subscription
+        Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(applicant.getUserId());
+        PlanType planType = subscriptionOpt.isPresent() 
+            && subscriptionOpt.get().getPlanType() == com.DEVision.JobApplicant.subscription.enums.PlanType.PREMIUM
+            && subscriptionOpt.get().getStatus() == SubscriptionStatus.ACTIVE
+            ? PlanType.PREMIUM 
+            : PlanType.FREEMIUM;
 
         return new ProfileResponse(
             applicant.getId(),
@@ -694,12 +706,17 @@ public class ApplicantInternalService {
                 .collect(Collectors.toList())
             : List.of();
 
-        // Fetch user to get planType and country
+        // Fetch user to get country
         User user = authRepository.findById(applicant.getUserId()).orElse(null);
-        PlanType planType = user != null && user.getPlanType() != null
-            ? user.getPlanType()
-            : PlanType.FREEMIUM;
         Country country = user != null ? user.getCountry() : null;
+
+        // Fetch planType from subscription
+        Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(applicant.getUserId());
+        PlanType planType = subscriptionOpt.isPresent() 
+            && subscriptionOpt.get().getPlanType() == com.DEVision.JobApplicant.subscription.enums.PlanType.PREMIUM
+            && subscriptionOpt.get().getStatus() == SubscriptionStatus.ACTIVE
+            ? PlanType.PREMIUM 
+            : PlanType.FREEMIUM;
 
         return new ApplicantListItemResponse(
             applicant.getId(),
