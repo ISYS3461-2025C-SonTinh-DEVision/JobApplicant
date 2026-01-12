@@ -29,21 +29,16 @@ public class CloudinaryService implements FileStorageService {
 
         // Determine resource type based on file content type
         String contentType = file.getContentType();
-        String originalFilename = file.getOriginalFilename();
-        String extension = originalFilename != null ? 
-            originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase() : "";
         
-        // Use 'raw' for documents (PDF, DOC, DOCX) to ensure proper download
-        // Cloudinary 'auto' detection sometimes misclassifies PDFs as images
+        // Determine resource type:
+        // - PDFs: Use 'auto' - Cloudinary will handle it appropriately
+        // - Videos: Use 'video' type
+        // - Images: Use 'auto' (default)
         String resourceType = "auto";
-        boolean isDocument = contentType != null && (
-            contentType.equals("application/pdf") ||
-            contentType.equals("application/msword") ||
-            contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-        ) || "pdf".equals(extension) || "doc".equals(extension) || "docx".equals(extension);
+        boolean isVideo = contentType != null && contentType.startsWith("video/");
         
-        if (isDocument) {
-            resourceType = "raw";
+        if (isVideo) {
+            resourceType = "video";
         }
 
         Map<String, Object> options = ObjectUtils.asMap("resource_type", resourceType);
@@ -59,12 +54,6 @@ public class CloudinaryService implements FileStorageService {
 
             if (!StringUtils.hasText(secureUrl) || !StringUtils.hasText(publicId) || !StringUtils.hasText(actualResourceType)) {
                 throw new FileStorageException("Cloudinary upload returned incomplete data");
-            }
-
-            // For raw resources, ensure URL uses /raw/upload/ path
-            // Cloudinary sometimes returns incorrect URL path for raw resources
-            if ("raw".equals(actualResourceType) && secureUrl.contains("/image/upload/")) {
-                secureUrl = secureUrl.replace("/image/upload/", "/raw/upload/");
             }
 
             return new FileUploadResult(secureUrl, publicId, actualResourceType);
