@@ -13,12 +13,21 @@ import com.DEVision.JobApplicant.searchProfile.repository.MatchedJobPostReposito
 import com.DEVision.JobApplicant.searchProfile.repository.SearchProfileRepository;
 import com.DEVision.JobApplicant.jobManager.jobpost.service.CallJobPostService;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostDto;
+import com.DEVision.JobApplicant.notification.external.dto.NotificationRequest;
+import com.DEVision.JobApplicant.notification.external.service.NotificationExternalService;
+import com.DEVision.JobApplicant.subscription.entity.Subscription;
+import com.DEVision.JobApplicant.subscription.enums.PlanType;
+import com.DEVision.JobApplicant.subscription.enums.SubscriptionStatus;
+import com.DEVision.JobApplicant.subscription.repository.SubscriptionRepository;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -38,6 +47,12 @@ public class JobMatchingService {
     
     @Autowired
     private CallJobPostService callJobPostService;
+
+    @Autowired
+    private SubscriptionRepository subscriptionRepository;
+
+    @Autowired
+    private NotificationExternalService notificationExternalService;
 
     /**
      * Match a job post with all search profiles (user's job search preferences)
@@ -468,8 +483,114 @@ public class JobMatchingService {
             }
         }
         
+        // Send notifications for premium users
+        if (!newMatches.isEmpty()) {
+            sendNotificationsForMatches(userId, newMatches);
+        }
+        
         logger.info("On-demand matching complete: {} new matches for user {}", newMatches.size(), userId);
         return newMatches;
+    }
+
+    /**
+     * Send notifications for matched job posts to premium users
+     * Called after on-demand matching
+     */
+    private void sendNotificationsForMatches(String userId, List<MatchedJobPost> matches) {
+        try {
+            // Check if user has active premium subscription
+            Optional<Subscription> subscriptionOpt = subscriptionRepository.findByUserId(userId);
+            
+            if (subscriptionOpt.isEmpty()) {
+                logger.debug("No subscription found for user {} - skipping notifications", userId);
+                return;
+            }
+            
+            Subscription subscription = subscriptionOpt.get();
+            if (subscription.getPlanType() != PlanType.PREMIUM || 
+                subscription.getStatus() != SubscriptionStatus.ACTIVE) {
+                logger.debug("User {} is not premium or subscription not active - skipping notifications", userId);
+                return;
+            }
+            
+            logger.info("Sending {} notifications to premium user {}", matches.size(), userId);
+            
+            for (MatchedJobPost match : matches) {
+                if (match.getIsNotified() != null && match.getIsNotified()) {
+                    continue; // Already notified
+                }
+                
+                try {
+                    // Build match data metadata for View Details modal
+                    Map<String, Object> matchData = buildMatchDataForNotification(match);
+                    
+                    // Create notification request
+                    NotificationRequest notificationRequest = new NotificationRequest(
+                            userId,
+                            String.format("New Job Match! %.0f%% Match", match.getMatchScore()),
+                            String.format("Job: %s in %s. Matched skills: %s",
+                                    match.getJobTitle(),
+                                    match.getLocation() != null ? match.getLocation() : "Unknown",
+                                    match.getMatchedSkills() != null ? 
+                                        String.join(", ", match.getMatchedSkills()) : "N/A"),
+                            "JOB_MATCH",
+                            matchData
+                    );
+                    
+                    // Save notification to DB and send via WebSocket
+                    notificationExternalService.sendNotification(notificationRequest);
+                    
+                    // Mark as notified
+                    match.setIsNotified(true);
+                    matchedJobPostRepository.save(match);
+                    
+                    logger.info("Sent notification to premium user {} for job {}", userId, match.getJobPostId());
+                } catch (Exception e) {
+                    logger.error("Failed to send notification for job {}: {}", match.getJobPostId(), e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error sending notifications for user {}: {}", userId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Build metadata for job match notification
+     */
+    private Map<String, Object> buildMatchDataForNotification(MatchedJobPost match) {
+        Map<String, Object> matchData = new HashMap<>();
+        
+        // Job info
+        matchData.put("jobPostId", match.getJobPostId());
+        matchData.put("jobTitle", match.getJobTitle());
+        matchData.put("jobDescription", match.getJobDescription());
+        matchData.put("location", match.getLocation());
+        matchData.put("employmentTypes", match.getEmploymentTypes());
+        
+        // Salary info
+        matchData.put("salaryMin", match.getSalaryMin());
+        matchData.put("salaryMax", match.getSalaryMax());
+        matchData.put("salaryCurrency", match.getSalaryCurrency() != null ? match.getSalaryCurrency() : "USD");
+        
+        // Skills match info
+        matchData.put("requiredSkills", match.getRequiredSkills());
+        matchData.put("matchedSkills", match.getMatchedSkills());
+        
+        // Overall match score
+        matchData.put("matchScore", match.getMatchScore());
+        
+        // Score breakdown
+        matchData.put("skillsScore", match.getSkillsScore() != null ? match.getSkillsScore() : 0);
+        matchData.put("salaryScore", match.getSalaryScore() != null ? match.getSalaryScore() : 0);
+        matchData.put("locationScore", match.getLocationScore() != null ? match.getLocationScore() : 0);
+        matchData.put("employmentScore", match.getEmploymentScore() != null ? match.getEmploymentScore() : 0);
+        matchData.put("titleScore", match.getTitleScore() != null ? match.getTitleScore() : 0);
+        
+        // Dates
+        matchData.put("postedDate", match.getPostedDate());
+        matchData.put("expiryDate", match.getExpiryDate());
+        
+        return matchData;
     }
     
     /**

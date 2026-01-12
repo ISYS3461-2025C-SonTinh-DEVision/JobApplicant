@@ -5,8 +5,11 @@ import com.DEVision.JobApplicant.applicant.internal.dto.PortfolioItemResponse;
 import com.DEVision.JobApplicant.applicant.internal.dto.WorkExperienceResponse;
 import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.model.PlanType;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -31,18 +34,25 @@ public class ApplicantProfileEvent {
     private String avatarUrl;
     private List<PortfolioItemResponse> portfolioImages;
     private List<PortfolioItemResponse> portfolioVideos;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+    private Instant createdAt;
+    
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+    private Instant updatedAt;
+    
     private String eventType; // "SKILLS_UPDATED" or "COUNTRY_UPDATED"
-    private LocalDateTime eventTimestamp;
+    
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+    private Instant eventTimestamp;
 
     public ApplicantProfileEvent() {
-        this.eventTimestamp = LocalDateTime.now();
+        this.eventTimestamp = Instant.now();
     }
 
     public ApplicantProfileEvent(String eventType) {
         this.eventType = eventType;
-        this.eventTimestamp = LocalDateTime.now();
+        this.eventTimestamp = Instant.now();
     }
 
     // Getters and Setters
@@ -174,20 +184,30 @@ public class ApplicantProfileEvent {
         this.portfolioVideos = portfolioVideos;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
+    
+    // Helper setter to convert LocalDateTime to Instant
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt != null ? createdAt.toInstant(ZoneOffset.UTC) : null;
+    }
 
-    public LocalDateTime getUpdatedAt() {
+    public Instant getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
+    public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+    
+    // Helper setter to convert LocalDateTime to Instant
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt != null ? updatedAt.toInstant(ZoneOffset.UTC) : null;
     }
 
     public String getEventType() {
@@ -198,11 +218,11 @@ public class ApplicantProfileEvent {
         this.eventType = eventType;
     }
 
-    public LocalDateTime getEventTimestamp() {
+    public Instant getEventTimestamp() {
         return eventTimestamp;
     }
 
-    public void setEventTimestamp(LocalDateTime eventTimestamp) {
+    public void setEventTimestamp(Instant eventTimestamp) {
         this.eventTimestamp = eventTimestamp;
     }
 }

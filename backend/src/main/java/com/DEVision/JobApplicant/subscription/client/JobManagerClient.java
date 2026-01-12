@@ -56,7 +56,7 @@ public class JobManagerClient {
         );
 
         return restClient.post()
-                .uri("/api/payments/process")
+                .uri("/api/subscriptions/subscribe")
                 .header("Authorization", cognitoTokenService.getAuthorizationHeader())
                 .body(request)
                 .retrieve()
