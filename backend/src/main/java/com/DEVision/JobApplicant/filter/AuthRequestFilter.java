@@ -161,6 +161,15 @@ public class AuthRequestFilter extends OncePerRequestFilter {
 
 			UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
+			// Check if account is enabled/active
+			if (!userDetails.isEnabled()) {
+				System.out.println("AuthRequestFilter: Account is deactivated for user: " + username);
+				response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+				response.setContentType("application/json");
+				response.getWriter().write("{\"error\":\"ACCOUNT_DEACTIVATED\",\"message\":\"Your account has been deactivated. Please contact support.\"}");
+				return; // Don't proceed with the request
+			}
+
 			UsernamePasswordAuthenticationToken usernamePasswordAuthToken = new UsernamePasswordAuthenticationToken(
 					userDetails,
 					null,

@@ -17,6 +17,7 @@ import com.DEVision.JobApplicant.jobManager.company.external.dto.CompanyListResp
 import com.DEVision.JobApplicant.jobManager.company.service.CallCompanyService;
 import com.DEVision.JobApplicant.jobManager.jobpost.service.CallJobPostService;
 import com.DEVision.JobApplicant.jobManager.jobpost.external.dto.JobPostListResponse;
+import com.DEVision.JobApplicant.notification.service.WebSocketNotificationService;
 import com.DEVision.JobApplicant.subscription.entity.Subscription;
 import com.DEVision.JobApplicant.subscription.enums.PlanType;
 import com.DEVision.JobApplicant.subscription.enums.SubscriptionStatus;
@@ -51,6 +52,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private SubscriptionRepository subscriptionRepository;
+    
+    @Autowired
+    private WebSocketNotificationService webSocketNotificationService;
 
     @Override
     public AdminStatsDto getDashboardStats() {
@@ -170,9 +174,21 @@ public class AdminServiceImpl implements AdminService {
         Applicant applicant = applicantRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Applicant not found"));
 
-        // Deactivate the user account
+        // Get the user account
         User user = authRepository.findById(applicant.getUserId()).orElse(null);
         if (user != null) {
+            // Send WebSocket notification BEFORE deactivating (so user receives it)
+            try {
+                webSocketNotificationService.sendAccountDeactivatedAlert(
+                    user.getId(),
+                    "Your account has been deactivated by an administrator. Please contact support if you believe this is an error."
+                );
+                logger.info("Sent deactivation alert to user: {}", user.getId());
+            } catch (Exception e) {
+                logger.warn("Failed to send WebSocket notification to user {}: {}", user.getId(), e.getMessage());
+            }
+            
+            // Deactivate the user account
             user.setEnabled(false);
             authRepository.save(user);
         }

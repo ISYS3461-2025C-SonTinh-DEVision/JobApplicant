@@ -389,4 +389,42 @@ public class CallJobPostService implements JobPostServiceInf {
         // All tokens found
         return true;
     }
+    
+    /**
+     * Delete a job post from JM system (Admin operation)
+     * Requirement 6.2.2: Administrators shall be able to delete any Job Post
+     * 
+     * @param jobPostId The ID of the job post to delete
+     * @param authorizationHeader User's JWT token to forward to JM API
+     * @return true if deletion was successful, false otherwise
+     */
+    @Override
+    public boolean deleteJobPost(String jobPostId, String authorizationHeader) {
+        String url = externalUrl.getJobPostsUrl() + "/" + jobPostId;
+        
+        try {
+            // Use user's JWT token for authentication with JM API
+            // This ensures the admin user's permissions are validated by JM
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", authorizationHeader);
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            
+            ResponseEntity<Void> response = restTemplate.exchange(
+                url,
+                HttpMethod.DELETE,
+                entity,
+                Void.class
+            );
+            
+            boolean success = response.getStatusCode().is2xxSuccessful();
+            logger.info("Job post deletion {}: jobPostId={}", success ? "successful" : "failed", jobPostId);
+            return success;
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            logger.warn("Job post not found for deletion: {}", jobPostId);
+            return false;
+        } catch (org.springframework.web.client.RestClientException e) {
+            logger.error("Error deleting job post {}: {}", jobPostId, e.getMessage());
+            throw new RuntimeException("Failed to delete job post from JM system: " + e.getMessage(), e);
+        }
+    }
 }

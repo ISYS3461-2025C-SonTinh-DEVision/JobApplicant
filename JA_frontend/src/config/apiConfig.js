@@ -105,6 +105,16 @@ export const API_ENDPOINTS = {
     DEACTIVATE: (id) => `/api/jm/company/${id}/deactivate`,
   },
 
+  // JM Job Posts endpoints (proxied through JA backend at /api/job-posts)
+  JM_JOB_POSTS: {
+    // GET /api/job-posts - Get all job posts with pagination and search
+    LIST: '/api/job-posts',
+    // GET /api/job-posts/{id} - Get job post by ID
+    BY_ID: (id) => `/api/job-posts/${id}`,
+    // DELETE /api/job-posts/{id} - Delete job post (admin) - Requirement 6.2.2
+    DELETE: (id) => `/api/job-posts/${id}`,
+  },
+
   // Application endpoints (Requirement 3.2.4 - Display applications)
   APPLICATIONS: {
     // GET /api/applications/my-applications - Get current user's applications with pagination

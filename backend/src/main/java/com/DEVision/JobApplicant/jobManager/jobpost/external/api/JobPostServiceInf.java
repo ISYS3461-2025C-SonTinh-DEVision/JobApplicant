@@ -39,5 +39,14 @@ public interface JobPostServiceInf {
      * @return JobPostListResponse with paginated results
      */
     JobPostListResponse searchJobPosts(Map<String, Object> queryParams);
+    
+    /**
+     * Delete a job post from JM system (Admin operation)
+     * Requirement 6.2.2: Administrators shall be able to delete any Job Post
+     * @param jobPostId The ID of the job post to delete
+     * @param authorizationHeader User's JWT token to forward to JM API
+     * @return true if deletion was successful, false otherwise
+     */
+    boolean deleteJobPost(String jobPostId, String authorizationHeader);
 }
 
