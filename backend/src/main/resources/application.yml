@@ -48,8 +48,8 @@ spring:
       password: ${REDIS_PASSWORD:}
       database: 0
       timeout: 60000
-      ssl:
-        enabled: ${REDIS_SSL_ENABLED:false}
+      # ssl:
+      #   enabled: ${REDIS_SSL_ENABLED:false}
       jedis:
         pool:
           max-active: 8
