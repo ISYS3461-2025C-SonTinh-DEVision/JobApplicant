@@ -36,6 +36,7 @@ import {
 } from '../../components/headless';
 
 import JobMatchService from '../../services/JobMatchService';
+import CatLoadingSpinner from '../../components/common/CatLoadingSpinner';
 
 // ===== Constants =====
 const ITEMS_PER_PAGE = 6;
@@ -699,8 +700,8 @@ export default function JobMatchListPage() {
 
             {/* Loading State */}
             {loading && (
-                <div className="flex items-center justify-center py-12">
-                    <RefreshCw className="w-8 h-8 text-primary-500 animate-spin" />
+                <div className="flex items-center justify-center py-16">
+                    <CatLoadingSpinner size="xl" message="Finding your matched jobs..." />
                 </div>
             )}
 

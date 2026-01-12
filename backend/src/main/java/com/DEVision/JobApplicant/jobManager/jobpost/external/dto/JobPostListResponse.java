@@ -72,6 +72,20 @@ public class JobPostListResponse implements Serializable {
         return data != null && data.getMeta() != null ? data.getMeta().getPage() : null;
     }
     
+    /**
+     * Set page number - creates data wrapper and meta if needed
+     * Used for server-side pagination results
+     */
+    public void setPage(int page) {
+        if (data == null) {
+            data = new DataWrapper();
+        }
+        if (data.getMeta() == null) {
+            data.setMeta(new Meta());
+        }
+        data.getMeta().setPage(page);
+    }
+    
     public Integer getTotalPages() {
         return data != null && data.getMeta() != null ? data.getMeta().getTotalPages() : null;
     }
