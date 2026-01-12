@@ -22,8 +22,8 @@ services:
     volumes:
       - ./gateway/kong.yml:/kong/kong.yml:ro
     ports:
-      - "8000:8000"   # Proxy port (API Gateway endpoint)
-      - "8001:8001"   # Admin API port
+      - "8000:8000" # Proxy port (API Gateway endpoint)
+      - "8001:8001" # Admin API port
     depends_on:
       - backend
     networks:
@@ -46,8 +46,8 @@ services:
       - ./consul/config.json:/consul/config/config.json:ro
       - consul_data:/consul/data
     ports:
-      - "8500:8500"   # HTTP API and UI
-      - "8600:8600/udp"  # DNS interface
+      - "8500:8500" # HTTP API and UI
+      - "8600:8600/udp" # DNS interface
     networks:
       - devision-network
     healthcheck:
@@ -82,7 +82,8 @@ services:
     networks:
       - devision-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test:
+        ["CMD", "curl", "-f", "-k", "https://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3

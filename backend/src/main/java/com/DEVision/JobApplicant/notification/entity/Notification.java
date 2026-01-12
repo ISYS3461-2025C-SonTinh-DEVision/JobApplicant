@@ -6,7 +6,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.Map;
 
 @Document(collection = "notifications")
 public class Notification {
@@ -23,16 +24,20 @@ public class Notification {
     @NotBlank(message = "Content is required")
     private String content;
     
+    // Using Instant (UTC) for consistent timezone handling across all environments
     @NotNull
-    private LocalDateTime timestamp;
+    private Instant timestamp;
     
     @NotNull
     private boolean isRead;
     
-    private String type; // Optional: email, system, alert, etc.
+    private String type; // Optional: email, system, alert, JOB_MATCH, etc.
+    
+    // Metadata for additional data (e.g., job match details)
+    private Map<String, Object> metadata;
     
     public Notification() {
-        this.timestamp = LocalDateTime.now();
+        this.timestamp = Instant.now(); // UTC timestamp
         this.isRead = false;
     }
     
@@ -40,7 +45,7 @@ public class Notification {
         this.userId = userId;
         this.title = title;
         this.content = content;
-        this.timestamp = LocalDateTime.now();
+        this.timestamp = Instant.now(); // UTC timestamp
         this.isRead = false;
     }
 
@@ -76,11 +81,11 @@ public class Notification {
         this.content = content;
     }
 
-    public LocalDateTime getTimestamp() {
+    public Instant getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(LocalDateTime timestamp) {
+    public void setTimestamp(Instant timestamp) {
         this.timestamp = timestamp;
     }
 
@@ -100,7 +105,14 @@ public class Notification {
         this.type = type;
     }
     
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
     
-
+    public void setMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata;
+    }
 }
+
+
 

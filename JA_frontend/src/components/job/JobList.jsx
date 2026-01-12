@@ -5,14 +5,22 @@
  */
 import React from 'react';
 import JobCard, { JobCardSkeleton } from './JobCard';
+import CatLoadingSpinner from '../common/CatLoadingSpinner';
 
 const JobList = ({ jobs, loading, onView, onApply, onSave, variant = 'dark' }) => {
     if (loading) {
         return (
-            <div className="space-y-4">
-                {[...Array(3)].map((_, i) => (
-                    <JobCardSkeleton key={i} variant={variant} />
-                ))}
+            <div className="space-y-6">
+                {/* Cat animation for better visual feedback */}
+                <div className="flex items-center justify-center py-4">
+                    <CatLoadingSpinner size="lg" message="Finding jobs for you..." />
+                </div>
+                {/* Skeleton cards to show structure */}
+                <div className="space-y-4 opacity-50">
+                    {[...Array(3)].map((_, i) => (
+                        <JobCardSkeleton key={i} variant={variant} />
+                    ))}
+                </div>
             </div>
         );
     }

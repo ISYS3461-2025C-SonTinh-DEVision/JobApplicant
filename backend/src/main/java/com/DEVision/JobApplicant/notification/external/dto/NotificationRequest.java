@@ -1,6 +1,7 @@
 package com.DEVision.JobApplicant.notification.external.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
 
 // DTO for external services to create notifications
 public class NotificationRequest {
@@ -16,6 +17,8 @@ public class NotificationRequest {
     
     private String type; // Optional notification type
     
+    private Map<String, Object> metadata; // Optional: additional data (e.g., job match details)
+    
     public NotificationRequest() {}
     
     public NotificationRequest(String userId, String title, String content) {
@@ -29,6 +32,14 @@ public class NotificationRequest {
         this.title = title;
         this.content = content;
         this.type = type;
+    }
+    
+    public NotificationRequest(String userId, String title, String content, String type, Map<String, Object> metadata) {
+        this.userId = userId;
+        this.title = title;
+        this.content = content;
+        this.type = type;
+        this.metadata = metadata;
     }
     
     // Getters and Setters
@@ -63,5 +74,14 @@ public class NotificationRequest {
     public void setType(String type) {
         this.type = type;
     }
+    
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
+    
+    public void setMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata;
+    }
 }
+
 

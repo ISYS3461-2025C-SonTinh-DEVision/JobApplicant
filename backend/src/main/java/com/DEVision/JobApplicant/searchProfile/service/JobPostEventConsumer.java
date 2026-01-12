@@ -15,7 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Kafka consumer for job post events
@@ -76,13 +78,20 @@ public class JobPostEventConsumer {
                     User user = authRepository.findById(matchedJobPost.getUserId()).orElse(null);
 
                     if (user != null && user.getPlanType() == PlanType.PREMIUM) {
+                        // Build match data metadata for View Details modal
+                        Map<String, Object> matchData = buildMatchData(matchedJobPost, jobPost);
+                        
                         // Create notification request for premium user (saves to DB + sends via WebSocket)
                         NotificationRequest notificationRequest = new NotificationRequest(
                                 matchedJobPost.getUserId(),
-                                "Job Match Found!",
-                                String.format("A new job post '%s' matches your profile (%.1f%% match). Check it out!",
-                                        jobPost.getTitle(), matchedJobPost.getMatchScore()),
-                                "job_match"
+                                String.format("New Job Match! %.0f%% Match", matchedJobPost.getMatchScore()),
+                                String.format("Job: %s in %s. Matched skills: %s",
+                                        jobPost.getTitle(),
+                                        matchedJobPost.getLocation() != null ? matchedJobPost.getLocation() : "Unknown",
+                                        matchedJobPost.getMatchedSkills() != null ? 
+                                            String.join(", ", matchedJobPost.getMatchedSkills()) : "N/A"),
+                                "JOB_MATCH",
+                                matchData
                         );
 
                         // Use external service for DB save + WebSocket push
@@ -105,5 +114,48 @@ public class JobPostEventConsumer {
                     jobPost.getId(), e.getMessage(), e);
         }
     }
+    
+    /**
+     * Build metadata for job match notification (for View Details modal)
+     */
+    private Map<String, Object> buildMatchData(MatchedJobPost matchedJobPost, JobPostEvent jobPost) {
+        Map<String, Object> matchData = new HashMap<>();
+        
+        // Job info
+        matchData.put("jobPostId", matchedJobPost.getJobPostId());
+        matchData.put("jobTitle", matchedJobPost.getJobTitle());
+        matchData.put("jobDescription", matchedJobPost.getJobDescription());
+        matchData.put("location", matchedJobPost.getLocation());
+        matchData.put("employmentTypes", matchedJobPost.getEmploymentTypes());
+        
+        // Salary info
+        matchData.put("salaryMin", matchedJobPost.getSalaryMin());
+        matchData.put("salaryMax", matchedJobPost.getSalaryMax());
+        matchData.put("salaryCurrency", matchedJobPost.getSalaryCurrency() != null ? 
+                matchedJobPost.getSalaryCurrency() : "USD");
+        
+        // Skills match info
+        matchData.put("requiredSkills", matchedJobPost.getRequiredSkills());
+        matchData.put("matchedSkills", matchedJobPost.getMatchedSkills());
+        
+        // Overall match score
+        matchData.put("matchScore", matchedJobPost.getMatchScore());
+        
+        // ========== SCORE BREAKDOWN (actual algorithm values) ==========
+        // These are the real calculated scores from JobMatchingService
+        matchData.put("skillsScore", matchedJobPost.getSkillsScore() != null ? matchedJobPost.getSkillsScore() : 0);
+        matchData.put("salaryScore", matchedJobPost.getSalaryScore() != null ? matchedJobPost.getSalaryScore() : 0);
+        matchData.put("locationScore", matchedJobPost.getLocationScore() != null ? matchedJobPost.getLocationScore() : 0);
+        matchData.put("employmentScore", matchedJobPost.getEmploymentScore() != null ? matchedJobPost.getEmploymentScore() : 0);
+        matchData.put("titleScore", matchedJobPost.getTitleScore() != null ? matchedJobPost.getTitleScore() : 0);
+        
+        // Dates
+        matchData.put("postedDate", matchedJobPost.getPostedDate());
+        matchData.put("expiryDate", matchedJobPost.getExpiryDate());
+        
+        return matchData;
+    }
 }
+
+
 

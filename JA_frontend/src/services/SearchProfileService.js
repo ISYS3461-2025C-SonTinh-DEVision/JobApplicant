@@ -237,6 +237,74 @@ class SearchProfileService {
     }
 
     /**
+     * Get matched jobs for current user
+     * Per Ultimo 5.3.1: Real-time notification when jobs match search profile
+     * @returns {Promise<Object>} List of matched job posts
+     */
+    async getMatchedJobs() {
+        if (this.useMock) {
+            await this._delay(300);
+            return { success: true, data: [] };
+        }
+
+        try {
+            const data = await httpUtil.get(API_ENDPOINTS.SEARCH_PROFILE.MATCHED_JOBS);
+            return { success: true, data: data || [] };
+        } catch (error) {
+            console.error('Error getting matched jobs:', error);
+            return { success: false, data: [], error: error.message };
+        }
+    }
+
+    /**
+     * Simulate a job match for testing
+     * Creates a test job that matches user's search profile
+     * @returns {Promise<Object>} Simulated matched job
+     */
+    async simulateJobMatch() {
+        if (this.useMock) {
+            await this._delay(500);
+            return {
+                success: true,
+                data: {
+                    id: 'sim_' + Date.now(),
+                    jobTitle: 'Test Software Engineer',
+                    matchScore: 85,
+                    location: 'Vietnam',
+                },
+            };
+        }
+
+        try {
+            const data = await httpUtil.post(API_ENDPOINTS.SEARCH_PROFILE.SIMULATE_MATCH);
+            return { success: true, data: data };
+        } catch (error) {
+            console.error('Error simulating job match:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Check for job matches manually
+     * For non-premium users who don't receive real-time notifications
+     * @returns {Promise<Object>} List of matched job posts
+     */
+    async checkMatches() {
+        if (this.useMock) {
+            await this._delay(300);
+            return { success: true, data: [] };
+        }
+
+        try {
+            const data = await httpUtil.post(API_ENDPOINTS.SEARCH_PROFILE.CHECK_MATCHES);
+            return { success: true, data: data || [] };
+        } catch (error) {
+            console.error('Error checking job matches:', error);
+            return { success: false, data: [], error: error.message };
+        }
+    }
+
+    /**
      * Set mock profile (for testing)
      */
     setMockProfile(profile = MOCK_SEARCH_PROFILE) {

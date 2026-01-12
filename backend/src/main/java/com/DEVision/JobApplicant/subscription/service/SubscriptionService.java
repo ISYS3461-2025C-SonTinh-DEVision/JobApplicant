@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
+
 
 import com.DEVision.JobApplicant.notification.entity.Notification;
 import com.DEVision.JobApplicant.notification.service.NotificationService;
@@ -215,9 +217,9 @@ public class SubscriptionService {
     private void sendExpirationNotification(String userId) {
         Notification notification = new Notification();
         notification.setUserId(userId);
-        notification.setTitle("Premium Subscription Expired");
-        notification.setContent("Your premium subscription has expired. Upgrade anytime to regain premium features.");
-        notification.setTimestamp(LocalDateTime.now());
+        notification.setTitle("Subscription Expired");
+        notification.setContent("Your subscription has expired. Please renew to continue enjoying premium features.");
+        notification.setTimestamp(expiryDate); // Use Instant directly
         notification.setRead(false);
         notificationService.createNotification(notification);
     }

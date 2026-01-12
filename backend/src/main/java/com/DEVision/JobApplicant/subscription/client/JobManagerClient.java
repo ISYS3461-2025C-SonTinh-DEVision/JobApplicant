@@ -19,27 +19,41 @@ public class JobManagerClient {
 
     private static final String DEFAULT_CURRENCY = "USD";
     private static final String DEFAULT_PAYMENT_METHOD = "stripe";
-    private static final String SUCCESS_URL = "https://ja.devision.sbs/dashboard";
-    private static final String CANCEL_URL = "https://ja.devision.sbs/dashboard";
 
     private final RestClient restClient;
     
     @Autowired
     private CognitoTokenService cognitoTokenService;
 
+    @Value("${app.frontend.base-url:http://localhost:3000}")
+    private String frontendBaseUrl;
+
+    @Value("${app.backend.base-url:http://localhost:8080}")
+    private String backendBaseUrl;
+
     public JobManagerClient(RestClient restClient) {
         this.restClient = restClient;
     }
 
+
     public PaymentResponse processPayment(String email, BigDecimal amount, String subscriptionType) {
+        // Authenticate with Job Manager to get access token
+        String accessToken = authenticate();
+
+        // Build URLs for Stripe redirect (frontend)
+        // Note: JM handles payment callbacks internally via Stripe webhooks
+        // JA receives callback from JM at /api/subscription/payment/callback
+        String successUrl = frontendBaseUrl + "/dashboard/subscription?payment=success";
+        String cancelUrl = frontendBaseUrl + "/dashboard/subscription?payment=cancelled";
+
         PaymentRequest request = new PaymentRequest(
                 email,
                 amount,
                 DEFAULT_CURRENCY,
                 DEFAULT_PAYMENT_METHOD,
                 subscriptionType,
-                SUCCESS_URL,
-                CANCEL_URL
+                successUrl,
+                cancelUrl
         );
 
         return restClient.post()

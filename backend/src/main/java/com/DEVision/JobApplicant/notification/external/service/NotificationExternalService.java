@@ -36,6 +36,7 @@ public class NotificationExternalService {
         notification.setTitle(request.getTitle());
         notification.setContent(request.getContent());
         notification.setType(request.getType());
+        notification.setMetadata(request.getMetadata()); // Copy metadata (e.g., job match details)
         
         Notification saved = notificationService.createNotification(notification);
         NotificationResponse response = toResponse(saved);
@@ -94,8 +95,10 @@ public class NotificationExternalService {
             notification.getContent(),
             notification.getTimestamp(),
             notification.isRead(),
-            notification.getType()
+            notification.getType(),
+            notification.getMetadata()
         );
     }
 }
+
 

@@ -1,17 +1,24 @@
-
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8443}
+  ssl:
+    enabled: ${SSL_ENABLED:false}
+    key-store: classpath:keystore.p12
+    key-store-password: ${SSL_KEYSTORE_PASSWORD:changeit}
+    key-store-type: PKCS12
+    key-alias: jobapplicant
 
 app:
   frontend:
     base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
+  backend:
+    base-url: ${BACKEND_BASE_URL:http://localhost:8080}
   job-manager:
     base-url: ${JOB_MANAGER_BASE_URL:http://localhost:8081}
   mail:
-    from: ${MAIL_FROM:onboarding@resend.dev}  
+    from: ${MAIL_FROM:onboarding@resend.dev}
     from-name: ${MAIL_FROM_NAME:DEVision}
     resend:
-      # Resend API Key for HTTP-based email sending 
+      # Resend API Key for HTTP-based email sending
       api-key: ${MAIL_PASSWORD:re_LiDzSkL7_HtCBpf7dvcrRbi3kSDLyMH8P}
 
 cloudinary:
@@ -22,14 +29,14 @@ cloudinary:
 spring:
   application:
     name: JobApplicant
-    
+
   servlet:
     multipart:
       enabled: true
       max-file-size: 100MB
       max-request-size: 200MB
       file-size-threshold: 2KB
-  
+
   data:
     mongodb:
       uri: ${MONGODB_URI}
@@ -73,8 +80,6 @@ jm:
   service:
     url: ${JOB_MANAGER_SERVICE_URL:http://localhost:3000}
 
-
-
   # Google OAuth2 SSO Configuration (Requirement 1.3.1 - Ultimo)
   # Note: Our implementation uses ID Token Flow via OAuth2Service
   # This config provides the client-id for token verification
@@ -97,8 +102,6 @@ jm:
             user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
             user-name-attribute: sub
 
-
-
 # AWS Cognito configuration for system-to-system OAuth2 (client_credentials)
 # Used by CognitoJwtVerifier + SystemAuthFilter + CognitoTokenService
 cognito:
@@ -113,4 +116,3 @@ cognito:
 
 client:
   id: ccloud-springboot-client-7905b7e9-536d-4b3c-90b7-1cde4850022b
-

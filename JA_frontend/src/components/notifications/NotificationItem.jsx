@@ -12,10 +12,11 @@ import { useNavigate } from 'react-router-dom';
 import {
     Bell, Check, Trash2, ExternalLink,
     Briefcase, FileText, Eye, Star, AlertCircle,
-    ChevronRight
+    ChevronRight, Info
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { NOTIFICATION_TYPES } from '../../services/NotificationService';
+import JobMatchDetailModal from './JobMatchDetailModal';
 
 /**
  * Get icon for notification type
@@ -153,11 +154,16 @@ export default function NotificationItem({
     const navigate = useNavigate();
     const [isHovered, setIsHovered] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [showMatchDetails, setShowMatchDetails] = useState(false);
 
     const Icon = getNotificationIcon(notification.type);
     const styles = getNotificationStyles(notification.type, isDark);
     const timeAgo = notification.timeAgo || formatTimeAgo(notification.createdAt || notification.timestamp);
     const label = getNotificationLabel(notification.type);
+
+    // Check if this is a job match notification with match data
+    const isJobMatch = notification.type === NOTIFICATION_TYPES.JOB_MATCH;
+    const hasMatchData = notification.matchData || notification.metadata?.matchData;
 
     const handleClick = () => {
         onClick?.();
@@ -170,6 +176,15 @@ export default function NotificationItem({
         }
 
         // Mark as read on click
+        if (!notification.read && onMarkAsRead) {
+            onMarkAsRead(notification.id);
+        }
+    };
+
+    const handleViewDetails = (e) => {
+        e.stopPropagation();
+        setShowMatchDetails(true);
+        // Mark as read when viewing details
         if (!notification.read && onMarkAsRead) {
             onMarkAsRead(notification.id);
         }
@@ -303,9 +318,25 @@ export default function NotificationItem({
 
                         {/* Actions */}
                         <div className={`
-                            flex items-center gap-2 mt-4 pt-3 border-t
+                            flex items-center gap-2 mt-4 pt-3 border-t flex-wrap
                             ${isDark ? 'border-white/10' : 'border-gray-100'}
                         `}>
+                            {/* View Details for Job Match */}
+                            {isJobMatch && (
+                                <button
+                                    onClick={handleViewDetails}
+                                    className={`
+                                        flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold
+                                        transition-all duration-200 transform hover:scale-105
+                                        bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white
+                                        shadow-md shadow-violet-500/25 hover:shadow-violet-500/40
+                                    `}
+                                >
+                                    <Info className="w-4 h-4" />
+                                    View Details
+                                </button>
+                            )}
+
                             {/* Mark as read */}
                             {!notification.read && onMarkAsRead && (
                                 <button
@@ -346,6 +377,32 @@ export default function NotificationItem({
                     </div>
                 </div>
             </div>
+
+            {/* Job Match Detail Modal */}
+            {isJobMatch && (
+                <JobMatchDetailModal
+                    isOpen={showMatchDetails}
+                    onClose={() => setShowMatchDetails(false)}
+                    matchData={notification.matchData || notification.metadata?.matchData || {
+                        // Fallback: parse data from notification if no matchData object
+                        jobTitle: notification.title?.replace(/^New Job Match! \d+% Match$/, '').trim() ||
+                            notification.content?.match(/Job: ([^in]+)/)?.[1]?.trim() || 'Job Match',
+                        jobDescription: notification.content || '',
+                        location: notification.content?.match(/in ([^.]+)\./)?.[1]?.trim() || 'Unknown',
+                        matchScore: parseFloat(notification.title?.match(/(\d+)%/)?.[1] || '0') ||
+                            notification.matchScore || 85,
+                        matchedSkills: notification.content?.match(/Matched skills: ([^.]+)/)?.[1]?.split(', ') || [],
+                        requiredSkills: notification.content?.match(/Matched skills: ([^.]+)/)?.[1]?.split(', ') || [],
+                        employmentTypes: notification.employmentTypes || [],
+                        salaryMin: notification.salaryMin,
+                        salaryMax: notification.salaryMax,
+                        salaryCurrency: notification.salaryCurrency || 'USD',
+                        postedDate: notification.postedDate || notification.createdAt,
+                        jobPostId: notification.jobId || notification.jobPostId,
+                    }}
+                />
+            )}
         </div>
     );
 }
+

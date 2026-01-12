@@ -1,8 +1,9 @@
 import React from 'react';
 import { ApplicationCard } from './ApplicationCard';
-import { FileText, Loader2 } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Button } from '../reusable/Button';
 import { useTheme } from '../../context/ThemeContext';
+import CatLoadingSpinner from '../common/CatLoadingSpinner';
 
 export function ApplicationList({
     applications = [],
@@ -15,9 +16,8 @@ export function ApplicationList({
 
     if (loading) {
         return (
-            <div className={`flex flex-col items-center justify-center py-12 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
-                <Loader2 className="w-8 h-8 animate-spin mb-3 text-primary-600" />
-                <p>Loading applications...</p>
+            <div className="flex flex-col items-center justify-center py-12">
+                <CatLoadingSpinner size="lg" message="Loading applications..." />
             </div>
         );
     }
