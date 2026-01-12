@@ -12,6 +12,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { JMConnectionProvider } from './context/JMConnectionContext';
 import router from './routes/routeConfig';
 import CookieConsentBanner from './components/common/CookieConsentBanner';
+import ToastContainer from './components/notification/ToastNotification';
 
 function App() {
   return (
@@ -22,6 +23,8 @@ function App() {
             <AdminAuthProvider>
               <RouterProvider router={router} />
               <CookieConsentBanner />
+              {/* Global Toast Container - renders notifications on ALL pages */}
+              <ToastContainer />
             </AdminAuthProvider>
           </NotificationProvider>
         </AuthProvider>
@@ -31,3 +34,4 @@ function App() {
 }
 
 export default App;
+
