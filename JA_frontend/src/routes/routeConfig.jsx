@@ -41,6 +41,7 @@ import PaymentPage from '../pages/subscription/PaymentPage';
 import SearchProfilePage from '../pages/subscription/SearchProfilePage';
 import SearchProfileSidebar from '../pages/dashboard/SearchProfileSidebar';
 import NotificationsPage from '../pages/dashboard/NotificationsPage';
+import JobMatchListPage from '../pages/dashboard/JobMatchListPage';
 
 // Settings Page
 import SettingsPage from '../pages/dashboard/settings/SettingsPage';
@@ -235,6 +236,10 @@ const router = createBrowserRouter([
       {
         path: 'search-profile',
         element: <SearchProfileSidebar />,
+      },
+      {
+        path: 'job-matches',
+        element: <JobMatchListPage />,
       },
       {
         path: 'analytics',

@@ -19,7 +19,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, User, Briefcase, Search, Bell, Settings,
   LogOut, Menu, X, ChevronDown, Crown,
-  FileText, TrendingUp, Sun, Moon, PanelLeftClose, PanelLeft, Target
+  FileText, TrendingUp, Sun, Moon, PanelLeftClose, PanelLeft, Target, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
@@ -252,7 +252,7 @@ export default function DashboardLayout() {
 
   // Navigation items - badges always show (even when 0)
   // Navigation items - organized by user workflow priority
-  // Order: Home → Jobs → Applications → Notifications → Profile → Search Profile → Premium → Settings
+  // Order: Home → Jobs → Applications → Notifications → Profile → Search Profile → Job Matches → Premium → Settings
   const navigationItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard', exact: true },
     { to: '/dashboard/jobs', icon: Search, label: 'Find Jobs' },
@@ -260,6 +260,7 @@ export default function DashboardLayout() {
     { to: '/dashboard/notifications', icon: Bell, label: 'Notifications', badge: unreadCount },
     { to: '/dashboard/profile', icon: User, label: 'My Profile' },
     { to: '/dashboard/search-profile', icon: Target, label: 'Search Profile' },
+    { to: '/dashboard/job-matches', icon: Sparkles, label: 'Job Matches' },
     { to: '/dashboard/subscription', icon: Crown, label: 'Premium', highlight: true },
     { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
   ];
