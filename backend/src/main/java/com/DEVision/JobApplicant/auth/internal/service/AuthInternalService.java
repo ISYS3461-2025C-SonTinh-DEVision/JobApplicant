@@ -186,10 +186,18 @@ public class AuthInternalService {
 
     /**
      * Login user and return tokens
+     * Implements brute-force protection: max 5 failed attempts in 60 seconds
      */
     public AuthResponse login(LoginRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+
+        // Check brute-force protection before processing login
+        if (!redisService.allowLoginAttempt(email)) {
+            throw new RuntimeException("Too many failed login attempts. Please try again later.");
+        }
+
         // Find user by email
-        User user = userRepository.findByEmail(request.getEmail());
+        User user = userRepository.findByEmail(email);
 
         if (user == null) {
 			throw new RuntimeException("Invalid email or password");
@@ -235,15 +243,18 @@ public class AuthInternalService {
 
         // Authenticate
         Authentication authentication = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            new UsernamePasswordAuthenticationToken(email, request.getPassword())
         );
 
         if (!authentication.isAuthenticated()) {
             throw new RuntimeException("Invalid email or password");
         }
 
+        // Reset login attempts on successful authentication
+        redisService.resetLoginAttempts(email);
+
         // Generate tokens
-        UserDetails userDetails = authService.loadUserByUsername(request.getEmail());
+        UserDetails userDetails = authService.loadUserByUsername(email);
         Map<String, String> tokens = authService.createAuthTokens(userDetails, true);
 
         return new AuthResponse(tokens.get("accessToken"), tokens.get("refreshToken"));
