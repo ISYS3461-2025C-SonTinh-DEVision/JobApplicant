@@ -63,7 +63,7 @@ public class SecurityConfig {
 								"/api/system/verify-token"
 								// "/api/applications/job/**",
 								// "/api/applications/{id}/status",
-								// "/api/applicants",
+								// "/api/applicants",	
 								// "/api/applicants/{id}",
 								// "/api/applicants/user/{id}",
 								// // Public job search endpoints (no auth required for searching)

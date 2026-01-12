@@ -1,8 +1,6 @@
 package com.DEVision.JobApplicant.common.config;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 
@@ -22,8 +20,6 @@ import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.model.PlanType;
 import com.DEVision.JobApplicant.subscription.service.SubscriptionService;
-import com.DEVision.JobApplicant.subscription.entity.Subscription;
-import com.DEVision.JobApplicant.subscription.enums.SubscriptionStatus;
 import com.DEVision.JobApplicant.subscription.repository.SubscriptionRepository;
 
 /**
@@ -80,11 +76,10 @@ public class DataSeeder implements CommandLineRunner {
         admin.setRole(RoleConfig.ADMIN.getRoleName());
         admin.setEnabled(true);
         admin.setActivated(true);
-        admin.setPlanType(PlanType.PREMIUM);
         
         User savedAdmin = authRepository.save(admin);
         
-        // Create subscription for admin
+        // Create PREMIUM subscription for admin
         subscriptionService.createSubscription(
             savedAdmin.getId(), 
             com.DEVision.JobApplicant.subscription.enums.PlanType.PREMIUM
@@ -186,6 +181,13 @@ public class DataSeeder implements CommandLineRunner {
             // User exists but Applicant doesn't - create missing Applicant
             logger.info("User exists but Applicant missing, creating: {}", email);
             savedUser = existingUser;
+            
+            // Ensure subscription exists for existing user (idempotent)
+            if (!subscriptionRepository.findByUserId(savedUser.getId()).isPresent()) {
+                com.DEVision.JobApplicant.subscription.enums.PlanType subscriptionPlanType = 
+                    com.DEVision.JobApplicant.subscription.enums.PlanType.valueOf(planType.name());
+                subscriptionService.createSubscription(savedUser.getId(), subscriptionPlanType);
+            }
         } else {
             // Create new User
             User user = new User();
@@ -194,15 +196,14 @@ public class DataSeeder implements CommandLineRunner {
             user.setRole(RoleConfig.APPLICANT.getRoleName());
             user.setEnabled(true);
             user.setActivated(true);
-            user.setPlanType(planType);
             user.setCountry(country);
             savedUser = authRepository.save(user);
+            
+            // Initialize subscription for new user (idempotent - won't duplicate if exists)
+            com.DEVision.JobApplicant.subscription.enums.PlanType subscriptionPlanType = 
+                com.DEVision.JobApplicant.subscription.enums.PlanType.valueOf(planType.name());
+            subscriptionService.createSubscription(savedUser.getId(), subscriptionPlanType);
         }
-
-        // Create subscription (idempotent - won't duplicate if exists)
-        com.DEVision.JobApplicant.subscription.enums.PlanType subscriptionPlanType = 
-            com.DEVision.JobApplicant.subscription.enums.PlanType.valueOf(planType.name());
-        subscriptionService.createSubscription(savedUser.getId(), subscriptionPlanType);
 
         // Create Applicant profile
         Applicant applicant = new Applicant(savedUser.getId());
@@ -234,32 +235,8 @@ public class DataSeeder implements CommandLineRunner {
         
         applicantRepository.save(applicant);
 
-        // Create FREEMIUM subscription for the applicant
-        createFreemiumSubscription(savedUser.getId());
-
-        logger.info("Created applicant: {} {} ({}) - {} with FREEMIUM subscription",
+        logger.info("Created applicant: {} {} ({}) with {} subscription",
                     firstName, lastName, country.getDisplayName(), planType);
         return true;
-    }
-
-    /**
-     * Creates a FREEMIUM subscription for an applicant
-     * The subscription is set to ACTIVE status and expires in 30 days
-     */
-    private void createFreemiumSubscription(String userId) {
-        Instant now = Instant.now();
-        Instant expiryDate = now.plus(30, ChronoUnit.DAYS);
-
-        Subscription subscription = Subscription.builder()
-                .userId(userId)
-                .planType(com.DEVision.JobApplicant.subscription.enums.PlanType.FREEMIUM)
-                .status(SubscriptionStatus.ACTIVE)
-                .startDate(now)
-                .expiresAt(expiryDate)
-                .updatedAt(now)
-                .build();
-
-        subscriptionRepository.save(subscription);
-        logger.debug("Created FREEMIUM subscription for user: {}", userId);
     }
 }

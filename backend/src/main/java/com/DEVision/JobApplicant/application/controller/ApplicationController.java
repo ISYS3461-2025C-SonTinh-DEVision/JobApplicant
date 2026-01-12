@@ -208,27 +208,18 @@ public class ApplicationController {
     
     @Operation(
         summary = "Get application by ID",
-        description = "Retrieve a specific application by ID (only if it belongs to the authenticated user)"
+        description = "Retrieve a specific application by ID (global access - no user ownership check)"
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Application retrieved successfully"),
-        @ApiResponse(responseCode = "404", description = "Application not found"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized")
+        @ApiResponse(responseCode = "404", description = "Application not found")
     })
     @GetMapping("/{id}")
     public ResponseEntity<?> getApplication(
             @Parameter(description = "Application ID")
-            @PathVariable String id,
-            @AuthenticationPrincipal UserDetails userDetails) {
+            @PathVariable String id) {
         try {
-            String applicantId = getUserIdFromUserDetails(userDetails);
-            if (applicantId == null) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "User not found");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
-            }
-            
-            ApplicationResponse response = internalService.getUserApplication(id, applicantId);
+            ApplicationResponse response = externalService.getApplicationById(id);
             if (response != null) {
                 return new ResponseEntity<>(response, HttpStatus.OK);
             }
