@@ -79,8 +79,6 @@ spring:
 jm:
   service:
     url: ${JOB_MANAGER_SERVICE_URL:http://localhost:3000}
-    email: ${JOB_MANAGER_SERVICE_EMAIL:}
-    password: ${JOB_MANAGER_SERVICE_PASSWORD:}
 
   # Google OAuth2 SSO Configuration (Requirement 1.3.1 - Ultimo)
   # Note: Our implementation uses ID Token Flow via OAuth2Service

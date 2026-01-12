@@ -2,15 +2,18 @@ package com.DEVision.JobApplicant.subscription.client;
 
 import java.math.BigDecimal;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import com.DEVision.JobApplicant.subscription.dto.JMLoginRequest;
-import com.DEVision.JobApplicant.subscription.dto.JMLoginResponse;
+import com.DEVision.JobApplicant.auth.service.CognitoTokenService;
 import com.DEVision.JobApplicant.subscription.dto.PaymentRequest;
 import com.DEVision.JobApplicant.subscription.dto.PaymentResponse;
 
+/**
+ * Client for communicating with Job Manager system.
+ * Uses Cognito OAuth2 tokens for system-to-system authentication.
+ */
 @Component
 public class JobManagerClient {
 
@@ -18,12 +21,9 @@ public class JobManagerClient {
     private static final String DEFAULT_PAYMENT_METHOD = "stripe";
 
     private final RestClient restClient;
-
-    @Value("${jm.service.email}")
-    private String serviceEmail;
-
-    @Value("${jm.service.password}")
-    private String servicePassword;
+    
+    @Autowired
+    private CognitoTokenService cognitoTokenService;
 
     @Value("${app.frontend.base-url:http://localhost:3000}")
     private String frontendBaseUrl;
@@ -58,26 +58,10 @@ public class JobManagerClient {
 
         return restClient.post()
                 .uri("/api/payments/process")
-                .header("Authorization", "Bearer " + accessToken)
+                .header("Authorization", cognitoTokenService.getAuthorizationHeader())
                 .body(request)
                 .retrieve()
                 .body(PaymentResponse.class);
-    }
-
-    private String authenticate() {
-        JMLoginRequest loginRequest = new JMLoginRequest(serviceEmail, servicePassword);
-
-        JMLoginResponse loginResponse = restClient.post()
-                .uri("/api/auth/login")
-                .body(loginRequest)
-                .retrieve()
-                .body(JMLoginResponse.class);
-
-        if (loginResponse == null || loginResponse.getAccessToken() == null) {
-            throw new IllegalStateException("Failed to authenticate with Job Manager service");
-        }
-
-        return loginResponse.getAccessToken();
     }
 }
 

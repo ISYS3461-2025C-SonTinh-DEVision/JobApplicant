@@ -136,6 +136,27 @@ public class SubscriptionController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Downgrade from PREMIUM to FREEMIUM.
+     * User voluntarily cancels their premium subscription and reverts to free plan.
+     */
+    @PostMapping("/downgrade")
+    public ResponseEntity<?> downgradeToFreemium(@AuthenticationPrincipal UserDetails userDetails) {
+
+        String userId = getUserIdFromUserDetails(userDetails);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("User not authenticated");
+        }
+
+        try {
+            Subscription subscription = subscriptionService.downgradeToFreemium(userId);
+            return ResponseEntity.ok(subscription);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @GetMapping("/status")
     public ResponseEntity<?> getSubscriptionStatus(@AuthenticationPrincipal UserDetails userDetails) {
 
