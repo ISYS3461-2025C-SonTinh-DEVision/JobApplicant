@@ -589,10 +589,12 @@ The system includes pre-populated test accounts for immediate testing:
 
 | Email | Password | Role | Subscription | Country |
 |-------|----------|------|--------------|---------|
-| admin@devision.sbs | Admin123! | ADMIN | N/A | Vietnam |
-| applicant.vietnam@test.com | Test123! | APPLICANT | PREMIUM | Vietnam |
-| applicant.singapore@test.com | Test123! | APPLICANT | PREMIUM | Singapore |
-| freemium.user@test.com | Test123! | APPLICANT | FREEMIUM | United States |
+| admin@devision.sbs | Admin123! | ADMIN | PREMIUM | Vietnam |
+| nguyen.an@gmail.com | Applicant@123 | APPLICANT | PREMIUM | Vietnam |
+| tran.bich@gmail.com | Applicant@123 | APPLICANT | FREEMIUM | Singapore |
+| lee.weiming@gmail.com | Applicant@123 | APPLICANT | PREMIUM | Singapore |
+| tan.meilin@outlook.com | Applicant@123 | APPLICANT | FREEMIUM | United States |
+| james.smith@gmail.com | Applicant@123 | APPLICANT | FREEMIUM | AUSTRALIA |
 
 ### Core Features to Test
 
