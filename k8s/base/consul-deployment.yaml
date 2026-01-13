@@ -1,0 +1,107 @@
+# DEVision Job Applicant - Consul Service Discovery Deployment
+# Ultimo D.3.1: Communication applies Service Discovery
+# D.3.3: Service Discovery hosted separately from frontends/backends
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consul
+  namespace: devision-ja
+  labels:
+    app: devision
+    component: service-discovery
+    subsystem: job-applicant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devision
+      component: service-discovery
+  template:
+    metadata:
+      labels:
+        app: devision
+        component: service-discovery
+        subsystem: job-applicant
+    spec:
+      containers:
+        - name: consul
+          image: hashicorp/consul:1.17
+          ports:
+            - containerPort: 8500
+              name: http
+            - containerPort: 8600
+              name: dns
+              protocol: UDP
+          command:
+            - "consul"
+            - "agent"
+            - "-server"
+            - "-bootstrap-expect=1"
+            - "-ui"
+            - "-client=0.0.0.0"
+            - "-data-dir=/consul/data"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          volumeMounts:
+            - name: consul-data
+              mountPath: /consul/data
+          livenessProbe:
+            exec:
+              command: ["consul", "members"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /v1/status/leader
+              port: 8500
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: consul-data
+          persistentVolumeClaim:
+            claimName: consul-pvc
+---
+# Consul Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul
+  namespace: devision-ja
+  labels:
+    app: devision
+    component: service-discovery
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8500
+      targetPort: 8500
+      protocol: TCP
+      name: http
+    - port: 8600
+      targetPort: 8600
+      protocol: UDP
+      name: dns
+  selector:
+    app: devision
+    component: service-discovery
+---
+# Consul PVC for persistent storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: consul-pvc
+  namespace: devision-ja
+  labels:
+    app: devision
+    component: service-discovery
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

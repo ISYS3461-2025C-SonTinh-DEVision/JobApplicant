@@ -1,0 +1,61 @@
+# DEVision Job Applicant - Ingress Controller
+# Exposes services to external traffic
+# Ultimo D.3.4: Kubernetes deployment with external access
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ja-ingress
+  namespace: devision-ja
+  labels:
+    app: devision
+    subsystem: job-applicant
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    # WebSocket support
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
+spec:
+  rules:
+    # Frontend access
+    - host: ja.devision.local  # Change to your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ja-frontend
+                port:
+                  number: 3000
+    # API Gateway access
+    - host: api.ja.devision.local  # Change to your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kong-gateway
+                port:
+                  number: 8000
+    # Consul UI (optional, for debugging)
+    - host: consul.ja.devision.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: consul
+                port:
+                  number: 8500
+  # TLS configuration (for HTTPS in production)
+  # tls:
+  #   - hosts:
+  #       - ja.devision.local
+  #       - api.ja.devision.local
+  #     secretName: ja-tls-secret

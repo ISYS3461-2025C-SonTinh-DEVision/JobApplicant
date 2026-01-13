@@ -48,9 +48,9 @@ spring:
       password: ${REDIS_PASSWORD:}
       database: 0
       timeout: 60000
-      # ssl:
-      #   enabled: ${REDIS_SSL_ENABLED:false}
-      jedis:
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+      lettuce:
         pool:
           max-active: 8
           max-idle: 8

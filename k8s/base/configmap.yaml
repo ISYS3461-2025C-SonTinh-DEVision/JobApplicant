@@ -1,0 +1,35 @@
+# DEVision Job Applicant - ConfigMap
+# Contains non-sensitive configuration for all services
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ja-config
+  namespace: devision-ja
+  labels:
+    app: devision
+    subsystem: job-applicant
+data:
+  # Server Configuration
+  SERVER_PORT: "8080"
+  SSL_ENABLED: "false"
+  
+  # Frontend URLs
+  FRONTEND_BASE_URL: "http://ja-frontend:3000"
+  BACKEND_BASE_URL: "http://ja-backend:8080"
+  
+  # Redis Configuration
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  
+  # Consul Configuration
+  CONSUL_HOST: "consul"
+  CONSUL_PORT: "8500"
+  
+  # Job Manager External API
+  JOB_MANAGER_BASE_URL: "https://jobmanager-backend-production.up.railway.app"
+  JOB_MANAGER_SERVICE_URL: "https://jobmanager-backend-production.up.railway.app/"
+  
+  # Kafka Configuration (Confluent Cloud)
+  KAFKA_BOOTSTRAP_SERVERS: "pkc-921jm.us-east-2.aws.confluent.cloud:9092"
+  KAFKA_SECURITY_PROTOCOL: "SASL_SSL"
+  KAFKA_SASL_MECHANISM: "PLAIN"
