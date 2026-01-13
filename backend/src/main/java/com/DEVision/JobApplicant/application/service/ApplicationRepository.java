@@ -33,6 +33,9 @@ public interface ApplicationRepository extends MongoRepository<Application, Stri
     // Check if applicant already applied to a job post
     boolean existsByJobPostIdAndApplicantId(String jobPostId, String applicantId);
     
+    // Find application by job post and applicant
+    Application findByJobPostIdAndApplicantId(String jobPostId, String applicantId);
+    
     // Count applications for a job post
     long countByJobPostId(String jobPostId);
     

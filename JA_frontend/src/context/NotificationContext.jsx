@@ -12,6 +12,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import notificationService, { NOTIFICATION_TYPES } from '../services/NotificationService';
 import useWebSocket from '../hooks/useWebSocket';
+import useStompClient from '../hooks/useStompClient';
 import { useAuth } from '../hooks/useAuth';
 
 // Context
@@ -41,69 +42,7 @@ export function NotificationProvider({ children }) {
     const hasLoadedRef = useRef(false);
 
     /**
-     * Handle incoming WebSocket messages
-     */
-    const handleWebSocketMessage = useCallback((data) => {
-        if (data.type === 'NOTIFICATION') {
-            const notification = data.payload;
-
-            // Add to notifications list
-            setNotifications(prev => [notification, ...prev]);
-
-            // Update unread count
-            if (!notification.read) {
-                setUnreadCount(prev => prev + 1);
-            }
-
-            // Show toast notification
-            showToastInternal({
-                id: notification.id,
-                type: notification.type,
-                title: notification.title,
-                message: notification.content,
-                action: getNotificationAction(notification),
-            });
-        } else if (data.type === 'UNREAD_COUNT') {
-            setUnreadCount(data.count);
-        }
-    }, []);
-
-    // WebSocket connection
-    const {
-        connectionState,
-        isConnected,
-        connect: wsConnect,
-        disconnect: wsDisconnect,
-    } = useWebSocket('/ws/notifications', {
-        autoConnect: false,
-        onMessage: handleWebSocketMessage,
-        onOpen: () => console.log('[NotificationContext] WebSocket connected'),
-        onClose: () => console.log('[NotificationContext] WebSocket disconnected'),
-        onError: (e) => console.error('[NotificationContext] WebSocket error:', e),
-    });
-
-    /**
-     * Get action button for notification type
-     */
-    function getNotificationAction(notification) {
-        switch (notification.type) {
-            case NOTIFICATION_TYPES.JOB_MATCH:
-                return {
-                    label: 'View Job',
-                    href: `/dashboard/jobs/${notification.jobId}`,
-                };
-            case NOTIFICATION_TYPES.APPLICATION_UPDATE:
-                return {
-                    label: 'View Application',
-                    href: `/dashboard/applications/${notification.applicationId}`,
-                };
-            default:
-                return null;
-        }
-    }
-
-    /**
-     * Internal toast show function
+     * Internal toast show function (defined early for use in handleWebSocketMessage)
      */
     const showToastInternal = useCallback((toast) => {
         const newToast = {
@@ -130,6 +69,204 @@ export function NotificationProvider({ children }) {
 
         return newToast.id;
     }, []);
+
+    /**
+     * Get action button for notification type
+     */
+    const getNotificationAction = useCallback((notification) => {
+        switch (notification.type) {
+            case NOTIFICATION_TYPES.JOB_MATCH:
+                return {
+                    label: 'View Job',
+                    href: `/dashboard/jobs/${notification.jobId}`,
+                };
+            case NOTIFICATION_TYPES.APPLICATION_UPDATE:
+                return {
+                    label: 'View Application',
+                    href: `/dashboard/applications/${notification.applicationId}`,
+                };
+            default:
+                return null;
+        }
+    }, []);
+
+    /**
+     * Handle incoming WebSocket messages
+     */
+    const handleWebSocketMessage = useCallback((data) => {
+        // Handle admin action notifications (real-time alerts)
+        if (data.type === 'ACCOUNT_DEACTIVATED') {
+            // Dispatch event for AuthContext to handle forced logout
+            window.dispatchEvent(new CustomEvent('auth:account-deactivated', {
+                detail: {
+                    message: data.message,
+                    reason: data.reason,
+                }
+            }));
+            return; // Don't add to regular notifications list
+        }
+
+        if (data.type === 'JOB_POST_DELETED' || data.type === 'COMPANY_DEACTIVATED') {
+            // Dispatch event for pages to handle (e.g., if user is viewing that job/company)
+            window.dispatchEvent(new CustomEvent('admin:resource-removed', {
+                detail: {
+                    type: data.type,
+                    resourceId: data.resourceId,
+                    message: data.message,
+                }
+            }));
+
+            // Show info toast
+            showToastInternal({
+                id: `admin_action_${Date.now()}`,
+                type: 'warning',
+                title: data.type === 'JOB_POST_DELETED' ? 'Job Post Removed' : 'Company Deactivated',
+                message: data.message,
+                duration: 8000,
+            });
+            return;
+        }
+
+        // Handle regular notifications
+        if (data.type === 'NOTIFICATION') {
+            const notification = data.payload;
+
+            // Add to notifications list
+            setNotifications(prev => [notification, ...prev]);
+
+            // Update unread count
+            if (!notification.read) {
+                setUnreadCount(prev => prev + 1);
+            }
+
+            // Show toast notification
+            showToastInternal({
+                id: notification.id,
+                type: notification.type,
+                title: notification.title,
+                message: notification.content,
+                action: getNotificationAction(notification),
+            });
+        } else if (data.type === 'UNREAD_COUNT') {
+            setUnreadCount(data.count);
+        }
+    }, [showToastInternal, getNotificationAction]);
+
+    // WebSocket connection (for regular notifications)
+    const {
+        connectionState,
+        isConnected,
+        connect: wsConnect,
+        disconnect: wsDisconnect,
+    } = useWebSocket('/ws/notifications', {
+        autoConnect: false,
+        onMessage: handleWebSocketMessage,
+        onOpen: () => console.log('[NotificationContext] WebSocket connected'),
+        onClose: () => console.log('[NotificationContext] WebSocket disconnected'),
+        onError: (e) => console.error('[NotificationContext] WebSocket error:', e),
+    });
+
+    /**
+     * Handle admin action messages from STOMP
+     */
+    const handleAdminAction = useCallback((data) => {
+        console.log('[NotificationContext] Admin action received via STOMP:', data);
+
+        if (data.type === 'ACCOUNT_DEACTIVATED') {
+            // Dispatch event for AuthContext to handle forced logout
+            window.dispatchEvent(new CustomEvent('auth:account-deactivated', {
+                detail: {
+                    message: data.message,
+                    reason: data.reason,
+                }
+            }));
+        } else if (data.type === 'JOB_POST_DELETED' || data.type === 'COMPANY_DEACTIVATED') {
+            // Dispatch event for pages to handle
+            window.dispatchEvent(new CustomEvent('admin:resource-removed', {
+                detail: {
+                    type: data.type,
+                    resourceId: data.resourceId,
+                    message: data.message,
+                }
+            }));
+
+            // Show toast
+            showToastInternal({
+                id: `admin_action_${Date.now()}`,
+                type: 'warning',
+                title: data.type === 'JOB_POST_DELETED' ? 'Job Post Removed' : 'Company Deactivated',
+                message: data.message,
+                duration: 8000,
+            });
+        }
+    }, [showToastInternal]);
+
+    // STOMP connection for admin action notifications (works for all authenticated users)
+    const {
+        isConnected: isStompConnected,
+        connect: stompConnect,
+        disconnect: stompDisconnect,
+    } = useStompClient({
+        autoConnect: false,
+        messageHandlers: {
+            onAdminAction: handleAdminAction,
+            onNotification: (data) => {
+                console.log('[NotificationContext] Real-time notification received via STOMP:', data);
+
+                // Map backend NotificationResponse format to frontend format
+                // Backend sends: { id, userId, title, content, timestamp, read, type, metadata }
+                const notification = {
+                    id: data.id || `notif_${Date.now()}`,
+                    type: data.type || 'JOB_MATCH',
+                    title: data.title || 'New Notification',
+                    content: data.content || data.message || '',
+                    read: data.read || false,
+                    createdAt: data.timestamp || new Date().toISOString(),
+                    // Preserve metadata for job match details (View Details modal)
+                    metadata: data.metadata || {},
+                    jobId: data.metadata?.jobPostId || data.jobId,
+                };
+
+                // Add to notifications list (prepend for newest first)
+                setNotifications(prev => {
+                    // Avoid duplicates
+                    if (prev.some(n => n.id === notification.id)) {
+                        return prev;
+                    }
+                    return [notification, ...prev];
+                });
+
+                // Update unread count
+                if (!notification.read) {
+                    setUnreadCount(prev => prev + 1);
+                }
+
+                // Show toast notification immediately - this is the real-time feedback!
+                showToastInternal({
+                    id: notification.id,
+                    type: notification.type === 'JOB_MATCH' ? 'success' : notification.type,
+                    title: notification.title,
+                    message: notification.content,
+                    duration: 8000, // Longer duration for important job match notifications
+                    action: notification.jobId ? {
+                        label: 'View Job',
+                        href: `/dashboard/jobs/${notification.jobId}`,
+                    } : null,
+                });
+            },
+            onNotificationCount: (data) => {
+                console.log('[NotificationContext] Unread count update:', data);
+                setUnreadCount(data.unreadCount || 0);
+            },
+        },
+        onConnect: () => {
+            console.log('[NotificationContext] STOMP connected - Real-time notifications active!');
+            // Refresh notifications when STOMP reconnects to get any missed notifications
+            loadNotifications();
+        },
+        onDisconnect: () => console.log('[NotificationContext] STOMP disconnected'),
+        onError: (e) => console.error('[NotificationContext] STOMP error:', e),
+    });
 
     /**
      * Load notifications from API
@@ -340,16 +477,19 @@ export function NotificationProvider({ children }) {
     }, [showToastInternal]);
 
     // Connect to WebSocket when authenticated (only for premium users)
+    // Connect to STOMP for ALL authenticated users (admin action notifications)
     useEffect(() => {
         if (isAuthenticated && !hasLoadedRef.current) {
             hasLoadedRef.current = true;
             loadNotifications();
-            // Only connect WebSocket for premium users
+            // Connect STOMP for ALL users (admin action notifications like deactivation)
+            stompConnect();
+            // Only connect regular WebSocket for premium users
             if (isPremium) {
                 wsConnect();
             }
         }
-    }, [isAuthenticated, isPremium, loadNotifications, wsConnect]);
+    }, [isAuthenticated, isPremium, loadNotifications, wsConnect, stompConnect]);
 
     // Handle logout - reset state when auth changes to false
     useEffect(() => {
@@ -358,8 +498,9 @@ export function NotificationProvider({ children }) {
             setNotifications([]);
             setUnreadCount(0);
             wsDisconnect();
+            stompDisconnect();
         }
-    }, [isAuthenticated, wsDisconnect]);
+    }, [isAuthenticated, wsDisconnect, stompDisconnect]);
 
     // Subscribe to service notifications
     useEffect(() => {

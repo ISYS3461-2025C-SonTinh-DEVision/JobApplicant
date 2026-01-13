@@ -10,6 +10,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Briefcase, MapPin, Clock, MoreVertical, Trash2, Eye, Loader2, RefreshCw, Building2, DollarSign, AlertCircle, X, Calendar, Tag, CheckCircle } from 'lucide-react';
 import { Modal, useModal, useHeadlessTable, useHeadlessSearch, useHeadlessPagination } from '../../components/headless';
+import useHeadlessNotification from '../../components/headless/HeadlessNotification';
+import { Toast, ToastContainer } from '../../components/reusable/Toast';
 import AdminService from '../../services/AdminService';
 
 // Status Badge Component
@@ -346,6 +348,11 @@ export default function JobPostListPage() {
     // Headless Modal hook for job details
     const jobDetailModal = useModal();
 
+    // Headless Notification hook for toast feedback
+    const { notifications, addNotification, dismissNotification } = useHeadlessNotification({
+        autoDismissMs: 4000,
+    });
+
     const {
         query: searchQuery,
         setQuery: setSearchQuery,
@@ -406,12 +413,31 @@ export default function JobPostListPage() {
 
         setDeleteLoading(true);
         try {
-            await AdminService.deleteJobPost(deleteTarget.id);
-            setDeleteTarget(null);
-            fetchJobPosts();
+            const result = await AdminService.deleteJobPost(deleteTarget.id);
+            if (result.success) {
+                setDeleteTarget(null);
+                fetchJobPosts();
+                // Show success toast notification
+                addNotification({
+                    type: 'success',
+                    title: 'Job Post Deleted',
+                    message: `"${deleteTarget.title}" has been successfully deleted.`,
+                });
+            } else {
+                // Show error toast notification
+                addNotification({
+                    type: 'error',
+                    title: 'Deletion Failed',
+                    message: result.message || 'Failed to delete job post. Please try again.',
+                });
+            }
         } catch (error) {
             console.error('Failed to delete job post:', error);
-            alert('Job post management requires Job Manager integration');
+            addNotification({
+                type: 'error',
+                title: 'Error',
+                message: 'An unexpected error occurred. Please try again.',
+            });
         } finally {
             setDeleteLoading(false);
         }
@@ -692,6 +718,13 @@ export default function JobPostListPage() {
             <JobDetailModal
                 jobPost={selectedJob}
                 controller={jobDetailModal}
+            />
+
+            {/* Toast Notifications Container */}
+            <ToastContainer
+                notifications={notifications}
+                onDismiss={dismissNotification}
+                position="top-right"
             />
         </div>
     );

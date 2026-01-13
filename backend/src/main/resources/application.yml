@@ -48,6 +48,8 @@ spring:
       password: ${REDIS_PASSWORD:}
       database: 0
       timeout: 60000
+      # ssl:
+      #   enabled: ${REDIS_SSL_ENABLED:false}
       jedis:
         pool:
           max-active: 8
@@ -70,7 +72,7 @@ spring:
       properties:
         spring.json.add.type.headers: false
     consumer:
-      group-id: job-applicant-search-profile-group
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:job-applicant-search-profile-group-local}
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:

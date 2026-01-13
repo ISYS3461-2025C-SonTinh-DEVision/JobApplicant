@@ -113,6 +113,20 @@ class AdminService {
     }
 
     /**
+     * Activate an applicant account (re-enable after deactivation)
+     * Uses REAL backend API
+     */
+    async activateApplicant(applicantId) {
+        try {
+            const response = await httpUtil.put(`/api/admin/applicants/${applicantId}/activate`);
+            return response;
+        } catch (error) {
+            console.error('Failed to activate applicant:', error.message);
+            throw error;
+        }
+    }
+
+    /**
      * Get list of companies with pagination and search
      * Uses REAL API via JA backend proxy to Job Manager
      * Endpoint: /api/jm/company
@@ -337,17 +351,27 @@ class AdminService {
     }
 
     /**
-     * Delete a job post
-     * Note: Job Posts are managed by Job Manager subsystem
+     * Delete a job post (Admin operation)
+     * Requirement 6.2.2: Administrators shall be able to delete any Job Post
+     * Calls JA backend which proxies to Job Manager API
      */
     async deleteJobPost(jobPostId) {
         try {
-            // TODO: Call Job Manager API
-            console.warn('Job post deletion should go through Job Manager subsystem');
-            return { success: false, message: 'Job post management requires Job Manager integration' };
+            const response = await httpUtil.delete(API_ENDPOINTS.JM_JOB_POSTS.DELETE(jobPostId));
+            console.log('[AdminService] Job post deleted:', jobPostId);
+            return {
+                success: response.success !== false,
+                message: response.message || 'Job post deleted successfully',
+                data: response,
+            };
         } catch (error) {
             console.error('Failed to delete job post:', error.message);
-            throw error;
+            // Return structured error response instead of throwing
+            return {
+                success: false,
+                message: error.message || 'Failed to delete job post',
+                error: error,
+            };
         }
     }
 }

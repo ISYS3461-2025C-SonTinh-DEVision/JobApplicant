@@ -42,7 +42,7 @@ public class KafkaConfig {
     @Value("${spring.kafka.properties.sasl.jaas.config:}")
     private String saslJaasConfig;
 
-    @Value("${spring.kafka.consumer.group-id:job-applicant-search-profile-group}")
+    @Value("${spring.kafka.consumer.group-id:job-applicant-search-profile-group-local}")
     private String consumerGroupId;
 
     // ================== COMMON SECURITY CONFIG ==================

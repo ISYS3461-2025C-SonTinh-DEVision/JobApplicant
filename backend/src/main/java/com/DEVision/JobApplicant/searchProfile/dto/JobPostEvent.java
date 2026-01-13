@@ -125,18 +125,19 @@ public class JobPostEvent {
     }
 
     // Nested class for salary information
+    // Types: RANGE (has min/max/currency), ESTIMATION (has text), NEGOTIABLE (type only)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class SalaryInfo {
-        private String type;
-        private BigDecimal min;
-        private BigDecimal max;
-        private String currency;
-        private String text;
+        private List<String> type; // ["RANGE"], ["ESTIMATION"], or ["NEGOTIABLE"]
+        private BigDecimal min;    // Only for RANGE
+        private BigDecimal max;    // Only for RANGE
+        private String currency;   // Only for RANGE
+        private String text;       // Only for ESTIMATION
 
         public SalaryInfo() {}
 
-        public String getType() { return type; }
-        public void setType(String type) { this.type = type; }
+        public List<String> getType() { return type; }
+        public void setType(List<String> type) { this.type = type; }
 
         public BigDecimal getMin() { return min; }
         public void setMin(BigDecimal min) { this.min = min; }
@@ -156,13 +157,23 @@ public class JobPostEvent {
     // ===== Smart Getters that handle both wrapped and flat event formats =====
 
     /**
-     * Get the job ID - from wrapped data.uniqueId or flat id field
+     * Get the job ID - use uniqueId (consistent with REST API JobPostDto)
      */
     public String getId() {
         if (data != null && data.getUniqueId() != null) {
             return data.getUniqueId();
         }
         return id;
+    }
+    
+    /**
+     * Get the MongoDB ObjectId from JM (different from uniqueId)
+     */
+    public String getJobPostId() {
+        if (data != null) {
+            return data.getJobPostId();
+        }
+        return null;
     }
 
     /**

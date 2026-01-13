@@ -87,7 +87,10 @@ class ApplicationService {
         }
         // Use httpUtil.post directly since we're already constructing the FormData
         // httpUtil.upload would wrap this FormData again, corrupting the request
-        return httpUtil.post(API_ENDPOINTS.APPLICATIONS.CREATE, formData);
+        const result = await httpUtil.post(API_ENDPOINTS.APPLICATIONS.CREATE, formData);
+        // Dispatch event for real-time sidebar badge update
+        window.dispatchEvent(new CustomEvent('application:created', { detail: result }));
+        return result;
     }
 
     /**
@@ -96,7 +99,10 @@ class ApplicationService {
      * @returns {Promise<Object>} Updated application
      */
     async withdrawApplication(id) {
-        return httpUtil.patch(API_ENDPOINTS.APPLICATIONS.WITHDRAW(id));
+        const result = await httpUtil.patch(API_ENDPOINTS.APPLICATIONS.WITHDRAW(id));
+        // Dispatch event for real-time sidebar badge update
+        window.dispatchEvent(new CustomEvent('application:withdrawn', { detail: result }));
+        return result;
     }
 
     /**
@@ -106,6 +112,18 @@ class ApplicationService {
      */
     async deleteApplication(id) {
         return httpUtil.delete(API_ENDPOINTS.APPLICATIONS.DELETE(id));
+    }
+
+    /**
+     * Reapply for a job (creates a new active application from withdrawn/rejected)
+     * @param {string} id - Original application ID
+     * @returns {Promise<Object>} New application
+     */
+    async reapply(id) {
+        const result = await httpUtil.post(API_ENDPOINTS.APPLICATIONS.REAPPLY(id));
+        // Dispatch event for real-time sidebar badge update
+        window.dispatchEvent(new CustomEvent('application:reapplied', { detail: result }));
+        return result;
     }
 
     /**

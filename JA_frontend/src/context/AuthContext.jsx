@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/AuthService';
+import AccountDeactivatedModal from '../components/common/AccountDeactivatedModal';
 
 // Create context
 const AuthContext = createContext(null);
@@ -28,6 +29,9 @@ export function AuthProvider({ children }) {
   // Animation flags - block route redirects while animations play
   const [showLoginAnimation, setShowLoginAnimation] = useState(false);
   const [showLogoutAnimation, setShowLogoutAnimation] = useState(false);
+  // Account deactivation state (real-time admin action)
+  const [accountDeactivated, setAccountDeactivated] = useState(false);
+  const [deactivationReason, setDeactivationReason] = useState('');
 
   /**
    * Clear auth error
@@ -298,6 +302,33 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // Listen for account deactivation events (from WebSocket via NotificationContext)
+  useEffect(() => {
+    const handleAccountDeactivated = (event) => {
+      console.log('[AuthContext] Account deactivated by admin:', event.detail);
+      setDeactivationReason(event.detail?.reason || 'Your account has been deactivated by an administrator.');
+      setAccountDeactivated(true);
+    };
+
+    window.addEventListener('auth:account-deactivated', handleAccountDeactivated);
+    return () => {
+      window.removeEventListener('auth:account-deactivated', handleAccountDeactivated);
+    };
+  }, []);
+
+  /**
+   * Handle forced logout after account deactivation
+   * Called when user clicks "Logout" in deactivation modal or countdown expires
+   */
+  const handleDeactivationLogout = useCallback(async () => {
+    setAccountDeactivated(false);
+    setDeactivationReason('');
+    // Clear auth state and token
+    await authService.logout().catch(() => { });
+    setUser(null);
+    setStatus(AUTH_STATUS.UNAUTHENTICATED);
+  }, []);
+
   // Context value
   const value = {
     // State
@@ -332,11 +363,22 @@ export function AuthProvider({ children }) {
     loginWithGoogle, // Deprecated: redirect-based flow
     handleGoogleCallback, // Deprecated: authorization code callback
     getCountries,
+    // Account deactivation (admin action)
+    accountDeactivated,
+    deactivationReason,
+    handleDeactivationLogout,
   };
 
   return (
     <AuthContext.Provider value={value}>
       {children}
+      {/* Account Deactivated Modal - shows when admin deactivates user's account */}
+      <AccountDeactivatedModal
+        isOpen={accountDeactivated}
+        reason={deactivationReason}
+        onLogout={handleDeactivationLogout}
+        countdownSeconds={15}
+      />
     </AuthContext.Provider>
   );
 }

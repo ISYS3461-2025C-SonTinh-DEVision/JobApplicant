@@ -12,7 +12,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Search, Users, Crown, MapPin, Mail, MoreVertical, UserX, Eye, Loader2,
     RefreshCw, X, Phone, Briefcase, GraduationCap, Code, Calendar,
-    AlertTriangle, CheckCircle
+    AlertTriangle, CheckCircle, UserCheck
 } from 'lucide-react';
 import { useHeadlessTable, useHeadlessSearch, useHeadlessPagination, useHeadlessModal } from '../../components/headless';
 import AdminService from '../../services/AdminService';
@@ -76,8 +76,8 @@ function ViewProfileModal({ isOpen, onClose, applicant }) {
                         <h2 className="text-2xl font-bold text-white">{applicant.name}</h2>
                         <div className="flex items-center gap-2 mt-2">
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${applicant.status === 'active'
-                                    ? 'bg-emerald-500/20 text-emerald-400'
-                                    : 'bg-red-500/20 text-red-400'
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : 'bg-red-500/20 text-red-400'
                                 }`}>
                                 {applicant.status}
                             </span>
@@ -289,6 +289,78 @@ function DeactivateConfirmModal({ isOpen, onClose, onConfirm, applicant, isLoadi
 }
 
 /**
+ * Activate Confirmation Modal Component
+ * Confirms applicant reactivation with success message
+ */
+function ActivateConfirmModal({ isOpen, onClose, onConfirm, applicant, isLoading }) {
+    if (!applicant) return null;
+
+    return (
+        <ModalWrapper isOpen={isOpen} onClose={onClose} size="md">
+            <div className="p-6">
+                {/* Success Icon */}
+                <div className="flex justify-center mb-6">
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                        <UserCheck className="w-8 h-8 text-emerald-400" />
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="text-center mb-6">
+                    <h3 className="text-xl font-bold text-white mb-2">
+                        Activate Account?
+                    </h3>
+                    <p className="text-dark-400">
+                        Are you sure you want to reactivate the account for
+                    </p>
+                    <p className="text-white font-semibold mt-2">
+                        {applicant.name}
+                    </p>
+                    <p className="text-dark-500 text-sm mt-1">
+                        {applicant.email}
+                    </p>
+                </div>
+
+                {/* Info */}
+                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 mb-6">
+                    <p className="text-emerald-400 text-sm text-center">
+                        This will restore the user's access to login and use their account.
+                    </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3">
+                    <button
+                        onClick={onClose}
+                        disabled={isLoading}
+                        className="flex-1 px-4 py-3 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors font-medium disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={isLoading}
+                        className="flex-1 px-4 py-3 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Activating...
+                            </>
+                        ) : (
+                            <>
+                                <UserCheck className="w-4 h-4" />
+                                Activate
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
+        </ModalWrapper>
+    );
+}
+
+/**
  * Success Toast Component
  * Shows success message after action completion
  */
@@ -325,8 +397,8 @@ function StatusBadge({ status, isPremium }) {
     return (
         <div className="flex items-center gap-2 flex-wrap">
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${status === 'active'
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'bg-red-500/20 text-red-400'
+                ? 'bg-emerald-500/20 text-emerald-400'
+                : 'bg-red-500/20 text-red-400'
                 }`}>
                 {status}
             </span>
@@ -344,7 +416,7 @@ function StatusBadge({ status, isPremium }) {
 // ACTION MENU COMPONENT
 // ============================================
 
-function ActionMenu({ applicant, onDeactivate, onView }) {
+function ActionMenu({ applicant, onDeactivate, onActivate, onView }) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef(null);
     const buttonRef = useRef(null);
@@ -386,13 +458,21 @@ function ActionMenu({ applicant, onDeactivate, onView }) {
                         <Eye className="w-4 h-4" />
                         View Profile
                     </button>
-                    {applicant.status === 'active' && (
+                    {applicant.status === 'active' ? (
                         <button
                             onClick={() => { onDeactivate(applicant); setIsOpen(false); }}
                             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10"
                         >
                             <UserX className="w-4 h-4" />
                             Deactivate
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => { onActivate(applicant); setIsOpen(false); }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-emerald-400 hover:bg-emerald-500/10"
+                        >
+                            <UserCheck className="w-4 h-4" />
+                            Activate
                         </button>
                     )}
                 </div>
@@ -405,7 +485,7 @@ function ActionMenu({ applicant, onDeactivate, onView }) {
 // MOBILE APPLICANT CARD COMPONENT
 // ============================================
 
-function ApplicantCard({ applicant, onDeactivate, onView, actionLoading }) {
+function ApplicantCard({ applicant, onDeactivate, onActivate, onView, actionLoading }) {
     return (
         <div className="glass-card p-4 space-y-3">
             <div className="flex items-start justify-between">
@@ -426,6 +506,7 @@ function ApplicantCard({ applicant, onDeactivate, onView, actionLoading }) {
                     <ActionMenu
                         applicant={applicant}
                         onDeactivate={onDeactivate}
+                        onActivate={onActivate}
                         onView={onView}
                     />
                 )}
@@ -465,6 +546,7 @@ export default function ApplicantListPage() {
     // Modal states
     const [viewModalOpen, setViewModalOpen] = useState(false);
     const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
+    const [activateModalOpen, setActivateModalOpen] = useState(false);
     const [selectedApplicant, setSelectedApplicant] = useState(null);
     const [successToast, setSuccessToast] = useState({ isVisible: false, message: '' });
 
@@ -560,6 +642,33 @@ export default function ApplicantListPage() {
         }
     };
 
+    // Handle activate - opens confirmation modal
+    const handleActivateClick = (applicant) => {
+        setSelectedApplicant(applicant);
+        setActivateModalOpen(true);
+    };
+
+    // Confirm activation
+    const handleActivateConfirm = async () => {
+        if (!selectedApplicant) return;
+
+        setActionLoading(selectedApplicant.id);
+        try {
+            await AdminService.activateApplicant(selectedApplicant.id);
+            setActivateModalOpen(false);
+            setSuccessToast({
+                isVisible: true,
+                message: `${selectedApplicant.name} has been activated`
+            });
+            fetchApplicants();
+        } catch (error) {
+            console.error('Failed to activate applicant:', error);
+        } finally {
+            setActionLoading(null);
+            setSelectedApplicant(null);
+        }
+    };
+
     // Table columns
     const columns = [
         { key: 'name', label: 'Applicant', sortable: true },
@@ -632,6 +741,7 @@ export default function ApplicantListPage() {
                             key={applicant.id}
                             applicant={applicant}
                             onDeactivate={handleDeactivateClick}
+                            onActivate={handleActivateClick}
                             onView={handleView}
                             actionLoading={actionLoading}
                         />
@@ -722,6 +832,7 @@ export default function ApplicantListPage() {
                                                 <ActionMenu
                                                     applicant={applicant}
                                                     onDeactivate={handleDeactivateClick}
+                                                    onActivate={handleActivateClick}
                                                     onView={handleView}
                                                 />
                                             )}
@@ -810,6 +921,18 @@ export default function ApplicantListPage() {
                     setSelectedApplicant(null);
                 }}
                 onConfirm={handleDeactivateConfirm}
+                applicant={selectedApplicant}
+                isLoading={actionLoading === selectedApplicant?.id}
+            />
+
+            {/* Activate Confirmation Modal */}
+            <ActivateConfirmModal
+                isOpen={activateModalOpen}
+                onClose={() => {
+                    setActivateModalOpen(false);
+                    setSelectedApplicant(null);
+                }}
+                onConfirm={handleActivateConfirm}
                 applicant={selectedApplicant}
                 isLoading={actionLoading === selectedApplicant?.id}
             />

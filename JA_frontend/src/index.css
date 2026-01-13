@@ -453,6 +453,39 @@ code {
   animation: scale-in 0.3s ease-out;
 }
 
+/* Premium Notification Bell Ring Animation */
+@keyframes bell-ring {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  10%, 30% {
+    transform: rotate(12deg);
+  }
+  20%, 40% {
+    transform: rotate(-12deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+  60% {
+    transform: rotate(-8deg);
+  }
+  70% {
+    transform: rotate(4deg);
+  }
+  80% {
+    transform: rotate(-4deg);
+  }
+  90% {
+    transform: rotate(0);
+  }
+}
+
+.animate-bell-ring {
+  animation: bell-ring 1s ease-in-out infinite;
+  transform-origin: top center;
+}
+
 /* Enhanced shadows */
 .shadow-glow {
   box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);

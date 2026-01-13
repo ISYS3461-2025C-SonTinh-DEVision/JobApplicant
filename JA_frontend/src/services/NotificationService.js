@@ -24,6 +24,10 @@ export const NOTIFICATION_TYPES = {
     PROFILE_VIEW: 'PROFILE_VIEW',     // Company viewed profile
     SYSTEM: 'SYSTEM',                 // System announcements
     SUBSCRIPTION: 'SUBSCRIPTION',     // Subscription updates
+    // Admin action types (real-time)
+    ACCOUNT_DEACTIVATED: 'ACCOUNT_DEACTIVATED', // Admin deactivated user's account
+    JOB_POST_DELETED: 'JOB_POST_DELETED',       // Admin deleted a job post
+    COMPANY_DEACTIVATED: 'COMPANY_DEACTIVATED', // Admin deactivated a company
 };
 
 // Mock notifications for development

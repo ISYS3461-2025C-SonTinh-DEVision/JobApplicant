@@ -8,8 +8,11 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Building2, Crown, MapPin, MoreVertical, Ban, Eye, Loader2, RefreshCw, Briefcase, AlertCircle, X, Phone, Calendar, Info, Globe, Mail } from 'lucide-react';
+import { Search, Building2, Crown, MapPin, MoreVertical, Ban, Eye, Loader2, RefreshCw, Briefcase, AlertCircle, X, Phone, Calendar, Info, Globe, Mail, CheckCircle } from 'lucide-react';
 import { Modal, useModal, useHeadlessTable, useHeadlessSearch, useHeadlessPagination } from '../../components/headless';
+import useHeadlessNotification from '../../components/headless/HeadlessNotification';
+import { useConfirmationModal } from '../../components/common/ConfirmationModal';
+import { ToastContainer } from '../../components/reusable/Toast';
 import AdminService from '../../services/AdminService';
 
 // Status Badge Component
@@ -162,6 +165,14 @@ export default function CompanyListPage() {
     // Headless Modal hook for company details
     const companyDetailModal = useModal();
 
+    // Headless Notification hook for toast feedback
+    const { notifications, addNotification, dismissNotification } = useHeadlessNotification({
+        autoDismissMs: 4000,
+    });
+
+    // Confirmation Modal hook for beautiful confirm dialogs
+    const confirmModal = useConfirmationModal();
+
     const {
         query: searchQuery,
         setQuery: setSearchQuery,
@@ -225,42 +236,82 @@ export default function CompanyListPage() {
     }, [fetchCompanies]);
 
     const handleDeactivate = async (company) => {
-        if (!window.confirm(`Are you sure you want to deactivate ${company.name}?`)) {
-            return;
-        }
+        const confirmed = await confirmModal.confirm({
+            type: 'deactivate',
+            title: 'Deactivate Company',
+            itemName: company.name,
+            message: `Are you sure you want to deactivate this company? This will suspend their access until reactivated.`,
+            confirmLabel: 'Deactivate',
+            cancelLabel: 'Cancel',
+        });
+
+        if (!confirmed) return;
 
         setActionLoading(company.id);
         try {
             const result = await AdminService.deactivateCompany(company.id);
             if (result.success) {
                 fetchCompanies();
+                addNotification({
+                    type: 'success',
+                    title: 'Company Deactivated',
+                    message: `${company.name} has been successfully deactivated.`,
+                });
             } else {
-                alert(result.message || 'Failed to deactivate company');
+                addNotification({
+                    type: 'error',
+                    title: 'Deactivation Failed',
+                    message: result.message || 'Failed to deactivate company. Please try again.',
+                });
             }
         } catch (error) {
             console.error('Failed to deactivate company:', error);
-            alert('Failed to deactivate company: ' + error.message);
+            addNotification({
+                type: 'error',
+                title: 'Error',
+                message: 'An unexpected error occurred. Please try again.',
+            });
         } finally {
             setActionLoading(null);
         }
     };
 
     const handleActivate = async (company) => {
-        if (!window.confirm(`Are you sure you want to activate ${company.name}?`)) {
-            return;
-        }
+        const confirmed = await confirmModal.confirm({
+            type: 'info',
+            title: 'Activate Company',
+            itemName: company.name,
+            message: `Are you sure you want to activate this company? This will restore their access to the platform.`,
+            confirmLabel: 'Activate',
+            cancelLabel: 'Cancel',
+        });
+
+        if (!confirmed) return;
 
         setActionLoading(company.id);
         try {
             const result = await AdminService.activateCompany(company.id);
             if (result.success) {
                 fetchCompanies();
+                addNotification({
+                    type: 'success',
+                    title: 'Company Activated',
+                    message: `${company.name} has been successfully activated.`,
+                });
             } else {
-                alert(result.message || 'Failed to activate company');
+                addNotification({
+                    type: 'error',
+                    title: 'Activation Failed',
+                    message: result.message || 'Failed to activate company. Please try again.',
+                });
             }
         } catch (error) {
             console.error('Failed to activate company:', error);
-            alert('Failed to activate company: ' + error.message);
+            addNotification({
+                type: 'error',
+                title: 'Error',
+                message: 'An unexpected error occurred. Please try again.',
+            });
         } finally {
             setActionLoading(null);
         }
@@ -722,6 +773,16 @@ export default function CompanyListPage() {
                     </Modal.Content>
                 </Modal.Overlay>
             </Modal>
+
+            {/* Toast Notifications Container */}
+            <ToastContainer
+                notifications={notifications}
+                onDismiss={dismissNotification}
+                position="top-right"
+            />
+
+            {/* Confirmation Modal (renders automatically when confirm() is called) */}
+            <confirmModal.ConfirmModal />
         </div>
     );
 }

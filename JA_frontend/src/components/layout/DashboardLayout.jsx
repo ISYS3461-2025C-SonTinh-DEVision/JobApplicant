@@ -19,7 +19,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, User, Briefcase, Search, Bell, Settings,
   LogOut, Menu, X, ChevronDown, Crown,
-  FileText, TrendingUp, Sun, Moon, PanelLeftClose, PanelLeft, Target
+  FileText, TrendingUp, Sun, Moon, PanelLeftClose, PanelLeft, Target, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
@@ -227,32 +227,59 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
   const { isDark } = useTheme();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, loadNotifications } = useNotifications();
   const { isConnected, isDisconnected, status } = useJMConnection();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Import applications count from useDashboardData for real-time badge
   const [applicationsCount, setApplicationsCount] = useState(0);
 
+  // Function to fetch applications count
+  const fetchApplicationsCount = React.useCallback(async () => {
+    try {
+      const { default: dashboardService } = await import('../../services/DashboardService');
+      const response = await dashboardService.getApplicationHistory();
+      if (response && response.statistics) {
+        setApplicationsCount(response.statistics.totalApplications || 0);
+      }
+    } catch (error) {
+      console.error('[DashboardLayout] Error fetching applications count:', error);
+    }
+  }, []);
+
   // Fetch applications count on mount
   React.useEffect(() => {
-    const fetchApplicationsCount = async () => {
-      try {
-        const { default: dashboardService } = await import('../../services/DashboardService');
-        const response = await dashboardService.getApplicationHistory();
-        if (response && response.statistics) {
-          setApplicationsCount(response.statistics.totalApplications || 0);
-        }
-      } catch (error) {
-        console.error('[DashboardLayout] Error fetching applications count:', error);
+    fetchApplicationsCount();
+  }, [fetchApplicationsCount]);
+
+  // Listen for application changes to update badge in real-time
+  React.useEffect(() => {
+    const handleApplicationUpdate = () => {
+      console.log('[DashboardLayout] Applications updated, refreshing count...');
+      fetchApplicationsCount();
+      // Also refresh notifications for the sidebar notification preview
+      if (loadNotifications) {
+        loadNotifications();
       }
     };
-    fetchApplicationsCount();
-  }, []);
+
+    // Listen for custom events
+    window.addEventListener('applications:updated', handleApplicationUpdate);
+    window.addEventListener('application:created', handleApplicationUpdate);
+    window.addEventListener('application:withdrawn', handleApplicationUpdate);
+    window.addEventListener('application:reapplied', handleApplicationUpdate);
+
+    return () => {
+      window.removeEventListener('applications:updated', handleApplicationUpdate);
+      window.removeEventListener('application:created', handleApplicationUpdate);
+      window.removeEventListener('application:withdrawn', handleApplicationUpdate);
+      window.removeEventListener('application:reapplied', handleApplicationUpdate);
+    };
+  }, [fetchApplicationsCount, loadNotifications]);
 
   // Navigation items - badges always show (even when 0)
   // Navigation items - organized by user workflow priority
-  // Order: Home → Jobs → Applications → Notifications → Profile → Search Profile → Premium → Settings
+  // Order: Home → Jobs → Applications → Notifications → Profile → Search Profile → Job Matches → Premium → Settings
   const navigationItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard', exact: true },
     { to: '/dashboard/jobs', icon: Search, label: 'Find Jobs' },
@@ -260,6 +287,7 @@ export default function DashboardLayout() {
     { to: '/dashboard/notifications', icon: Bell, label: 'Notifications', badge: unreadCount },
     { to: '/dashboard/profile', icon: User, label: 'My Profile' },
     { to: '/dashboard/search-profile', icon: Target, label: 'Search Profile' },
+    { to: '/dashboard/job-matches', icon: Sparkles, label: 'Job Matches' },
     { to: '/dashboard/subscription', icon: Crown, label: 'Premium', highlight: true },
     { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
   ];
