@@ -7,6 +7,19 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green)](https://www.mongodb.com/cloud/atlas)
 [![Java](https://img.shields.io/badge/Java-21-orange)](https://www.oracle.com/java/)
 
+[![Docker](https://img.shields.io/badge/Docker-24+-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Kong](https://img.shields.io/badge/Kong-3.4-003459?logo=kong&logoColor=white)](https://konghq.com/)
+[![Consul](https://img.shields.io/badge/Consul-1.17-CA2171?logo=consul&logoColor=white)](https://www.consul.io/)
+[![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![Kafka](https://img.shields.io/badge/Kafka-Confluent-231F20?logo=apache-kafka&logoColor=white)](https://kafka.apache.org/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-Planned-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Material UI](https://img.shields.io/badge/Material--UI-5-007FFF?logo=mui&logoColor=white)](https://mui.com/)
+[![WebSocket](https://img.shields.io/badge/WebSocket-STOMP-010101?logo=socketdotio&logoColor=white)](https://stomp.github.io/)
+[![Stripe](https://img.shields.io/badge/Stripe-Payment-008CDD?logo=stripe&logoColor=white)](https://stripe.com/)
+[![Cloudinary](https://img.shields.io/badge/Cloudinary-Storage-3448C5?logo=cloudinary&logoColor=white)](https://cloudinary.com/)
+
 ---
 
 ## Table of Contents
