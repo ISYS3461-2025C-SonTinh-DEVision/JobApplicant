@@ -1,5 +1,6 @@
 package com.DEVision.JobApplicant.common.config;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -19,6 +20,7 @@ import com.DEVision.JobApplicant.auth.entity.User;
 import com.DEVision.JobApplicant.auth.repository.AuthRepository;
 import com.DEVision.JobApplicant.common.country.model.Country;
 import com.DEVision.JobApplicant.common.model.PlanType;
+import com.DEVision.JobApplicant.subscription.enums.SubscriptionStatus;
 import com.DEVision.JobApplicant.subscription.service.SubscriptionService;
 import com.DEVision.JobApplicant.subscription.repository.SubscriptionRepository;
 
@@ -79,11 +81,12 @@ public class DataSeeder implements CommandLineRunner {
         
         User savedAdmin = authRepository.save(admin);
         
-        // Create PREMIUM subscription for admin
+        // Create PREMIUM subscription for admin with no expiration
         subscriptionService.createSubscription(
             savedAdmin.getId(), 
             com.DEVision.JobApplicant.subscription.enums.PlanType.PREMIUM
         );
+        ensurePremiumActiveNoExpiration(savedAdmin.getId());
         
         logger.info("Admin account created: {}", adminEmail);
     }
@@ -187,6 +190,10 @@ public class DataSeeder implements CommandLineRunner {
                 com.DEVision.JobApplicant.subscription.enums.PlanType subscriptionPlanType = 
                     com.DEVision.JobApplicant.subscription.enums.PlanType.valueOf(planType.name());
                 subscriptionService.createSubscription(savedUser.getId(), subscriptionPlanType);
+                // Ensure premium subscriptions have no expiration
+                if (planType == PlanType.PREMIUM) {
+                    ensurePremiumActiveNoExpiration(savedUser.getId());
+                }
             }
         } else {
             // Create new User
@@ -203,6 +210,10 @@ public class DataSeeder implements CommandLineRunner {
             com.DEVision.JobApplicant.subscription.enums.PlanType subscriptionPlanType = 
                 com.DEVision.JobApplicant.subscription.enums.PlanType.valueOf(planType.name());
             subscriptionService.createSubscription(savedUser.getId(), subscriptionPlanType);
+            // Ensure premium subscriptions have no expiration
+            if (planType == PlanType.PREMIUM) {
+                ensurePremiumActiveNoExpiration(savedUser.getId());
+            }
         }
 
         // Create Applicant profile
@@ -238,5 +249,21 @@ public class DataSeeder implements CommandLineRunner {
         logger.info("Created applicant: {} {} ({}) with {} subscription",
                     firstName, lastName, country.getDisplayName(), planType);
         return true;
+    }
+
+    /**
+     * Ensures premium subscriptions are active with no expiration date.
+     * This is used for seeder accounts to have permanent premium access.
+     */
+    private void ensurePremiumActiveNoExpiration(String userId) {
+        subscriptionRepository.findByUserId(userId).ifPresent(subscription -> {
+            if (subscription.getPlanType() == com.DEVision.JobApplicant.subscription.enums.PlanType.PREMIUM) {
+                subscription.setStatus(SubscriptionStatus.ACTIVE);
+                subscription.setExpiresAt(null);
+                subscription.setUpdatedAt(Instant.now());
+                subscriptionRepository.save(subscription);
+                logger.info("Updated premium subscription for user {}: ACTIVE with no expiration", userId);
+            }
+        });
     }
 }

@@ -6,6 +6,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import com.DEVision.JobApplicant.common.validator.ValidPhoneNumber;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +24,7 @@ public class Applicant {
     private String firstName;
     private String lastName;
 
+    @ValidPhoneNumber(optional = true)
     private String phoneNumber;
     private String address;
     private String city;
