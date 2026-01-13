@@ -84,6 +84,8 @@ public class SecurityConfig {
 						// Search Profile endpoints - require authentication (Requirement 5.2.x)
 						.requestMatchers("/api/search-profiles/**").authenticated()
 						// Subscription endpoints - require authentication (Requirement 5.1.x)
+						// Exception: payment callback from JM (no auth, but verified via signature)
+						.requestMatchers("/api/subscription/payment/callback").permitAll()
 						.requestMatchers("/api/subscription/**").authenticated()
 						// Notification endpoints - require authentication (user-specific data)
 						.requestMatchers("/api/notifications/**").authenticated()

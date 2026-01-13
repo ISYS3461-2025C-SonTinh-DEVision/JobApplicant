@@ -110,17 +110,30 @@ public class SubscriptionController {
 
     @PostMapping("/payment/callback")
     public ResponseEntity<Void> handlePaymentCallback(@Valid @RequestBody PaymentCallbackRequest request) {
-        // Update transaction status
-        PaymentTransaction transaction = paymentTransactionService.handlePaymentCallback(request);
+        System.out.println("📥 [CALLBACK] Received payment callback: " + request);
+        System.out.println("📥 [CALLBACK] TransactionId: " + request.transactionId() + ", Status: " + request.status());
+        
+        try {
+            // Update transaction status
+            PaymentTransaction transaction = paymentTransactionService.handlePaymentCallback(request);
+            System.out.println("📥 [CALLBACK] Transaction updated for userId: " + transaction.getUserId());
 
-        // Update subscription status based on payment result
-        if (transaction.getStatus() == TransactionStatus.COMPLETED) {
-            subscriptionService.activateSubscription(transaction.getUserId());
-        } else if (transaction.getStatus() == TransactionStatus.FAILED) {
-            subscriptionService.cancelSubscription(transaction.getUserId());
+            // Update subscription status based on payment result
+            if (transaction.getStatus() == TransactionStatus.COMPLETED) {
+                System.out.println("📥 [CALLBACK] Activating subscription for userId: " + transaction.getUserId());
+                subscriptionService.activateSubscription(transaction.getUserId());
+                System.out.println("✅ [CALLBACK] Subscription activated successfully!");
+            } else if (transaction.getStatus() == TransactionStatus.FAILED) {
+                System.out.println("📥 [CALLBACK] Cancelling subscription for userId: " + transaction.getUserId());
+                subscriptionService.cancelSubscription(transaction.getUserId());
+            }
+
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            System.err.println("❌ [CALLBACK] Error processing callback: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
         }
-
-        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/cancel")
