@@ -83,6 +83,7 @@ export function useApplications() {
     return {
         // Data
         applications: paginatedData,
+        allApplications, // Full unfiltered data for status counts
         loading,
         error,
         refreshApplications,

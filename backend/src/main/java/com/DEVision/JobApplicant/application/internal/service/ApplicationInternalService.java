@@ -201,6 +201,34 @@ public class ApplicationInternalService {
     }
     
     /**
+     * Reapply for a job (change status back to PENDING)
+     * Only allowed for WITHDRAWN or REJECTED applications
+     */
+    public ApplicationResponse reapplyApplication(String applicationId, String applicantId) {
+        Application application = applicationService.getApplicationById(applicationId);
+        if (application == null) {
+            return null;
+        }
+        
+        // Verify ownership
+        if (!application.getApplicantId().equals(applicantId)) {
+            return null;
+        }
+        
+        // Only allow reapply for WITHDRAWN or REJECTED applications
+        if (application.getStatus() != Application.ApplicationStatus.WITHDRAWN &&
+            application.getStatus() != Application.ApplicationStatus.REJECTED) {
+            throw new IllegalStateException(
+                "Cannot reapply. Only withdrawn or rejected applications can be reapplied."
+            );
+        }
+        
+        // Reset status to PENDING
+        application = applicationService.updateApplicationStatus(applicationId, Application.ApplicationStatus.PENDING);
+        return application != null ? toResponse(application) : null;
+    }
+    
+    /**
      * Delete application (only if it belongs to the user)
      */
     public boolean deleteApplication(String applicationId, String applicantId) {

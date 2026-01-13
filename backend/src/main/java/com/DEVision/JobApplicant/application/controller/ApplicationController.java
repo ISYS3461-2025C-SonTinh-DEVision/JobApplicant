@@ -336,6 +336,49 @@ public class ApplicationController {
     }
     
     @Operation(
+        summary = "Reapply for a job",
+        description = "Reapply for a job from a withdrawn or rejected application. " +
+                      "Sets the application status back to PENDING."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Reapplied successfully"),
+        @ApiResponse(responseCode = "400", description = "Cannot reapply - application is not withdrawn or rejected"),
+        @ApiResponse(responseCode = "404", description = "Application not found"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PostMapping("/{id}/reapply")
+    public ResponseEntity<?> reapplyApplication(
+            @Parameter(description = "Application ID to reapply")
+            @PathVariable String id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            String applicantId = getUserIdFromUserDetails(userDetails);
+            if (applicantId == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "User not found");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
+            ApplicationResponse response = internalService.reapplyApplication(id, applicantId);
+            if (response != null) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Application not found");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        } catch (IllegalStateException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        } catch (Exception e) {
+            System.err.println("Error reapplying: " + e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to reapply");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+    
+    @Operation(
         summary = "Delete application",
         description = "Delete an application. This will also delete associated files from storage."
     )

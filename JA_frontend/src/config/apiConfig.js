@@ -127,6 +127,8 @@ export const API_ENDPOINTS = {
     BY_ID: (id) => `/api/applications/${id}`,
     // PATCH /api/applications/{id}/withdraw - Withdraw application
     WITHDRAW: (id) => `/api/applications/${id}/withdraw`,
+    // POST /api/applications/{id}/reapply - Reapply for a job (creates new active application)
+    REAPPLY: (id) => `/api/applications/${id}/reapply`,
     // DELETE /api/applications/{id} - Delete application
     DELETE: (id) => `/api/applications/${id}`,
     // GET /api/applications/job/{jobPostId} - Get applications by job post

@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import {
     Search, LayoutGrid, LayoutList, RefreshCw,
     FileText, Clock, CheckCircle, XCircle, Archive, Eye,
-    Briefcase, Building2, MapPin, ChevronRight, AlertCircle
+    Briefcase, Building2, MapPin, ChevronRight, AlertCircle, AlertTriangle, X
 } from 'lucide-react';
 import { ApplicationList } from '../../components/application/ApplicationList';
 import { Pagination } from '../../components/reusable/Pagination';
 import { useApplications } from '../../hooks/useApplications';
 import { useTheme } from '../../context/ThemeContext';
+import { useModal } from '../../components/headless';
 import applicationService from '../../services/ApplicationService';
 
 // Status configuration for timeline view
@@ -31,12 +32,20 @@ export default function MyApplicationsPage() {
     const { isDark } = useTheme();
 
     // View mode toggle state
-    const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'timeline'
+    const [viewMode, setViewMode] = useState('timeline'); // 'cards' or 'timeline'
     const [withdrawing, setWithdrawing] = useState(null);
+    const [selectedApplication, setSelectedApplication] = useState(null);
+
+    // Withdraw confirmation modal using headless useModal hook
+    const withdrawModal = useModal({
+        closeOnEscape: true,
+        closeOnOverlayClick: true,
+    });
 
     const {
         // Data
         applications,
+        allApplications,
         loading,
         error,
         refreshApplications,
@@ -64,20 +73,28 @@ export default function MyApplicationsPage() {
         navigate(`/dashboard/applications/${app.id}`);
     };
 
-    // Handle withdraw application
-    const handleWithdraw = async (application) => {
-        if (!window.confirm(`Withdraw application for ${application.jobTitle}?`)) return;
+    // Open withdraw confirmation modal
+    const openWithdrawModal = (application) => {
+        setSelectedApplication(application);
+        withdrawModal.open();
+    };
 
-        setWithdrawing(application.id);
+    // Execute withdraw after confirmation
+    const executeWithdraw = async () => {
+        if (!selectedApplication) return;
+
+        setWithdrawing(selectedApplication.id);
+        withdrawModal.close();
+
         try {
-            await applicationService.withdrawApplication(application.id);
+            await applicationService.withdrawApplication(selectedApplication.id);
             refreshApplications();
         } catch (err) {
             console.error('Failed to withdraw:', err);
-            // Still refresh to update UI
             refreshApplications();
         } finally {
             setWithdrawing(null);
+            setSelectedApplication(null);
         }
     };
 
@@ -109,15 +126,15 @@ export default function MyApplicationsPage() {
         return formatDate(dateStr);
     };
 
-    // Count applications by status
+    // Count applications by status - use allApplications (full unfiltered data)
     const getStatusCounts = useCallback(() => {
-        const counts = { ALL: applications?.length || 0 };
-        applications?.forEach(app => {
+        const counts = { ALL: allApplications?.length || 0 };
+        allApplications?.forEach(app => {
             const status = app.status?.toUpperCase() || 'PENDING';
             counts[status] = (counts[status] || 0) + 1;
         });
         return counts;
-    }, [applications]);
+    }, [allApplications]);
 
     const statusCounts = getStatusCounts();
 
@@ -143,8 +160,8 @@ export default function MyApplicationsPage() {
                         <button
                             onClick={() => setViewMode('cards')}
                             className={`p-2 rounded-lg transition-all ${viewMode === 'cards'
-                                    ? 'bg-primary-600 text-white shadow-lg'
-                                    : `${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`
+                                ? 'bg-primary-600 text-white shadow-lg'
+                                : `${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`
                                 }`}
                             title="Card View"
                         >
@@ -153,8 +170,8 @@ export default function MyApplicationsPage() {
                         <button
                             onClick={() => setViewMode('timeline')}
                             className={`p-2 rounded-lg transition-all ${viewMode === 'timeline'
-                                    ? 'bg-primary-600 text-white shadow-lg'
-                                    : `${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`
+                                ? 'bg-primary-600 text-white shadow-lg'
+                                : `${isDark ? 'text-dark-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`
                                 }`}
                             title="Timeline View"
                         >
@@ -166,8 +183,8 @@ export default function MyApplicationsPage() {
                     <button
                         onClick={refreshApplications}
                         className={`p-2 rounded-xl border transition-colors ${isDark
-                                ? 'bg-dark-800 border-dark-700 text-dark-300 hover:text-white hover:border-dark-600'
-                                : 'bg-white border-gray-300 text-gray-600 hover:text-gray-900'
+                            ? 'bg-dark-800 border-dark-700 text-dark-300 hover:text-white hover:border-dark-600'
+                            : 'bg-white border-gray-300 text-gray-600 hover:text-gray-900'
                             }`}
                         title="Refresh"
                     >
@@ -207,11 +224,11 @@ export default function MyApplicationsPage() {
                         {...getFilterSelectProps('status')}
                     >
                         <option value="">All Status</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Reviewed">Under Review</option>
-                        <option value="Accepted">Accepted</option>
-                        <option value="Rejected">Rejected</option>
-                        <option value="Withdrawn">Withdrawn</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="REVIEWING">Under Review</option>
+                        <option value="ACCEPTED">Accepted</option>
+                        <option value="REJECTED">Rejected</option>
+                        <option value="WITHDRAWN">Withdrawn</option>
                     </select>
                 )}
             </div>
@@ -228,7 +245,7 @@ export default function MyApplicationsPage() {
                         return (
                             <button
                                 key={status}
-                                onClick={() => updateFilter('status', status === 'ALL' ? '' : status.toLowerCase())}
+                                onClick={() => updateFilter('status', status === 'ALL' ? '' : status)}
                                 className={`
                                     px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2
                                     ${isActive
@@ -340,13 +357,13 @@ export default function MyApplicationsPage() {
 
                                                 {showWithdraw && (
                                                     <button
-                                                        onClick={() => handleWithdraw(application)}
+                                                        onClick={() => openWithdrawModal(application)}
                                                         disabled={withdrawing === application.id}
                                                         className={`p-2.5 rounded-xl transition-colors ${withdrawing === application.id
-                                                                ? 'opacity-50 cursor-not-allowed'
-                                                                : isDark
-                                                                    ? 'hover:bg-red-900/30 text-dark-400 hover:text-red-400'
-                                                                    : 'hover:bg-red-50 text-gray-400 hover:text-red-600'
+                                                            ? 'opacity-50 cursor-not-allowed'
+                                                            : isDark
+                                                                ? 'hover:bg-red-900/30 text-dark-400 hover:text-red-400'
+                                                                : 'hover:bg-red-50 text-gray-400 hover:text-red-600'
                                                             }`}
                                                         title="Withdraw Application"
                                                     >
@@ -370,8 +387,8 @@ export default function MyApplicationsPage() {
                                                 isDark={isDark}
                                             />
                                             <div className={`h-0.5 w-8 ${['REVIEWING', 'REVIEWED', 'ACCEPTED', 'REJECTED'].includes(statusKey)
-                                                    ? 'bg-primary-500'
-                                                    : isDark ? 'bg-dark-600' : 'bg-gray-200'
+                                                ? 'bg-primary-500'
+                                                : isDark ? 'bg-dark-600' : 'bg-gray-200'
                                                 }`} />
                                             <TimelineStep
                                                 label="Reviewing"
@@ -380,8 +397,8 @@ export default function MyApplicationsPage() {
                                                 isDark={isDark}
                                             />
                                             <div className={`h-0.5 w-8 ${['ACCEPTED', 'REJECTED'].includes(statusKey)
-                                                    ? statusKey === 'ACCEPTED' ? 'bg-green-500' : 'bg-red-500'
-                                                    : isDark ? 'bg-dark-600' : 'bg-gray-200'
+                                                ? statusKey === 'ACCEPTED' ? 'bg-green-500' : 'bg-red-500'
+                                                : isDark ? 'bg-dark-600' : 'bg-gray-200'
                                                 }`} />
                                             <TimelineStep
                                                 label={statusKey === 'ACCEPTED' ? 'Accepted' : statusKey === 'REJECTED' ? 'Rejected' : 'Decision'}
@@ -434,6 +451,100 @@ export default function MyApplicationsPage() {
                     showInfo={true}
                     variant={isDark ? 'dark' : 'light'}
                 />
+            )}
+
+            {/* Withdraw Confirmation Modal */}
+            {withdrawModal.isOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    {...withdrawModal.getOverlayProps()}
+                >
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
+
+                    {/* Modal Content */}
+                    <div
+                        className={`
+                            relative w-full max-w-md transform transition-all duration-300 ease-out
+                            ${isDark ? 'bg-dark-800 border-dark-700' : 'bg-white border-gray-200'}
+                            rounded-2xl border shadow-2xl
+                        `}
+                        {...withdrawModal.getContentProps()}
+                    >
+                        {/* Close Button */}
+                        <button
+                            className={`
+                                absolute top-4 right-4 p-2 rounded-xl transition-colors
+                                ${isDark ? 'hover:bg-dark-700 text-dark-400' : 'hover:bg-gray-100 text-gray-500'}
+                            `}
+                            {...withdrawModal.getCloseButtonProps()}
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        {/* Header */}
+                        <div className="p-6 pb-4">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 rounded-2xl bg-red-500/20">
+                                    <AlertTriangle className="w-8 h-8 text-red-500" />
+                                </div>
+                                <div>
+                                    <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                        Withdraw Application
+                                    </h3>
+                                    <p className={`text-sm mt-1 ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                                        This action cannot be undone
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className={`px-6 py-4 border-t border-b ${isDark ? 'border-dark-700 bg-dark-900/50' : 'border-gray-100 bg-gray-50'}`}>
+                            {selectedApplication && (
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <Briefcase className={`w-5 h-5 ${isDark ? 'text-dark-400' : 'text-gray-400'}`} />
+                                        <div>
+                                            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                                {selectedApplication.jobTitle}
+                                            </p>
+                                            <p className={`text-sm ${isDark ? 'text-dark-400' : 'text-gray-500'}`}>
+                                                {selectedApplication.companyName}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <p className={`text-sm ${isDark ? 'text-dark-300' : 'text-gray-600'}`}>
+                                        Are you sure you want to withdraw your application?
+                                        Don't worry — you can reapply for this position later if you change your mind.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 pt-4 flex items-center justify-end gap-3">
+                            <button
+                                onClick={withdrawModal.close}
+                                className={`
+                                    px-5 py-2.5 rounded-xl font-medium transition-all
+                                    ${isDark
+                                        ? 'bg-dark-700 text-dark-200 hover:bg-dark-600 hover:text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }
+                                `}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={executeWithdraw}
+                                className="px-5 py-2.5 rounded-xl font-medium bg-red-600 hover:bg-red-700 text-white transition-all shadow-lg shadow-red-500/30 hover:shadow-red-500/40"
+                            >
+                                Withdraw Application
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
