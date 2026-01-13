@@ -604,9 +604,9 @@ The system includes pre-populated test accounts for immediate testing:
 |-------|----------|------|--------------|---------|
 | admin@devision.sbs | Admin123! | ADMIN | PREMIUM | Vietnam |
 | nguyen.an@gmail.com | Applicant@123 | APPLICANT | PREMIUM | Vietnam |
-| tran.bich@gmail.com | Applicant@123 | APPLICANT | FREEMIUM | Singapore |
+| tran.bich@gmail.com | Applicant@123 | APPLICANT | FREEMIUM | VIETNAM |
 | lee.weiming@gmail.com | Applicant@123 | APPLICANT | PREMIUM | Singapore |
-| tan.meilin@outlook.com | Applicant@123 | APPLICANT | FREEMIUM | United States |
+| tan.meilin@outlook.com | Applicant@123 | APPLICANT | FREEMIUM | Singapore |
 | james.smith@gmail.com | Applicant@123 | APPLICANT | FREEMIUM | AUSTRALIA |
 
 ### Core Features to Test
