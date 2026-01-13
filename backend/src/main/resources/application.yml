@@ -48,14 +48,14 @@ spring:
       password: ${REDIS_PASSWORD:}
       database: 0
       timeout: 60000
-      # ssl:
-      #   enabled: ${REDIS_SSL_ENABLED:false}
-      jedis:
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+      lettuce:
         pool:
           max-active: 8
           max-idle: 8
           min-idle: 0
-          max-wait: -1
+          max-wait: -1ms
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
