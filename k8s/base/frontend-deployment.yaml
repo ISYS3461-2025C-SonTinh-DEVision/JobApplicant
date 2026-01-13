@@ -1,0 +1,78 @@
+# DEVision Job Applicant - Frontend Deployment
+# React application serving JA UI
+# Ultimo D.3.4: Kubernetes deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ja-frontend
+  namespace: devision-ja
+  labels:
+    app: devision
+    component: frontend
+    subsystem: job-applicant
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devision
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: devision
+        component: frontend
+        subsystem: job-applicant
+    spec:
+      containers:
+        - name: frontend
+          image: jobapplicant-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: REACT_APP_API_GATEWAY_URL
+              value: "http://kong-gateway:8000"
+            - name: REACT_APP_API_URL
+              value: "http://ja-backend:8080"
+            - name: REACT_APP_CONSUL_URL
+              value: "http://consul:8500"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "250m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+---
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ja-frontend
+  namespace: devision-ja
+  labels:
+    app: devision
+    component: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    app: devision
+    component: frontend

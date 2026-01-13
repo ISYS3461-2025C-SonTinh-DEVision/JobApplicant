@@ -1,0 +1,30 @@
+# DEVision Job Applicant - Development Overlay Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: devision-ja
+
+resources:
+  - ../../base
+
+# Development-specific patches
+patches:
+  # Reduce replicas for development
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: ja-backend
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: ja-frontend
+
+# Development labels
+commonLabels:
+  environment: development

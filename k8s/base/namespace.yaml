@@ -1,0 +1,10 @@
+# DEVision Job Applicant - Kubernetes Namespace
+# Ultimo D.3.4: Deploy the DEVision ecosystem using Kubernetes
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devision-ja
+  labels:
+    app: devision
+    subsystem: job-applicant
+    environment: development

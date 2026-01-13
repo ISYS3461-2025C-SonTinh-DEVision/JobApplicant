@@ -1,0 +1,201 @@
+# DEVision Job Applicant - Kong API Gateway Deployment
+# Ultimo D.3.1: Communication applies API Gateway
+# D.3.3: API Gateway hosted separately from frontends/backends
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong-gateway
+  namespace: devision-ja
+  labels:
+    app: devision
+    component: api-gateway
+    subsystem: job-applicant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devision
+      component: api-gateway
+  template:
+    metadata:
+      labels:
+        app: devision
+        component: api-gateway
+        subsystem: job-applicant
+    spec:
+      containers:
+        - name: kong
+          image: kong:3.4
+          ports:
+            - containerPort: 8000
+              name: proxy
+            - containerPort: 8001
+              name: admin
+          env:
+            - name: KONG_DATABASE
+              value: "off"
+            - name: KONG_DECLARATIVE_CONFIG
+              value: "/kong/kong.yml"
+            - name: KONG_PROXY_ACCESS_LOG
+              value: "/dev/stdout"
+            - name: KONG_ADMIN_ACCESS_LOG
+              value: "/dev/stdout"
+            - name: KONG_PROXY_ERROR_LOG
+              value: "/dev/stderr"
+            - name: KONG_ADMIN_ERROR_LOG
+              value: "/dev/stderr"
+            - name: KONG_ADMIN_LISTEN
+              value: "0.0.0.0:8001"
+            - name: KONG_PROXY_LISTEN
+              value: "0.0.0.0:8000"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "250m"
+          volumeMounts:
+            - name: kong-config
+              mountPath: /kong
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: 8001
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: kong-config
+          configMap:
+            name: kong-config
+---
+# Kong Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-gateway
+  namespace: devision-ja
+  labels:
+    app: devision
+    component: api-gateway
+spec:
+  type: LoadBalancer  # External access
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: proxy
+    - port: 8001
+      targetPort: 8001
+      protocol: TCP
+      name: admin
+  selector:
+    app: devision
+    component: api-gateway
+---
+# Kong Configuration ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-config
+  namespace: devision-ja
+  labels:
+    app: devision
+    component: api-gateway
+data:
+  kong.yml: |
+    _format_version: "3.0"
+    _transform: true
+
+    # Kong Gateway Declarative Configuration (Kubernetes)
+    # DEVision Job Applicant - Ultimo Level (D.3.1)
+
+    services:
+      # Job Applicant Backend Service - Main API
+      - name: ja-backend
+        url: http://ja-backend:8080
+        routes:
+          - name: ja-api-route
+            paths:
+              - /api
+            strip_path: false
+            preserve_host: true
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - PUT
+                - PATCH
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-Type
+                - Authorization
+                - X-Requested-With
+              exposed_headers:
+                - X-Auth-Token
+              credentials: true
+              max_age: 3600
+
+      # WebSocket endpoint for real-time notifications (Ultimo 5.3.1)
+      - name: websocket-service
+        url: http://ja-backend:8080
+        routes:
+          - name: websocket-route
+            paths:
+              - /ws
+            strip_path: false
+            protocols:
+              - http
+              - https
+
+      # Health check endpoint
+      - name: health-service
+        url: http://ja-backend:8080
+        routes:
+          - name: health-route
+            paths:
+              - /health
+            strip_path: false
+            methods:
+              - GET
+
+      # Actuator endpoints for monitoring
+      - name: actuator-service
+        url: http://ja-backend:8080
+        routes:
+          - name: actuator-route
+            paths:
+              - /actuator
+            strip_path: false
+            methods:
+              - GET
+
+    # Global plugins
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 200
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+
+    # Upstream definitions for load balancing
+    upstreams:
+      - name: ja-backend-upstream
+        targets:
+          - target: ja-backend:8080
+            weight: 100
