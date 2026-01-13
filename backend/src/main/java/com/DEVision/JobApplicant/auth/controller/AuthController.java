@@ -167,8 +167,14 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
 
     /**
      * Login endpoint with brute-force protection
+     * 
+     * Requirement 2.1.1: Protocol-aware authentication
+     * - If HTTPS: Credentials are sent in plaintext within request body
+     * - If HTTP (no HTTPS): Credentials are sent using Basic Authentication header
+     * 
+     * This endpoint supports both methods for maximum compatibility.
      */
-    @Operation(summary = "User login", description = "Authenticate user and return JWT tokens in HttpOnly cookies. Protected against brute-force attacks: max 5 attempts per 60 seconds.")
+    @Operation(summary = "User login", description = "Authenticate user and return JWT tokens in HttpOnly cookies. Protected against brute-force attacks: max 5 attempts per 60 seconds. Supports both Basic Auth header (HTTP) and JSON body (HTTPS).")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Login successful"),
         @ApiResponse(responseCode = "401", description = "Invalid credentials or account not activated"),
@@ -176,10 +182,48 @@ public ResponseEntity<RegistrationResponse> registerUser(@Valid @RequestBody Reg
     })
     @PostMapping("/login")
     public ResponseEntity<?> login(
-            @Valid @RequestBody LoginRequest loginRequest,
+            @RequestBody(required = false) LoginRequest loginRequest,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             HttpServletResponse response) {
         try {
-            AuthResponse authResponse = authInternalService.login(loginRequest);
+            String email;
+            String password;
+            
+            // Per Requirement 2.1.1: Support both Basic Auth header and JSON body
+            if (authorizationHeader != null && authorizationHeader.startsWith("Basic ")) {
+                // HTTP mode: Parse Basic Authentication header
+                // Format: "Basic base64(email:password)"
+                try {
+                    String base64Credentials = authorizationHeader.substring("Basic ".length());
+                    String credentials = new String(java.util.Base64.getDecoder().decode(base64Credentials));
+                    String[] parts = credentials.split(":", 2);
+                    if (parts.length != 2) {
+                        throw new IllegalArgumentException("Invalid Basic Authentication format");
+                    }
+                    email = parts[0];
+                    password = parts[1];
+                    System.out.println("[AuthController] Using Basic Authentication (HTTP mode)");
+                } catch (IllegalArgumentException e) {
+                    return new ResponseEntity<>(
+                        Map.of("message", "Invalid Basic Authentication format"),
+                        HttpStatus.BAD_REQUEST
+                    );
+                }
+            } else if (loginRequest != null && loginRequest.getEmail() != null && loginRequest.getPassword() != null) {
+                // HTTPS mode: Read credentials from JSON body
+                email = loginRequest.getEmail();
+                password = loginRequest.getPassword();
+                System.out.println("[AuthController] Using JSON body authentication (HTTPS mode)");
+            } else {
+                return new ResponseEntity<>(
+                    Map.of("message", "Credentials required. Use Basic Auth header or JSON body with email/password."),
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+            
+            // Create LoginRequest for service
+            LoginRequest request = new LoginRequest(email, password);
+            AuthResponse authResponse = authInternalService.login(request);
 
             // Set HTTP-only cookie for access token (5 hours)
             Cookie accessTokenCookie = HttpOnlyCookieConfig.createCookie(AuthConfig.AUTH_COOKIE_NAME, authResponse.getAccessToken());

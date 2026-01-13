@@ -27,13 +27,21 @@ class AuthService {
 
   /**
    * Login user
+   * Requirement 2.1.1: Protocol-aware authentication
+   * - If HTTPS: Credentials sent in plaintext request body
+   * - If HTTP (no HTTPS): Credentials sent via Basic Authentication header
    * @param {Object} credentials - Login credentials
    * @param {string} credentials.email - User email
    * @param {string} credentials.password - User password
    * @returns {Promise<Object>} Login response with access token
    */
   async login(credentials) {
-    const response = await httpUtil.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
+    // Use protocol-aware authentication per requirement 2.1.1
+    const response = await httpUtil.loginWithCredentials(
+      API_ENDPOINTS.AUTH.LOGIN,
+      credentials.email,
+      credentials.password
+    );
 
     // Store access token if returned
     if (response?.accessToken) {

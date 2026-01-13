@@ -1,10 +1,16 @@
 /**
  * API Configuration
  * Centralized configuration for all API endpoints
+ * 
+ * Ultimo D.3.1: Communication applies API Gateway and Service Discovery
+ * - All API calls route through Kong Gateway (port 8000)
+ * - Kong routes to backend services (ja-backend on port 8080)
+ * - Service Discovery via Consul tracks service health
  */
 
-// Base API URL - Backend server
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+// Base API URL - Routes through Kong API Gateway (Ultimo D.3.1)
+// Kong Gateway listens on port 8000 and routes to backend services
+export const API_BASE_URL = process.env.REACT_APP_API_GATEWAY_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 // Job Manager API URL - External backend for job posts and companies
 export const JOB_MANAGER_API_URL = process.env.REACT_APP_JOB_MANAGER_API_URL || 'https://jobmanager-backend-production.up.railway.app';

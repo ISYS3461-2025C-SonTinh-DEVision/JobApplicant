@@ -81,6 +81,63 @@ class HttpUtil {
   }
 
   /**
+   * Check if connection uses HTTPS
+   * Per Requirement 2.1.1: If HTTPS is applied, credentials can be sent in plaintext
+   * If HTTP, must use Basic Authentication format
+   * @returns {boolean} True if HTTPS is used
+   */
+  isHttps() {
+    // Check both frontend URL and API base URL
+    const frontendIsHttps = window.location.protocol === 'https:';
+    const apiIsHttps = this.baseURL.startsWith('https://');
+    return frontendIsHttps || apiIsHttps;
+  }
+
+  /**
+   * Build Basic Authentication header
+   * Per Requirement 2.1.1: If system does not use HTTPS, 
+   * frontend shall send credentials using Basic Authentication format
+   * @param {string} email - User email
+   * @param {string} password - User password
+   * @returns {string} Basic Auth header value
+   */
+  buildBasicAuthHeader(email, password) {
+    const credentials = `${email}:${password}`;
+    const encoded = btoa(credentials); // Base64 encode
+    return `Basic ${encoded}`;
+  }
+
+  /**
+   * Login with credentials - Protocol-aware authentication
+   * Per Requirement 2.1.1:
+   * - If HTTPS: Send credentials in plaintext within request body
+   * - If HTTP: Send credentials using Basic Authentication header
+   * 
+   * @param {string} endpoint - Login API endpoint
+   * @param {string} email - User email
+   * @param {string} password - User password
+   * @returns {Promise<any>} Login response
+   */
+  async loginWithCredentials(endpoint, email, password) {
+    const useHttps = this.isHttps();
+
+    if (useHttps) {
+      // HTTPS: Send credentials in plaintext body (per 2.1.1)
+      console.log('[httpUtil] Using HTTPS - sending credentials in request body');
+      return this.post(endpoint, { email, password });
+    } else {
+      // HTTP: Use Basic Authentication header (per 2.1.1)
+      console.log('[httpUtil] Using HTTP - sending credentials via Basic Authentication header');
+      const basicAuthHeader = this.buildBasicAuthHeader(email, password);
+      return this.post(endpoint, {}, {
+        headers: {
+          'Authorization': basicAuthHeader
+        }
+      });
+    }
+  }
+
+  /**
    * Apply request interceptors
    * @param {Object} config - Request configuration
    * @returns {Object} Modified configuration

@@ -7,8 +7,7 @@ _transform: true
 services:
   # Job Applicant Backend Service - Main API
   - name: ja-backend
-    url: https://backend:8080
-    tls_verify: false  # Skip SSL verification for internal Cloudflare Origin cert
+    url: http://backend:8080
     routes:
       - name: ja-api-route
         paths:
@@ -39,10 +38,21 @@ services:
           credentials: true
           max_age: 3600
 
+  # WebSocket endpoint for real-time notifications (Ultimo 5.3.1)
+  - name: websocket-service
+    url: http://backend:8080
+    routes:
+      - name: websocket-route
+        paths:
+          - /ws
+        strip_path: false
+        protocols:
+          - http
+          - https
+
   # Health check endpoint (routed via Kong)
   - name: health-service
-    url: https://backend:8080
-    tls_verify: false
+    url: http://backend:8080
     routes:
       - name: health-route
         paths:
@@ -53,8 +63,7 @@ services:
 
   # Actuator endpoints for monitoring
   - name: actuator-service
-    url: https://backend:8080
-    tls_verify: false
+    url: http://backend:8080
     routes:
       - name: actuator-route
         paths:
