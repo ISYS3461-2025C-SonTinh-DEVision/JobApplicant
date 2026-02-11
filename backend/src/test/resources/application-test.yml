@@ -3,6 +3,8 @@ app:
     base-url: http://localhost:3000
   mail:
     from: test@example.com
+    resend:
+      api-key: test-resend-api-key
 
 spring:
   data:
@@ -38,3 +40,6 @@ spring:
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
+
+cognito:
+  client-secret: test-cognito-secret
