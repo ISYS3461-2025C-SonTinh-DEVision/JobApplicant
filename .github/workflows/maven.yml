@@ -53,5 +53,4 @@ jobs:
       working-directory: backend
       env:
         FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
-        MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
       run: mvn -B package --file pom.xml
