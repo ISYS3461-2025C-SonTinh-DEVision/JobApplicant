@@ -19,7 +19,7 @@ app:
     from-name: ${MAIL_FROM_NAME:DEVision}
     resend:
       # Resend API Key for HTTP-based email sending
-      api-key: ${MAIL_PASSWORD:re_LiDzSkL7_HtCBpf7dvcrRbi3kSDLyMH8P}
+      api-key: ${MAIL_PASSWORD}
 
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME}
