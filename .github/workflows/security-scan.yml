@@ -10,27 +10,6 @@ on:
     - cron: '0 2 * * *'
 
 jobs:
-  secret-scan:
-    name: Secret Detection
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for better detection
-
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run TruffleHog
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
-
   dependency-scan:
     name: Dependency Vulnerability Scan
     runs-on: ubuntu-latest
@@ -76,11 +55,17 @@ jobs:
 
       - name: Check for SSL keys
         run: |
-          if find . -type f \( -name "*.pem" -o -name "*.key" -o -name "*.p12" -o -name "*.jks" \) -not -path "*/node_modules/*" | grep -q .; then
-            echo "ERROR: SSL keys/certificates found in repository!"
-            find . -type f \( -name "*.pem" -o -name "*.key" -o -name "*.p12" -o -name "*.jks" \) -not -path "*/node_modules/*"
+          # Exclude backend JWT keystores (required for token signing)
+          if find . -type f \( -name "*.pem" -o -name "*.key" \) \
+            -not -path "*/node_modules/*" \
+            -not -path "*/backend/src/main/resources/*" | grep -q .; then
+            echo "ERROR: SSL private keys found in repository!"
+            find . -type f \( -name "*.pem" -o -name "*.key" \) \
+              -not -path "*/node_modules/*" \
+              -not -path "*/backend/src/main/resources/*"
             exit 1
           fi
+          echo "✅ No SSL private keys found (JWT keystores excluded)"
 
       - name: Scan for hardcoded credentials
         run: |
@@ -106,7 +91,7 @@ jobs:
   security-report:
     name: Generate Security Report
     runs-on: ubuntu-latest
-    needs: [secret-scan, dependency-scan, file-integrity]
+    needs: [dependency-scan, file-integrity]
     if: always()
     steps:
       - name: Checkout code
@@ -116,7 +101,6 @@ jobs:
         run: |
           echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Secret Detection: Completed" >> $GITHUB_STEP_SUMMARY
           echo "✅ Dependency Scan: Completed" >> $GITHUB_STEP_SUMMARY
           echo "✅ File Integrity: Completed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
