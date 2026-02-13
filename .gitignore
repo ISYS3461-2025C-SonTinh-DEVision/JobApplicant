@@ -38,6 +38,11 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env.backend
+.env.frontend
+deploy/**/.env.backend
+deploy/**/.env.frontend
+!**/*.example
 
 # Database
 *.db
@@ -49,6 +54,14 @@ tmp/
 temp/
 *.tmp
 *.temp
+
+# SSL Certificates and Private Keys (frontend SSL)
+JA_frontend/ssl/
+*.key
+
+# Allow JWT keystore files in backend (required for token signing)
+!backend/src/main/resources/*.keystore
+!backend/src/main/resources/*.p12
 
 # Documentation Build Artifacts (if using tools like Sphinx)
 docs/_build/
@@ -74,6 +87,14 @@ coverage/
 # Docker
 .dockerignore
 docker-compose.override.yml
+
+# Redis dumps
+dump.rdb
+*.rdb
+
+# Sensitive deployment scripts with hardcoded credentials
+deploy/**/*.sh
+!deploy/**/*.example.sh
 
 backend/.claude/
 backend/CLAUDE.md

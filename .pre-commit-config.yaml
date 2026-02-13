@@ -1,0 +1,118 @@
+# Pre-commit hooks to prevent secrets from being committed
+# Install: pip install pre-commit
+# Setup: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: detect-private-key
+        name: Detect Private Keys
+        description: Detects the presence of private keys
+      
+      - id: check-added-large-files
+        name: Check for Large Files
+        args: ['--maxkb=500']
+        description: Prevents giant files from being committed
+      
+      - id: check-merge-conflict
+        name: Check for Merge Conflicts
+        description: Ensures no merge conflict markers are present
+      
+      - id: trailing-whitespace
+        name: Trim Trailing Whitespace
+        args: [--markdown-linebreak-ext=md]
+      
+      - id: end-of-file-fixer
+        name: Fix End of Files
+        description: Ensures files end with a newline
+      
+      - id: check-yaml
+        name: Check YAML
+        description: Validates YAML files
+        exclude: ^k8s/  # Exclude k8s as they may have templates
+      
+      - id: check-json
+        name: Check JSON
+        description: Validates JSON files
+
+  # Secret detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect Secrets
+        args: 
+          - '--baseline'
+          - '.secrets.baseline'
+          - '--exclude-files'
+          - '.*\.example$'
+          - '--exclude-files'
+          - '.*\.md$'
+          - '--exclude-files'
+          - 'package-lock\.json'
+        description: Detects secrets in staged files
+
+  # Additional secret scanning
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.0
+    hooks:
+      - id: gitleaks
+        name: GitLeaks Secret Scan
+        description: Scans for hardcoded secrets
+
+  # Prevent committing certain files
+  - repo: local
+    hooks:
+      - id: prevent-env-files
+        name: Prevent .env files
+        entry: bash -c 'if git diff --cached --name-only | grep -E "\\.env$|\\.env\\..*(?<!example)$"; then echo "ERROR: Attempting to commit .env files. Use .env.example instead."; exit 1; fi'
+        language: system
+        pass_filenames: false
+      
+      - id: prevent-ssl-keys
+        name: Prevent SSL Keys
+        entry: bash -c 'if git diff --cached --name-only | grep -E "\\.(pem|key|crt|cer|p12|jks|pfx)$"; then echo "ERROR: Attempting to commit SSL certificates/keys. These should NEVER be committed."; exit 1; fi'
+        language: system
+        pass_filenames: false
+      
+      - id: prevent-deployment-scripts
+        name: Prevent deployment scripts with secrets
+        entry: bash -c 'if git diff --cached --name-only | grep -E "deploy/.*\\.sh$" | grep -v "\\.example\\.sh$"; then echo "ERROR: Attempting to commit deployment script. Use .example.sh template instead."; exit 1; fi'
+        language: system
+        pass_filenames: false
+      
+      - id: scan-for-mongodb-uri
+        name: Scan for MongoDB URIs
+        entry: bash -c 'if git diff --cached --diff-filter=AM | grep -Ei "mongodb\\+srv://[^:]+:[^@]+@"; then echo "ERROR: MongoDB URI with credentials detected. Use environment variables."; exit 1; fi'
+        language: system
+        pass_filenames: false
+      
+      - id: scan-for-api-keys
+        name: Scan for API Keys
+        entry: bash -c 'if git diff --cached --diff-filter=AM | grep -Ei "(api_key|apikey|api-key)\\s*[:=]\\s*[\"'\''][^\"'\'']{20,}"; then echo "ERROR: API key detected in staged files. Use environment variables."; exit 1; fi'
+        language: system
+        pass_filenames: false
+
+# Run these checks on every commit
+default_stages: [commit]
+
+# Exclude these files/directories
+exclude: |
+  (?x)^(
+    node_modules/|
+    .git/|
+    target/|
+    build/|
+    dist/|
+    .*\.lock$|
+    .*\.example$
+  )$
+
+# Fail fast on first hook failure
+fail_fast: false
+
+# Show verbose output
+verbose: true

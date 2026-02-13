@@ -1,0 +1,123 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security scan daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better detection
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [backend, frontend]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Snyk - Backend
+        if: matrix.component == 'backend'
+        uses: snyk/actions/maven@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=backend/pom.xml
+
+      - name: Run Snyk - Frontend
+        if: matrix.component == 'frontend'
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=JA_frontend/package.json
+
+  file-integrity:
+    name: Verify No Secrets in Repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for .env files
+        run: |
+          if find . -name ".env" -not -path "*/node_modules/*" | grep -q .; then
+            echo "ERROR: .env files found in repository!"
+            find . -name ".env" -not -path "*/node_modules/*"
+            exit 1
+          fi
+
+      - name: Check for SSL keys
+        run: |
+          if find . -type f \( -name "*.pem" -o -name "*.key" -o -name "*.p12" -o -name "*.jks" \) -not -path "*/node_modules/*" | grep -q .; then
+            echo "ERROR: SSL keys/certificates found in repository!"
+            find . -type f \( -name "*.pem" -o -name "*.key" -o -name "*.p12" -o -name "*.jks" \) -not -path "*/node_modules/*"
+            exit 1
+          fi
+
+      - name: Scan for hardcoded credentials
+        run: |
+          # Check for MongoDB URIs with credentials
+          if git grep -E "mongodb\+srv://[^:]+:[^@]+@" -- '*.sh' '*.yml' '*.yaml' '*.env*' ':!*.example' ':!*.md'; then
+            echo "ERROR: Hardcoded MongoDB credentials found!"
+            exit 1
+          fi
+          
+          # Check for API keys (basic pattern)
+          if git grep -E "(api_key|apikey|api-key)\s*[:=]\s*[\"'][a-zA-Z0-9]{20,}" -- '*.sh' '*.yml' '*.yaml' '*.env*' ':!*.example' ':!*.md'; then
+            echo "WARNING: Potential API keys found - please verify"
+          fi
+
+      - name: Check for Redis dumps
+        run: |
+          if find . -name "*.rdb" -not -path "*/node_modules/*" | grep -q .; then
+            echo "ERROR: Redis dump files found in repository!"
+            find . -name "*.rdb" -not -path "*/node_modules/*"
+            exit 1
+          fi
+
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [secret-scan, dependency-scan, file-integrity]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Security Summary
+        run: |
+          echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Secret Detection: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Dependency Scan: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ File Integrity: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See job logs for detailed results." >> $GITHUB_STEP_SUMMARY
