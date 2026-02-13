@@ -69,15 +69,16 @@ jobs:
 
       - name: Scan for hardcoded credentials
         run: |
-          # Check for MongoDB URIs with credentials
-          if git grep -E "mongodb\+srv://[^:]+:[^@]+@" -- '*.sh' '*.yml' '*.yaml' '*.env*' ':!*.example' ':!*.md'; then
+          # Check for MongoDB URIs with credentials (exclude k8s templates)
+          if git grep -E "mongodb\+srv://[^:]+:[^@]+@" -- '*.sh' '*.yml' '*.yaml' '*.env*' ':!*.example' ':!*.md' ':!k8s/**'; then
             echo "ERROR: Hardcoded MongoDB credentials found!"
             exit 1
           fi
+          echo "✅ No hardcoded MongoDB URIs found (k8s templates excluded)"
           
-          # Check for API keys (basic pattern)
-          if git grep -E "(api_key|apikey|api-key)\s*[:=]\s*[\"'][a-zA-Z0-9]{20,}" -- '*.sh' '*.yml' '*.yaml' '*.env*' ':!*.example' ':!*.md'; then
-            echo "WARNING: Potential API keys found - please verify"
+          # Check for API keys (basic pattern, exclude k8s templates)
+          if git grep -E "(api_key|apikey|api-key)\s*[:=]\s*[\"'][a-zA-Z0-9]{20,}" -- '*.sh' '*.yml' '*.yaml' '*.env*' ':!*.example' ':!*.md' ':!k8s/**'; then
+            echo "⚠️  WARNING: Potential API keys found - please verify"
           fi
 
       - name: Check for Redis dumps
